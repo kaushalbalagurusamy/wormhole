@@ -6,7 +6,7 @@ Report a vulnerability privately through GitHub's "Report a vulnerability" form 
 
 ## Scope
 
-wormhole assumes machines that trust each other on a private network (Tailscale or similar). In scope:
+wormhole assumes honest, enrolled devices on a private network (Tailscale); see the fault model in docs/design.md. Participants do not lie, but they crash, run buggy builds and relay untrusted text, so the checks below still matter. In scope:
 
 - The hub accepting a connection it cannot identify, or letting one connection act for a session, user or machine it does not own.
 - Lease bypass: a stale fencing token accepted, a lease released or granted by a non-holder.
@@ -15,12 +15,13 @@ wormhole assumes machines that trust each other on a private network (Tailscale 
 - The daemon's loopback HTTP endpoint or Unix socket being usable from a browser or another local user.
 - Hooks blocking work when the hub or daemon is down. They must fail open; a protected path is denied only while the hub answers and reports another holder.
 
-Out of scope: participants who are already trusted acting maliciously within their own permissions, denial of service from a trusted peer, and anything requiring the hub to be exposed to the public internet (unsupported).
+Out of scope: an enrolled participant lying on purpose (no Byzantine fault tolerance: false activity, hoarding leases, a dishonest hub), denial of service from an enrolled peer, a compromised device that was admitted to the tailnet, and anything requiring the hub to be exposed to the public internet (unsupported). The same behaviour caused by a bug, such as an agent loop, is in scope.
 
 ## Threat model notes
 
 Covered:
 
+- Transport: participants trust each other, the network path is not trusted. The hub serves plaintext only on loopback or a Tailscale address, where WireGuard encrypts the path, and the daemon sends plaintext only to such an address or a `*.ts.net` name. Elsewhere TLS is required: the hub serves `wss://` and `https://` with rustls (no OpenSSL), and the daemon verifies the certificate against the system roots; there is no option to skip verification. A renewed certificate is loaded on SIGHUP. Tests cover a verified round trip and rejection of an untrusted, expired or misnamed certificate.
 - Identity comes from the network (`tailscale whois` on the peer address), never from the payload. whois runs once for every new connection or HTTP request and is never cached, so a tailnet address reassigned to another node is identified afresh; if whois fails or returns no user and node, the connection is refused (identity fails closed, unlike hooks). Static identity is for tests; the hub refuses it unless bound to loopback and rejects non-loopback peers.
 - Relayed text is cleaned before it reaches a model: control characters and all Unicode format (Cf) characters are removed, including the tag block U+E0000 to U+E007F used to smuggle hidden instructions, variation selectors, U+00AD, U+034F and U+180E. U+2028, U+2029 and U+0085 are treated as line breaks. `<`, `>` and `&` are escaped so a body cannot close its wrapper.
 - A session id is bound in the hub database to the first peer that registers it, and stays bound after the session ends or times out; another peer cannot re-register it. A timed-out session's leases are released. A message to a session records the recipient's user and machine when it is sent, and only that peer can receive it, before or after the session expires.

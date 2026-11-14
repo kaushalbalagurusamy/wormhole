@@ -33,6 +33,9 @@ pub struct HubConfig {
     /// Users (login names, or `tag:...` for tagged nodes) the hub accepts. Empty accepts any
     /// peer the identity source can identify.
     pub allow_users: Vec<String>,
+    /// Serve wss:// and https:// with this certificate. Without it, the hub serves plaintext
+    /// only on loopback or a Tailscale address.
+    pub tls: Option<crate::tls::TlsFiles>,
 }
 
 /// A session with no heartbeat for this long is reported gone.
@@ -55,6 +58,8 @@ pub(crate) struct Hub {
     kick: broadcast::Sender<String>,
     /// Bound address and accepted host names, for the Host check.
     endpoint: std::sync::OnceLock<(SocketAddr, Vec<String>)>,
+    /// The server certificate when TLS is on; its names are also accepted as Host.
+    tls: Option<Arc<crate::tls::ServerTls>>,
 }
 
 /// Frames queued per connection before a slow consumer is dropped.
@@ -67,12 +72,44 @@ pub struct HubHandle {
     hub: Arc<Hub>,
     server: tokio::task::JoinHandle<()>,
     sweeper: tokio::task::JoinHandle<()>,
+    /// TLS accept loop and SIGHUP reload task, when TLS is on.
+    tls_tasks: Vec<tokio::task::JoinHandle<()>>,
+}
+
+/// The peer address of a connection, for both plain and TLS listeners.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RemoteAddr(pub SocketAddr);
+
+impl
+    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, tokio::net::TcpListener>>
+    for RemoteAddr
+{
+    fn connect_info(stream: axum::serve::IncomingStream<'_, tokio::net::TcpListener>) -> Self {
+        RemoteAddr(*stream.remote_addr())
+    }
+}
+
+impl
+    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, crate::tls::TlsListener>>
+    for RemoteAddr
+{
+    fn connect_info(stream: axum::serve::IncomingStream<'_, crate::tls::TlsListener>) -> Self {
+        RemoteAddr(*stream.remote_addr())
+    }
 }
 
 impl HubHandle {
     /// Close every connection from `machine` (used by tests to simulate a network drop).
     pub fn kick(&self, machine: &str) {
         let _ = self.hub.kick.send(machine.to_string());
+    }
+
+    /// Re-read the TLS certificate and key (also done on SIGHUP).
+    pub fn reload_tls(&self) -> Result<(), String> {
+        match &self.hub.tls {
+            Some(t) => t.reload(),
+            None => Err("TLS is not enabled".into()),
+        }
     }
 
     /// Run the lease and presence sweep as if the clock read `t` (milliseconds since the
@@ -85,6 +122,9 @@ impl HubHandle {
         let _ = self.hub.kick.send("*".into());
         self.server.abort();
         self.sweeper.abort();
+        for t in &self.tls_tasks {
+            t.abort();
+        }
         let _ = self.server.await;
     }
 }
@@ -93,9 +133,21 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
     if matches!(cfg.identity, IdentityConfig::Static) && !cfg.listen.ip().is_loopback() {
         return Err("static identity is only allowed when the hub listens on loopback".into());
     }
+    // Off loopback and the tailnet nothing encrypts the path, so plaintext is refused there.
+    if cfg.tls.is_none() && !crate::tls::plaintext_ok_ip(cfg.listen.ip()) {
+        return Err(format!(
+            "refusing to serve plaintext on {}: listen on loopback or a Tailscale address, or pass --tls-cert and --tls-key",
+            cfg.listen.ip()
+        ));
+    }
+    let tls = match &cfg.tls {
+        Some(files) => Some(Arc::new(crate::tls::ServerTls::load(files.clone())?)),
+        None => None,
+    };
     let store = Store::open(&cfg.db)?;
     let mut hub = Hub::new(store, cfg.identity.clone());
     hub.ident = Identifier::with_allowlist(cfg.identity.clone(), cfg.allow_users.clone());
+    hub.tls = tls.clone();
     let hub = Arc::new(hub);
     let listener = tokio::net::TcpListener::bind(cfg.listen)
         .await
@@ -106,20 +158,51 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
         .route("/ws", get(ws))
         .merge(page::routes())
         .with_state(hub.clone());
-    let server = tokio::spawn(async move {
-        let _ = axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await;
-    });
+    let mut tls_tasks = Vec::new();
+    let server = match tls {
+        None => tokio::spawn(async move {
+            let _ = axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<RemoteAddr>(),
+            )
+            .await;
+        }),
+        Some(t) => {
+            let (tls_listener, accept) = crate::tls::TlsListener::new(listener, t.server_config()?);
+            tls_tasks.push(accept);
+            tls_tasks.push(tokio::spawn(reload_on_sighup(t)));
+            tokio::spawn(async move {
+                let _ = axum::serve(
+                    tls_listener,
+                    app.into_make_service_with_connect_info::<RemoteAddr>(),
+                )
+                .await;
+            })
+        }
+    };
     let sweeper = tokio::spawn(sweep(hub.clone()));
     Ok(HubHandle {
         addr,
         hub,
         server,
         sweeper,
+        tls_tasks,
     })
+}
+
+/// Tailscale certificates last 90 days: `tailscale cert` renews the files, SIGHUP reloads them.
+async fn reload_on_sighup(tls: Arc<crate::tls::ServerTls>) {
+    let Ok(mut hup) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()) else {
+        return;
+    };
+    while hup.recv().await.is_some() {
+        match tls.reload() {
+            Ok(()) => eprintln!("wormhole hub: reloaded TLS certificate"),
+            Err(e) => {
+                eprintln!("wormhole hub: TLS reload failed, keeping the current certificate: {e}")
+            }
+        }
+    }
 }
 
 /// Identify an HTTP or WebSocket peer. Requests from browsers (with an `Origin`) are
@@ -134,7 +217,17 @@ pub(crate) async fn who(
             .get(header::HOST)
             .and_then(|h| h.to_str().ok())
             .unwrap_or("");
-        if !host_allowed(host, *listen, names) {
+        // With TLS on, the certificate's names (as Host, with or without the port) also count.
+        let cert_name = hub.tls.as_ref().is_some_and(|t| {
+            let (name, port) = match host.rsplit_once(':') {
+                Some((n, p)) if !n.ends_with(']') || host.starts_with('[') => {
+                    (n, p.parse::<u16>().ok())
+                }
+                _ => (host, None),
+            };
+            port.is_none_or(|p| p == listen.port()) && t.host_matches(name)
+        });
+        if !host_allowed(host, *listen, names) && !cert_name {
             return Err(StatusCode::FORBIDDEN);
         }
     }
@@ -147,7 +240,7 @@ pub(crate) async fn who(
 
 async fn ws(
     State(hub): State<Arc<Hub>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(RemoteAddr(addr)): ConnectInfo<RemoteAddr>,
     headers: HeaderMap,
     up: WebSocketUpgrade,
 ) -> Response {
@@ -337,6 +430,7 @@ impl Hub {
             ident: Identifier::new(identity),
             kick,
             endpoint: std::sync::OnceLock::new(),
+            tls: None,
         }
     }
 
@@ -944,6 +1038,7 @@ mod tests {
             identity: IdentityConfig::Static,
             hostnames: vec![],
             allow_users: vec![],
+            tls: None,
         })
         .await
         .unwrap();

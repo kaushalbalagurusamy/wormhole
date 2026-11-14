@@ -11,7 +11,6 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use serde_json::{json, Value};
 use std::convert::Infallible;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -89,7 +88,7 @@ macro_rules! identify {
 
 async fn index(
     State(hub): State<Arc<Hub>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(super::RemoteAddr(addr)): ConnectInfo<super::RemoteAddr>,
     headers: HeaderMap,
 ) -> Response {
     identify!(hub, addr, headers);
@@ -98,7 +97,7 @@ async fn index(
 
 async fn app_js(
     State(hub): State<Arc<Hub>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(super::RemoteAddr(addr)): ConnectInfo<super::RemoteAddr>,
     headers: HeaderMap,
 ) -> Response {
     identify!(hub, addr, headers);
@@ -107,7 +106,7 @@ async fn app_js(
 
 async fn state(
     State(hub): State<Arc<Hub>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(super::RemoteAddr(addr)): ConnectInfo<super::RemoteAddr>,
     headers: HeaderMap,
 ) -> Response {
     identify!(hub, addr, headers);
@@ -129,7 +128,7 @@ async fn state(
 
 async fn events(
     State(hub): State<Arc<Hub>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ConnectInfo(super::RemoteAddr(addr)): ConnectInfo<super::RemoteAddr>,
     headers: HeaderMap,
 ) -> Response {
     identify!(hub, addr, headers);
