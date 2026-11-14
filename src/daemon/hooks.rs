@@ -345,7 +345,12 @@ async fn pre_tool_use(
         .as_str()
         .or_else(|| ti["notebook_path"].as_str())
         == Some("");
-    let path = tool_path(d, session, input);
+    // A blank path would resolve to the cwd, which is not the file being edited.
+    let path = if blank {
+        None
+    } else {
+        tool_path(d, session, input)
+    };
     if path.is_none() && !blank {
         return json!({});
     }
