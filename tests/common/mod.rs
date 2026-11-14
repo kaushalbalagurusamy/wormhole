@@ -70,6 +70,7 @@ pub async fn start_hub(dir: &Path) -> HubHandle {
         db: dir.join("hub.sqlite"),
         identity: IdentityConfig::Static,
         hostnames: vec![],
+        allow_users: vec![],
     })
     .await
     .unwrap()

@@ -31,6 +31,9 @@ enum Cmd {
         /// DNS name clients use for the hub, such as its tailnet name. Repeatable.
         #[arg(long)]
         hostname: Vec<String>,
+        /// Accept only this user (Tailscale login name, or tag:name for tagged nodes). Repeatable.
+        #[arg(long)]
+        allow: Vec<String>,
     },
     /// Run the per-machine daemon.
     Daemon {
@@ -88,6 +91,7 @@ async fn main() {
             identity,
             tailscale_bin,
             hostname,
+            allow,
         } => {
             let identity = match identity.as_str() {
                 "tailscale" => hub::identity::IdentityConfig::Tailscale { bin: tailscale_bin },
@@ -102,6 +106,7 @@ async fn main() {
                 db,
                 identity,
                 hostnames: hostname,
+                allow_users: allow,
             })
             .await
             {
@@ -149,7 +154,8 @@ async fn main() {
             let out = hookcmd::run(
                 &socket.unwrap_or_else(default_socket),
                 input,
-                Duration::from_millis(800),
+                // Longer than the daemon's 800 ms hub deadline, so a slow hub is reported as such.
+                Duration::from_millis(1500),
             )
             .await;
             println!("{out}");

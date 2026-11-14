@@ -30,6 +30,9 @@ pub struct HubConfig {
     /// DNS names clients may use for the hub (e.g. its tailnet name). Requests whose Host
     /// is not the listen address or one of these are refused, to stop DNS rebinding.
     pub hostnames: Vec<String>,
+    /// Users (login names, or `tag:...` for tagged nodes) the hub accepts. Empty accepts any
+    /// peer the identity source can identify.
+    pub allow_users: Vec<String>,
 }
 
 /// A session with no heartbeat for this long is reported gone.
@@ -91,7 +94,9 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
         return Err("static identity is only allowed when the hub listens on loopback".into());
     }
     let store = Store::open(&cfg.db)?;
-    let hub = Arc::new(Hub::new(store, cfg.identity.clone()));
+    let mut hub = Hub::new(store, cfg.identity.clone());
+    hub.ident = Identifier::with_allowlist(cfg.identity.clone(), cfg.allow_users.clone());
+    let hub = Arc::new(hub);
     let listener = tokio::net::TcpListener::bind(cfg.listen)
         .await
         .map_err(|e| format!("bind {}: {e}", cfg.listen))?;
@@ -890,6 +895,7 @@ mod tests {
             db: dir.join("hub.sqlite"),
             identity: IdentityConfig::Static,
             hostnames: vec![],
+            allow_users: vec![],
         })
         .await
         .unwrap();

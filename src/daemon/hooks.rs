@@ -491,50 +491,76 @@ pub(crate) async fn who_text(
             .sessions
             .get(session)
             .and_then(|s| s.repo.as_ref().map(|r| r.id.clone()));
+    // The block is cut at text::MAX_BLOCK characters, so this repository's leases go first,
+    // then its sessions, then a count of the rest; lines that do not fit are counted.
+    const ROOM: usize = text::MAX_BLOCK - 300;
     let mut body = String::new();
-    let others: Vec<&SessionInfo> = snap
-        .sessions
-        .iter()
-        .filter(|s| s.session != session)
-        .collect();
-    if others.is_empty() {
-        body.push_str("No other sessions are connected.\n");
-    } else {
-        body.push_str("Other sessions:\n");
-        for s in others.iter().take(30) {
-            body.push_str(&format!(
-                "- session {} ({}@{}), repo {}, branch {}, task: {}; last seen {}\n",
-                s.session,
-                s.user,
-                s.machine,
-                s.repo,
-                s.branch,
-                if s.task.is_empty() {
-                    "not set"
-                } else {
-                    &s.task
-                },
-                super::state::hms(s.last_seen)
-            ));
+    let lines = |header: &str, items: Vec<String>, body: &mut String| {
+        if items.is_empty() {
+            return;
         }
-    }
-    let leases: Vec<&LeaseInfo> = snap
+        body.push_str(header);
+        let total = items.len();
+        for (i, l) in items.into_iter().enumerate() {
+            if body.chars().count() + l.chars().count() > ROOM {
+                body.push_str(&format!("- and {} more\n", total - i));
+                return;
+            }
+            body.push_str(&l);
+        }
+    };
+    let here = |repo: &str| my_repo.as_deref().is_none_or(|r| r == repo);
+    let leases: Vec<String> = snap
         .leases
         .iter()
-        .filter(|l| my_repo.as_deref().is_none_or(|r| r == l.repo))
-        .collect();
-    if !leases.is_empty() {
-        body.push_str("Leases in this repository:\n");
-        for l in leases.iter().take(50) {
-            body.push_str(&format!(
+        .filter(|l| here(&l.repo))
+        .map(|l| {
+            format!(
                 "- {} held by session {} ({}@{}) since {}\n",
                 l.scope,
                 l.session,
                 l.user,
                 l.machine,
                 super::state::hms(l.since)
-            ));
-        }
+            )
+        })
+        .collect();
+    lines("Leases in this repository:\n", leases, &mut body);
+    let others: Vec<&SessionInfo> = snap
+        .sessions
+        .iter()
+        .filter(|s| s.session != session)
+        .collect();
+    let (same, elsewhere): (Vec<&SessionInfo>, Vec<&SessionInfo>) =
+        others.iter().partition(|s| here(&s.repo));
+    let same: Vec<String> = same
+        .iter()
+        .map(|s| {
+            let task: String = if s.task.is_empty() {
+                "not set".into()
+            } else {
+                s.task.chars().take(80).collect()
+            };
+            format!(
+                "- session {} ({}@{}), branch {}, task: {}; last seen {}\n",
+                s.session,
+                s.user,
+                s.machine,
+                s.branch,
+                task,
+                super::state::hms(s.last_seen)
+            )
+        })
+        .collect();
+    if same.is_empty() {
+        body.push_str("No other sessions are working in this repository.\n");
+    }
+    lines("Other sessions in this repository:\n", same, &mut body);
+    if !elsewhere.is_empty() {
+        body.push_str(&format!(
+            "{} other sessions are connected in other repositories (wormhole_who lists them).\n",
+            elsewhere.len()
+        ));
     }
     body.push_str("Edits to a leased path get a warning naming the holder. The wormhole_* tools (send, lease, request_transfer) are available if the wormhole MCP server is configured.");
     let block = text::block(

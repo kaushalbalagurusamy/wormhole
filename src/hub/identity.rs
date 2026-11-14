@@ -70,20 +70,26 @@ pub(crate) fn canonical_ip(addr: SocketAddr) -> IpAddr {
 /// cached, so a reassigned tailnet address is never mapped to its previous owner.
 pub struct Identifier {
     cfg: IdentityConfig,
+    /// Users (login names, or tags for tagged nodes) accepted; empty accepts every identified peer.
+    allow: Vec<String>,
 }
 
 impl Identifier {
     pub fn new(cfg: IdentityConfig) -> Identifier {
-        Identifier { cfg }
+        Self::with_allowlist(cfg, Vec::new())
     }
 
     pub fn with_allowlist(cfg: IdentityConfig, allow: Vec<String>) -> Identifier {
-        let _ = allow;
-        todo!()
+        Identifier { cfg, allow }
     }
 
     /// `None` means reject the connection.
     pub async fn identify(&self, peer: SocketAddr, static_claim: Option<&str>) -> Option<Peer> {
+        let p = self.resolve(peer, static_claim).await?;
+        (self.allow.is_empty() || self.allow.contains(&p.user)).then_some(p)
+    }
+
+    async fn resolve(&self, peer: SocketAddr, static_claim: Option<&str>) -> Option<Peer> {
         let ip = canonical_ip(peer);
         match &self.cfg {
             IdentityConfig::Static => {

@@ -22,7 +22,8 @@ pub fn find(dir: &Path) -> Option<RepoInfo> {
                 .map(|c| gitdir.join(c.trim()))
                 .unwrap_or_else(|_| gitdir.clone());
             let config = std::fs::read_to_string(common.join("config")).unwrap_or_default();
-            let id = origin_url(&config)
+            let id = config_value(&config, "wormhole", "repoid")
+                .or_else(|| origin_url(&config))
                 .map(|u| normalize_remote(&u))
                 .unwrap_or_else(|| {
                     format!(
@@ -64,6 +65,27 @@ fn git_dir(dotgit: &Path) -> Option<PathBuf> {
     })
 }
 
+/// `key` in `[section]` of a git config file (names compared case-insensitively, as git does).
+fn config_value(config: &str, section: &str, key: &str) -> Option<String> {
+    let mut inside = false;
+    for line in config.lines() {
+        let l = line.trim();
+        if l.starts_with('[') {
+            inside = l
+                .trim_matches(|c| c == '[' || c == ']')
+                .trim()
+                .eq_ignore_ascii_case(section);
+        } else if inside {
+            if let Some((k, v)) = l.split_once('=') {
+                if k.trim().eq_ignore_ascii_case(key) {
+                    return Some(v.trim().to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 fn origin_url(config: &str) -> Option<String> {
     let mut in_origin = false;
     for line in config.lines() {
@@ -102,14 +124,12 @@ pub fn normalize_remote(url: &str) -> String {
         // scp-like host:path
         u.replacen(':', "/", 1)
     };
-    match s.split_once('/') {
-        Some((host, path)) => format!(
-            "{}/{}",
-            host.to_lowercase().split(':').next().unwrap_or(""),
-            path
-        ),
+    // Hosts and paths are compared without case, as GitHub and GitLab treat them.
+    let id = match s.split_once('/') {
+        Some((host, path)) => format!("{}/{}", host.split(':').next().unwrap_or(""), path),
         None => s,
-    }
+    };
+    id.to_lowercase()
 }
 
 /// Repo-relative form of `file` (absolute, or relative to `cwd`), with `/` separators.

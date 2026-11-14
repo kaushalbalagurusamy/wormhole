@@ -422,6 +422,7 @@ async fn hub_rejects_unidentified_and_browser_connections() {
         db: dir.join("x.sqlite"),
         identity: wormhole::hub::identity::IdentityConfig::Static,
         hostnames: vec![],
+        allow_users: vec![],
     })
     .await;
     assert!(r.is_err());
@@ -896,6 +897,7 @@ async fn daemons_follow_a_hub_whose_log_was_reset() {
         db: dir.join("hub.sqlite"),
         identity: wormhole::hub::identity::IdentityConfig::Static,
         hostnames: vec![],
+        allow_users: vec![],
     })
     .await
     .unwrap();

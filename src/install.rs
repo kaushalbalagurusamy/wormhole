@@ -26,7 +26,7 @@ pub fn render(project: &Path, exe: &Path, http_port: u16, socket: &Path, token: 
     format!(
         "wormhole install prints configuration; it does not write any file.\n\n\
 1. Merge into {p}/.claude/settings.local.json (not settings.json: it contains this machine's hook token, \
-and settings.local.json is not committed). Hooks time out after 5 s; the daemon itself answers within about 1 s \
+and settings.local.json is not committed). Then make it readable only by you: chmod 600 {p}/.claude/settings.local.json. Hooks time out after 5 s; the daemon itself answers within about 1 s \
 and lets the action go ahead if the hub is unreachable.\n\n```json\n{s}\n```\n\n\
 2. Merge into {p}/.mcp.json (or register the same server in ~/.claude.json):\n\n```json\n{m}\n```\n\n\
 3. The MCP server provides the wormhole_* tools in every session. To also receive pushed messages \
