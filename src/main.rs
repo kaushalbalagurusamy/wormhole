@@ -165,6 +165,8 @@ async fn main() {
                 Ok(exe) => {
                     let project = std::fs::canonicalize(&project).unwrap_or(project);
                     let socket = socket.unwrap_or_else(default_socket);
+                    // The printed config runs from the project directory, so the path must be absolute.
+                    let socket = std::path::absolute(&socket).unwrap_or(socket);
                     match daemon::read_hook_token(&socket) {
                         Ok(Some(token)) => {
                             print!("{}", install::render(&project, &exe, port, &socket, &token));
