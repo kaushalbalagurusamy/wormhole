@@ -1,11 +1,9 @@
 //! Who is on the other end of a connection. The hub never takes identity from a token or
 //! from the payload: it asks the private network (Tailscale) about the peer address.
 
-use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Peer {
@@ -68,20 +66,15 @@ pub(crate) fn canonical_ip(addr: SocketAddr) -> IpAddr {
     addr.ip().to_canonical()
 }
 
-/// Resolves peers for the hub. Tailscale answers are cached for a minute.
+/// Resolves peers for the hub. whois runs once per new connection or request and is not
+/// cached, so a reassigned tailnet address is never mapped to its previous owner.
 pub struct Identifier {
     cfg: IdentityConfig,
-    cache: Mutex<HashMap<IpAddr, (Instant, Peer)>>,
 }
-
-const CACHE_FOR: Duration = Duration::from_secs(60);
 
 impl Identifier {
     pub fn new(cfg: IdentityConfig) -> Identifier {
-        Identifier {
-            cfg,
-            cache: Mutex::new(HashMap::new()),
-        }
+        Identifier { cfg }
     }
 
     /// `None` means reject the connection.
@@ -95,17 +88,13 @@ impl Identifier {
                 parse_static(static_claim?)
             }
             IdentityConfig::Tailscale { bin } => {
-                if let Some((at, p)) = self.cache.lock().unwrap().get(&ip) {
-                    if at.elapsed() < CACHE_FOR {
-                        return Some(p.clone());
-                    }
-                }
                 let out = tokio::time::timeout(
                     Duration::from_secs(3),
                     tokio::process::Command::new(bin)
                         .arg("whois")
                         .arg("--json")
                         .arg(ip.to_string())
+                        .stdin(std::process::Stdio::null())
                         .kill_on_drop(true)
                         .output(),
                 )
@@ -115,9 +104,7 @@ impl Identifier {
                 if !out.status.success() {
                     return None;
                 }
-                let p = parse_whois(&String::from_utf8_lossy(&out.stdout))?;
-                self.cache.lock().unwrap().insert(ip, (Instant::now(), p.clone()));
-                Some(p)
+                parse_whois(&String::from_utf8_lossy(&out.stdout))
             }
         }
     }
