@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS leases (
 CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER NOT NULL);
 INSERT OR IGNORE INTO counters (name, value) VALUES ('token', 0);
 CREATE TABLE IF NOT EXISTS cursors (key TEXT PRIMARY KEY, seq INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS session_owners (session TEXT PRIMARY KEY, user TEXT NOT NULL, machine TEXT NOT NULL);
 ";
 
 /// Shortest and longest lease a client can ask for; requests outside are clamped.
@@ -179,6 +180,27 @@ impl Store {
             rusqlite::params![key, seq as i64],
         )?;
         Ok(())
+    }
+
+    /// Bind `session` to its first owner for good. True if `user@machine` is that owner.
+    /// shortcut: bindings are never pruned; add an age-based purge if ids pile up.
+    pub fn bind_session(&mut self, session: &str, user: &str, machine: &str) -> rusqlite::Result<bool> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO session_owners (session, user, machine) VALUES (?1, ?2, ?3)",
+            [session, user, machine],
+        )?;
+        Ok(self.session_owner(session)?.is_some_and(|(u, m)| u == user && m == machine))
+    }
+
+    pub fn session_owner(&self, session: &str) -> rusqlite::Result<Option<(String, String)>> {
+        use rusqlite::OptionalExtension;
+        self.conn
+            .query_row(
+                "SELECT user, machine FROM session_owners WHERE session = ?1",
+                [session],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
     }
 
     fn next_token(&self) -> rusqlite::Result<u64> {

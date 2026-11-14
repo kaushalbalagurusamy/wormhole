@@ -50,7 +50,14 @@ pub(crate) struct Hub {
     sessions: Mutex<HashMap<String, Sess>>,
     ident: Identifier,
     kick: broadcast::Sender<String>,
+    /// Bound address and accepted host names, for the Host check.
+    endpoint: std::sync::OnceLock<(SocketAddr, Vec<String>)>,
 }
+
+/// Frames queued per connection before a slow consumer is dropped.
+const OUT_QUEUE: usize = 256;
+/// Longest a replay waits for a slow consumer before dropping it.
+const SEND_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub struct HubHandle {
     pub addr: SocketAddr,
@@ -83,6 +90,7 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
         .await
         .map_err(|e| format!("bind {}: {e}", cfg.listen))?;
     let addr = listener.local_addr().map_err(|e| e.to_string())?;
+    let _ = hub.endpoint.set((addr, cfg.hostnames.clone()));
     let app = axum::Router::new()
         .route("/ws", get(ws))
         .merge(page::routes())
@@ -102,6 +110,12 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
 /// Identify an HTTP or WebSocket peer. Requests from browsers (with an `Origin`) are
 /// refused on the WebSocket; the page routes allow same-origin reads.
 pub(crate) async fn who(hub: &Hub, addr: SocketAddr, headers: &HeaderMap) -> Result<Peer, StatusCode> {
+    if let Some((listen, names)) = hub.endpoint.get() {
+        let host = headers.get(header::HOST).and_then(|h| h.to_str().ok()).unwrap_or("");
+        if !host_allowed(host, *listen, names) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    }
     let claim = headers.get(STATIC_ID_HEADER).and_then(|v| v.to_str().ok());
     hub.ident.identify(addr, claim).await.ok_or(StatusCode::FORBIDDEN)
 }
@@ -124,15 +138,17 @@ async fn ws(
         .on_upgrade(move |sock| connection(hub, peer, sock))
 }
 
-fn send_down(out: &mpsc::UnboundedSender<Message>, d: &Down) {
-    if let Ok(s) = serde_json::to_string(d) {
-        let _ = out.send(Message::Text(s.into()));
+/// Queue a frame without waiting. False if the queue is full (slow consumer) or closed.
+fn try_down(out: &mpsc::Sender<Message>, d: &Down) -> bool {
+    match serde_json::to_string(d) {
+        Ok(s) => out.try_send(Message::Text(s.into())).is_ok(),
+        Err(_) => true,
     }
 }
 
 async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
     let (mut sink, mut stream) = sock.split();
-    let (out, mut out_rx) = mpsc::unbounded_channel::<Message>();
+    let (out, mut out_rx) = mpsc::channel::<Message>(OUT_QUEUE);
     let writer = tokio::spawn(async move {
         while let Some(m) = out_rx.recv().await {
             if sink.send(m).await.is_err() {
@@ -162,7 +178,7 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
         let st = hub.store.lock().unwrap();
         (st.head().unwrap_or(0), st.cursor(&peer.key()).ok().flatten())
     };
-    send_down(
+    try_down(
         &out,
         &Down::Welcome {
             user: peer.user.clone(),
@@ -170,8 +186,8 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
             head,
         },
     );
-    let mut last = from.or(cursor).unwrap_or(head);
-    if !hub.replay(&peer, &out, &mut last) {
+    let mut last = resume_point(from, cursor, head);
+    if !hub.replay(&peer, &out, &mut last).await {
         writer.abort();
         return;
     }
@@ -181,14 +197,15 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
             ev = rx.recv() => match ev {
                 Ok(e) => {
                     if e.seq > last {
-                        if hub.visible(&e, &peer) {
-                            send_down(&out, &Down::Event { event: e.clone() });
+                        // A consumer that cannot keep up is dropped; it resumes from its cursor.
+                        if hub.visible(&e, &peer) && !try_down(&out, &Down::Event { event: e.clone() }) {
+                            break;
                         }
                         last = e.seq;
                     }
                 }
                 Err(broadcast::error::RecvError::Lagged(_)) => {
-                    if !hub.replay(&peer, &out, &mut last) { break; }
+                    if !hub.replay(&peer, &out, &mut last).await { break; }
                 }
                 Err(broadcast::error::RecvError::Closed) => break,
             },
@@ -202,7 +219,7 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
                             Ok(data) => Down::Resp { id, ok: true, data, error: None },
                             Err(e) => Down::Resp { id, ok: false, data: Value::Null, error: Some(e) },
                         };
-                        send_down(&out, &d);
+                        if !try_down(&out, &d) { break; }
                     }
                     Ok(Up::Resume { .. }) | Err(_) => break,
                 },
@@ -225,14 +242,25 @@ const MAX_REPLAY: u64 = 100_000;
 /// Where to resume a connection: the daemon's last sequence, else its stored cursor, else
 /// the head; never past the head and never more than `MAX_REPLAY` behind it.
 fn resume_point(from: Option<u64>, cursor: Option<u64>, head: u64) -> u64 {
-    let _ = (from, cursor, head);
-    todo!()
+    from.or(cursor)
+        .unwrap_or(head)
+        .min(head)
+        .max(head.saturating_sub(MAX_REPLAY))
 }
 
 /// Is `host` (a Host header) one of the names this hub answers to?
 pub(crate) fn host_allowed(host: &str, listen: SocketAddr, names: &[String]) -> bool {
-    let _ = (host, listen, names);
-    todo!()
+    let port = listen.port();
+    if host == listen.to_string() {
+        return true;
+    }
+    let mut ok_names: Vec<&str> = names.iter().map(String::as_str).collect();
+    if listen.ip().is_loopback() {
+        ok_names.push("localhost");
+    }
+    ok_names
+        .iter()
+        .any(|n| !n.is_empty() && (host.eq_ignore_ascii_case(n) || host.eq_ignore_ascii_case(&format!("{n}:{port}"))))
 }
 
 fn now() -> u64 {
@@ -272,6 +300,7 @@ impl Hub {
             sessions: Mutex::new(HashMap::new()),
             ident: Identifier::new(identity),
             kick,
+            endpoint: std::sync::OnceLock::new(),
         }
     }
 
@@ -293,12 +322,17 @@ impl Hub {
                 .collect()
         };
         for (session, owner) in gone {
+            let released = self.store.lock().unwrap().release_session(&session).unwrap_or_default();
+            for l in released {
+                let _ = self.emit_lease("lease.released", &l, json!({"reason": "session timed out"}));
+            }
             let _ = self.emit("bye", &owner, &session, json!({"reason": "timeout"}));
         }
     }
 
     /// Send everything after `last` that `peer` may see. False if the database failed.
-    fn replay(&self, peer: &Peer, out: &mpsc::UnboundedSender<Message>, last: &mut u64) -> bool {
+    /// Waits for queue space, but drops a consumer that stalls past `SEND_TIMEOUT`.
+    async fn replay(&self, peer: &Peer, out: &mpsc::Sender<Message>, last: &mut u64) -> bool {
         loop {
             let batch = match self.store.lock().unwrap().events_after(*last, REPLAY_BATCH) {
                 Ok(b) => b,
@@ -308,10 +342,13 @@ impl Hub {
                 return true;
             }
             for e in batch {
-                *last = e.seq;
                 if self.visible(&e, peer) {
-                    send_down(out, &Down::Event { event: e });
+                    let Ok(s) = serde_json::to_string(&Down::Event { event: e.clone() }) else { continue };
+                    if out.send_timeout(Message::Text(s.into()), SEND_TIMEOUT).await.is_err() {
+                        return false;
+                    }
                 }
+                *last = e.seq;
             }
         }
     }
@@ -324,12 +361,11 @@ impl Hub {
         match serde_json::from_value::<Target>(e.data["to"].clone()) {
             Ok(Target::Broadcast) => true,
             Ok(Target::User(u)) => u == peer.user,
-            Ok(Target::Session(s)) => self
-                .sessions
-                .lock()
-                .unwrap()
-                .get(&s)
-                .is_some_and(|x| &x.owner == peer),
+            // The recipient is fixed when the message is sent.
+            Ok(Target::Session(_)) => {
+                e.data["to_user"].as_str() == Some(peer.user.as_str())
+                    && e.data["to_machine"].as_str() == Some(peer.machine.as_str())
+            }
             Err(_) => false,
         }
     }
@@ -379,6 +415,10 @@ impl Hub {
                 let repo = text::plain(&repo, MAX_FIELD);
                 let branch = text::plain(&branch, MAX_FIELD);
                 let task = text::plain(&task, MAX_TASK);
+                // A session id belongs to the first peer that registers it, permanently.
+                if !db(self.store.lock().unwrap().bind_session(&session, &peer.user, &peer.machine))? {
+                    return Err("session belongs to another machine".into());
+                }
                 let changed = {
                     let mut ss = self.sessions.lock().unwrap();
                     match ss.get_mut(&session) {
@@ -474,16 +514,17 @@ impl Hub {
                 if body.trim().is_empty() {
                     return Err("empty message".into());
                 }
+                let mut data = json!({"to": to, "body": body, "reply_to": reply_to});
                 match &to {
                     Target::Session(s) => {
-                        if self.owner_of(s).is_none() {
-                            return Err("no such session".into());
-                        }
+                        let (u, m) = db(self.store.lock().unwrap().session_owner(s))?.ok_or("no such session")?;
+                        data["to_user"] = json!(u);
+                        data["to_machine"] = json!(m);
                     }
                     Target::User(u) => field("user", u)?,
                     Target::Broadcast => {}
                 }
-                let e = self.emit("msg", peer, &session, json!({"to": to, "body": body, "reply_to": reply_to}))?;
+                let e = self.emit("msg", peer, &session, data)?;
                 Ok(json!({"seq": e.seq}))
             }
             Request::MsgRead { session, seq } => {
@@ -741,7 +782,7 @@ mod tests {
         assert!(!host_allowed("localhost:9000", listen, &[]));
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn slow_consumer_is_dropped_and_resumes_from_its_cursor() {
         use tokio_tungstenite::tungstenite::{client::IntoClientRequest, Message as M};
         let dir = std::env::temp_dir().join(format!("wh-slow-{}", std::process::id()));
@@ -797,6 +838,8 @@ mod tests {
             hh.hub.emit("activity", &peer, "s", json!({"pad": pad, "i": i})).unwrap();
         }
         let end = head + total;
+        // Stay stalled past the hub's send timeout.
+        tokio::time::sleep(SEND_TIMEOUT + Duration::from_secs(1)).await;
         let mut seqs = Vec::new();
         let finished = read_seqs(&mut ws, end, &mut seqs).await;
         assert!(!finished, "slow consumer was not dropped");

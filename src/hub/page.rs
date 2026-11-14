@@ -25,9 +25,12 @@ pub(super) fn routes() -> axum::Router<Arc<Hub>> {
         .route("/api/events", get(events))
 }
 
-/// What the page may show of an event.
+/// What the page may show of an event: no message bodies, no fencing tokens.
 fn redact(e: &Event) -> Value {
     let mut v = serde_json::to_value(e).unwrap_or(Value::Null);
+    if let Some(d) = v["data"].as_object_mut() {
+        d.remove("token");
+    }
     if e.kind == "msg" {
         v["data"] = json!({
             "to": e.data["to"],
@@ -48,8 +51,25 @@ fn secure(mut r: Response, content_type: &'static str) -> Response {
     r
 }
 
+/// Refuse cross-site reads: a foreign Origin, or a browser saying the request is cross-site.
+fn same_site(headers: &HeaderMap) -> bool {
+    let get = |h| headers.get(h).and_then(|v: &HeaderValue| v.to_str().ok());
+    if let Some(site) = get("sec-fetch-site") {
+        if site != "same-origin" && site != "none" {
+            return false;
+        }
+    }
+    match get("origin") {
+        None => true,
+        Some(o) => get("host").is_some_and(|h| o == format!("http://{h}") || o == format!("https://{h}")),
+    }
+}
+
 macro_rules! identify {
     ($hub:expr, $addr:expr, $headers:expr) => {
+        if !same_site(&$headers) {
+            return StatusCode::FORBIDDEN.into_response();
+        }
         if let Err(s) = who(&$hub, $addr, &$headers).await {
             return s.into_response();
         }
@@ -74,7 +94,11 @@ async fn state(State(hub): State<Arc<Hub>>, ConnectInfo(addr): ConnectInfo<Socke
     };
     let body = json!({
         "sessions": snap.sessions,
-        "leases": snap.leases,
+        "leases": snap.leases.iter().map(|l| {
+            let mut v = serde_json::to_value(l).unwrap_or(Value::Null);
+            if let Some(o) = v.as_object_mut() { o.remove("token"); }
+            v
+        }).collect::<Vec<_>>(),
         "events": recent.iter().map(redact).collect::<Vec<_>>(),
     });
     secure(body.to_string().into_response(), "application/json")
@@ -156,8 +180,8 @@ async function load() {
   for (const id of ["sessions", "leases", "events"]) $(id).textContent = "";
   row($("sessions"), ["session", "who", "repo", "branch", "task", "last seen"], true);
   for (const x of s.sessions) row($("sessions"), [x.session.slice(0, 8), x.user + "@" + x.machine, x.repo, x.branch, x.task, t(x.last_seen)]);
-  row($("leases"), ["scope", "repo", "holder", "since", "expires", "token"], true);
-  for (const l of s.leases) row($("leases"), [l.scope, l.repo, l.user + "@" + l.machine + " " + l.session.slice(0, 8), t(l.since), t(l.expires), l.token]);
+  row($("leases"), ["scope", "repo", "holder", "since", "expires"], true);
+  for (const l of s.leases) row($("leases"), [l.scope, l.repo, l.user + "@" + l.machine + " " + l.session.slice(0, 8), t(l.since), t(l.expires)]);
   row(events, ["seq", "time", "who", "session", "kind", "detail"], true);
   for (const e of s.events) addEvent(e);
   $("status").textContent = "live";
