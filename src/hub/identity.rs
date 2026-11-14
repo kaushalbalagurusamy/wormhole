@@ -62,6 +62,9 @@ pub fn parse_static(claim: &str) -> Option<Peer> {
     })
 }
 
+/// Most `tailscale whois` processes the hub runs at once; further lookups wait.
+const WHOIS_LIMIT: usize = 4;
+
 pub(crate) fn canonical_ip(addr: SocketAddr) -> IpAddr {
     addr.ip().to_canonical()
 }
@@ -247,6 +250,45 @@ mod tests {
         assert_eq!(id.identify(peer, None).await, None);
         // A static claim header is ignored under Tailscale identity.
         assert_eq!(id.identify(peer, Some("alice@laptop-a")).await, None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn whois_lookups_run_at_most_limit_at_once() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("wh-ts-bound-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("running")).unwrap();
+        std::fs::write(dir.join("answer"), WHOIS).unwrap();
+        let bin = dir.join("tailscale");
+        // Each copy marks itself running, waits, then records how many copies run with it.
+        std::fs::write(
+            &bin,
+            format!(
+                "#!/bin/sh\ncd '{d}'\ntouch running/$$\nsleep 0.3\nls running | wc -l >> seen\nrm running/$$\nexec cat answer\n",
+                d = dir.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let id = std::sync::Arc::new(Identifier::new(IdentityConfig::Tailscale { bin }));
+        let peer: SocketAddr = "100.64.0.5:4000".parse().unwrap();
+
+        let mut set = tokio::task::JoinSet::new();
+        for _ in 0..WHOIS_LIMIT * 3 {
+            let id = id.clone();
+            set.spawn(async move { id.identify(peer, None).await });
+        }
+        // Lookups over the limit wait their turn; none is refused.
+        while let Some(r) = set.join_next().await {
+            assert_eq!(r.unwrap().unwrap().machine, "laptop-a");
+        }
+        let seen = std::fs::read_to_string(dir.join("seen")).unwrap();
+        let most = seen
+            .lines()
+            .map(|l| l.trim().parse::<usize>().unwrap())
+            .max();
+        assert!(most <= Some(WHOIS_LIMIT), "{most:?} lookups ran at once");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
