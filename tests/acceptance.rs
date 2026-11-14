@@ -724,7 +724,7 @@ async fn session_timed_out_by_the_hub_recovers_on_its_next_hook() {
 }
 
 #[tokio::test]
-async fn hook_token_is_checked_before_the_body_and_bodies_are_capped() {
+async fn hook_token_is_checked_before_the_body_and_large_bodies_are_handled() {
     let n = net(Opts::default()).await;
     // Claims a 50 MB body but sends none: refused at once, without waiting to read it.
     let mut s = tokio::net::TcpStream::connect(n.a.http_addr).await.unwrap();
@@ -741,29 +741,80 @@ async fn hook_token_is_checked_before_the_body_and_bodies_are_capped() {
     let reply = String::from_utf8_lossy(&buf[..k]);
     assert!(reply.starts_with("HTTP/1.1 403"), "{reply}");
 
-    // With the token, a 2 MiB Write (a large file) is handled; 40 MiB is refused as too large.
-    for (mib, want) in [(2, "HTTP/1.1 200"), (40, "HTTP/1.1 413")] {
-        let mut big = post(
-            SA,
-            &n.repo_a,
-            "Write",
-            json!({"file_path": n.repo_a.join("x"), "content": "x".repeat(mib * 1024 * 1024)}),
+    // With the token, large bodies are never refused: 2 MiB and 40 MiB both get a hook answer.
+    for mib in [2, 40] {
+        let r = big_write(&n.a, SA, &n.repo_a, "src/big.rs", mib).await;
+        assert!(
+            r.starts_with("HTTP/1.1 200"),
+            "{mib} MiB: {}",
+            &r[..r.len().min(200)]
         );
-        big["tool_response"] = json!({});
-        let auth = format!("Bearer {}", n.a.hook_token);
-        let body = big.to_string();
-        let mut s = tokio::net::TcpStream::connect(n.a.http_addr).await.unwrap();
-        let head = format!(
-            "POST /hook HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nAuthorization: {auth}\r\nConnection: close\r\nContent-Length: {}\r\n\r\n",
-            n.a.http_addr,
-            body.len()
-        );
-        s.write_all(head.as_bytes()).await.unwrap();
-        // The server may answer and close before all of the body is sent.
-        let _ = s.write_all(body.as_bytes()).await;
-        let mut reply = Vec::new();
-        let _ = tokio::time::timeout(Duration::from_secs(5), s.read_to_end(&mut reply)).await;
-        let reply = String::from_utf8_lossy(&reply);
-        assert!(reply.starts_with(want), "{mib} MiB: {reply}");
     }
+}
+
+/// POST a PreToolUse Write of `mib` MiB raw, tolerating an early close; returns the reply.
+async fn big_write(
+    d: &wormhole::daemon::DaemonHandle,
+    session: &str,
+    repo: &std::path::Path,
+    file: &str,
+    mib: usize,
+) -> String {
+    let mut v = base("PreToolUse", session, repo);
+    v["tool_name"] = json!("Write");
+    v["tool_input"] =
+        json!({"file_path": repo.join(file), "content": "x".repeat(mib * 1024 * 1024)});
+    raw_hook(d, &v.to_string()).await
+}
+
+async fn raw_hook(d: &wormhole::daemon::DaemonHandle, body: &str) -> String {
+    let auth = format!("Bearer {}", d.hook_token);
+    let mut s = tokio::net::TcpStream::connect(d.http_addr).await.unwrap();
+    let head = format!(
+        "POST /hook HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nAuthorization: {auth}\r\nConnection: close\r\nContent-Length: {}\r\n\r\n",
+        d.http_addr,
+        body.len()
+    );
+    s.write_all(head.as_bytes()).await.unwrap();
+    let _ = s.write_all(body.as_bytes()).await;
+    let mut reply = Vec::new();
+    let _ = tokio::time::timeout(Duration::from_secs(10), s.read_to_end(&mut reply)).await;
+    String::from_utf8_lossy(&reply).to_string()
+}
+
+fn reply_json(r: &str) -> serde_json::Value {
+    serde_json::from_str(r.split_once("\r\n\r\n").map(|x| x.1).unwrap_or("")).unwrap_or(json!({}))
+}
+
+#[tokio::test]
+async fn oversized_edit_requests_are_still_checked() {
+    let n = two_sessions(Opts {
+        protected: vec!["secrets/**".into()],
+        ..Opts::default()
+    })
+    .await;
+    hook(&n.a, pre_edit(SA, &n.repo_a, "secrets/key.txt")).await;
+    hook(&n.a, pre_edit(SA, &n.repo_a, "src/lib.rs")).await;
+
+    // 40 MiB Write to a protected path another session holds: denied.
+    let r = reply_json(&big_write(&n.b, SB, &n.repo_b, "secrets/key.txt", 40).await);
+    assert_eq!(decision(&r).as_deref(), Some("deny"), "{r}");
+    // 40 MiB Write to a leased path: warned.
+    let r = reply_json(&big_write(&n.b, SB, &n.repo_b, "src/lib.rs", 40).await);
+    assert!(ctx(&r).contains("WARNING") && ctx(&r).contains(SA), "{r}");
+    assert_eq!(decision(&r), None);
+    // Over the limit and unparseable: denied, saying why.
+    let junk = format!(
+        "{{\"hook_event_name\": \"PreToolUse\", \"x\": [{}",
+        "1,".repeat(20 * 1024 * 1024)
+    );
+    let r = reply_json(&raw_hook(&n.b, &junk).await);
+    assert_eq!(decision(&r).as_deref(), Some("deny"), "{r}");
+    let reason = r["hookSpecificOutput"]["permissionDecisionReason"]
+        .as_str()
+        .unwrap();
+    assert!(
+        reason.contains("too large") || reason.contains("could not be read"),
+        "{reason}"
+    );
 }
