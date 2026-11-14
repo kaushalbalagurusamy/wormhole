@@ -70,11 +70,13 @@ pub(crate) fn canonical_ip(addr: SocketAddr) -> IpAddr {
 }
 
 /// Resolves peers for the hub. whois runs once per new connection or request and is not
-/// cached, so a reassigned tailnet address is never mapped to its previous owner.
+/// cached, so a reassigned tailnet address is never mapped to its previous owner. At most
+/// `WHOIS_LIMIT` run at once, so requests cannot make the hub spawn processes without bound.
 pub struct Identifier {
     cfg: IdentityConfig,
     /// Users (login names, or tags for tagged nodes) accepted; empty accepts every identified peer.
     allow: Vec<String>,
+    whois: tokio::sync::Semaphore,
 }
 
 impl Identifier {
@@ -83,7 +85,11 @@ impl Identifier {
     }
 
     pub fn with_allowlist(cfg: IdentityConfig, allow: Vec<String>) -> Identifier {
-        Identifier { cfg, allow }
+        Identifier {
+            cfg,
+            allow,
+            whois: tokio::sync::Semaphore::new(WHOIS_LIMIT),
+        }
     }
 
     /// `None` means reject the connection.
@@ -102,6 +108,8 @@ impl Identifier {
                 parse_static(static_claim?)
             }
             IdentityConfig::Tailscale { bin } => {
+                // Held until the child exits or the timeout kills it (kill_on_drop).
+                let _permit = self.whois.acquire().await.ok()?;
                 let out = tokio::time::timeout(
                     Duration::from_secs(3),
                     tokio::process::Command::new(bin)
