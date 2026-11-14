@@ -71,6 +71,7 @@ pub async fn start_hub(dir: &Path) -> HubHandle {
         identity: IdentityConfig::Static,
         hostnames: vec![],
         allow_users: vec![],
+        tls: None,
     })
     .await
     .unwrap()
@@ -274,4 +275,48 @@ where
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
+}
+
+/// A test CA and leaves signed by it (tests only; the daemon is given the CA as an extra root).
+pub struct Ca {
+    pub params: rcgen::CertificateParams,
+    pub cert: rcgen::Certificate,
+    pub key: rcgen::KeyPair,
+}
+
+pub fn ca() -> Ca {
+    let mut params = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
+    params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    params
+        .distinguished_name
+        .push(rcgen::DnType::CommonName, "wormhole test CA");
+    let key = rcgen::KeyPair::generate().unwrap();
+    let cert = params.self_signed(&key).unwrap();
+    Ca { params, cert, key }
+}
+
+pub fn write_ca(ca: &Ca, path: &Path) -> PathBuf {
+    std::fs::write(path, ca.cert.pem()).unwrap();
+    path.to_path_buf()
+}
+
+pub fn leaf(ca: &Ca, names: &[&str], expired: bool, dir: &Path) -> wormhole::tls::TlsFiles {
+    let mut p =
+        rcgen::CertificateParams::new(names.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .unwrap();
+    if expired {
+        p.not_before = rcgen::date_time_ymd(2020, 1, 1);
+        p.not_after = rcgen::date_time_ymd(2021, 1, 1);
+    }
+    let key = rcgen::KeyPair::generate().unwrap();
+    let issuer = rcgen::Issuer::new(ca.params.clone(), &ca.key);
+    let cert = p.signed_by(&key, &issuer).unwrap();
+    std::fs::create_dir_all(dir).unwrap();
+    let files = wormhole::tls::TlsFiles {
+        cert: dir.join("cert.pem"),
+        key: dir.join("key.pem"),
+    };
+    std::fs::write(&files.cert, cert.pem()).unwrap();
+    std::fs::write(&files.key, key.serialize_pem()).unwrap();
+    files
 }
