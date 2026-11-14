@@ -3,7 +3,12 @@
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
+use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
+
+use tokio::io::AsyncReadExt;
+use tokio::sync::Semaphore;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Peer {
@@ -62,16 +67,21 @@ pub fn parse_static(claim: &str) -> Option<Peer> {
     })
 }
 
+/// Most `tailscale whois` processes the hub runs at once; further lookups wait.
+pub const WHOIS_LIMIT: usize = 4;
+
 pub(crate) fn canonical_ip(addr: SocketAddr) -> IpAddr {
     addr.ip().to_canonical()
 }
 
 /// Resolves peers for the hub. whois runs once per new connection or request and is not
-/// cached, so a reassigned tailnet address is never mapped to its previous owner.
+/// cached, so a reassigned tailnet address is never mapped to its previous owner. At most
+/// `WHOIS_LIMIT` run at once, so requests cannot make the hub spawn processes without bound.
 pub struct Identifier {
     cfg: IdentityConfig,
     /// Users (login names, or tags for tagged nodes) accepted; empty accepts every identified peer.
     allow: Vec<String>,
+    whois: Arc<Semaphore>,
 }
 
 impl Identifier {
@@ -80,7 +90,11 @@ impl Identifier {
     }
 
     pub fn with_allowlist(cfg: IdentityConfig, allow: Vec<String>) -> Identifier {
-        Identifier { cfg, allow }
+        Identifier {
+            cfg,
+            allow,
+            whois: Arc::new(Semaphore::new(WHOIS_LIMIT)),
+        }
     }
 
     /// `None` means reject the connection.
@@ -99,23 +113,34 @@ impl Identifier {
                 parse_static(static_claim?)
             }
             IdentityConfig::Tailscale { bin } => {
-                let out = tokio::time::timeout(
-                    Duration::from_secs(3),
-                    tokio::process::Command::new(bin)
-                        .arg("whois")
-                        .arg("--json")
-                        .arg(ip.to_string())
-                        .stdin(std::process::Stdio::null())
-                        .kill_on_drop(true)
-                        .output(),
-                )
+                let permit = self.whois.clone().acquire_owned().await.ok()?;
+                let mut cmd = tokio::process::Command::new(bin);
+                cmd.arg("whois")
+                    .arg("--json")
+                    .arg(ip.to_string())
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null())
+                    .kill_on_drop(true);
+                // An owned task, so a dropped requester stops listening but the lookup still
+                // runs to the child's exit; the permit is freed only once the child is reaped.
+                let out = tokio::spawn(async move {
+                    let _permit = permit;
+                    let mut child = cmd.spawn().ok()?;
+                    let mut stdout = child.stdout.take()?;
+                    let out = tokio::time::timeout(Duration::from_secs(3), async {
+                        let mut buf = Vec::new();
+                        stdout.read_to_end(&mut buf).await.ok()?;
+                        child.wait().await.ok()?.success().then_some(buf)
+                    })
+                    .await;
+                    // SIGKILL and reap; a no-op once the child has been waited for.
+                    let _ = child.kill().await;
+                    out.ok().flatten()
+                })
                 .await
-                .ok()?
-                .ok()?;
-                if !out.status.success() {
-                    return None;
-                }
-                parse_whois(&String::from_utf8_lossy(&out.stdout))
+                .ok()??;
+                parse_whois(&String::from_utf8_lossy(&out))
             }
         }
     }
@@ -247,6 +272,45 @@ mod tests {
         assert_eq!(id.identify(peer, None).await, None);
         // A static claim header is ignored under Tailscale identity.
         assert_eq!(id.identify(peer, Some("alice@laptop-a")).await, None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn whois_lookups_run_at_most_limit_at_once() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("wh-ts-bound-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("running")).unwrap();
+        std::fs::write(dir.join("answer"), WHOIS).unwrap();
+        let bin = dir.join("tailscale");
+        // Each copy marks itself running, waits, then records how many copies run with it.
+        std::fs::write(
+            &bin,
+            format!(
+                "#!/bin/sh\ncd '{d}'\ntouch running/$$\nsleep 0.3\nls running | wc -l >> seen\nrm running/$$\nexec cat answer\n",
+                d = dir.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let id = std::sync::Arc::new(Identifier::new(IdentityConfig::Tailscale { bin }));
+        let peer: SocketAddr = "100.64.0.5:4000".parse().unwrap();
+
+        let mut set = tokio::task::JoinSet::new();
+        for _ in 0..WHOIS_LIMIT * 3 {
+            let id = id.clone();
+            set.spawn(async move { id.identify(peer, None).await });
+        }
+        // Lookups over the limit wait their turn; none is refused.
+        while let Some(r) = set.join_next().await {
+            assert_eq!(r.unwrap().unwrap().machine, "laptop-a");
+        }
+        let seen = std::fs::read_to_string(dir.join("seen")).unwrap();
+        let most = seen
+            .lines()
+            .map(|l| l.trim().parse::<usize>().unwrap())
+            .max();
+        assert!(most <= Some(WHOIS_LIMIT), "{most:?} lookups ran at once");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
