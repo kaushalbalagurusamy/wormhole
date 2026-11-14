@@ -173,4 +173,41 @@ mod tests {
         assert_eq!(parse_static("u@"), None);
         assert_eq!(parse_static(&format!("u@{}", "m".repeat(200))), None);
     }
+
+    fn fake_tailscale(dir: &std::path::Path) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::create_dir_all(dir).unwrap();
+        let bin = dir.join("tailscale");
+        // Prints whatever is in `answer`, or fails if the file is missing.
+        std::fs::write(&bin, format!("#!/bin/sh\nexec cat '{}'\n", dir.join("answer").display())).unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        bin
+    }
+
+    #[tokio::test]
+    async fn whois_is_asked_on_every_connection() {
+        let dir = std::env::temp_dir().join(format!("wh-ts-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let id = Identifier::new(IdentityConfig::Tailscale { bin: fake_tailscale(&dir) });
+        let peer: SocketAddr = "100.64.0.5:4000".parse().unwrap();
+
+        std::fs::write(dir.join("answer"), WHOIS).unwrap();
+        assert_eq!(id.identify(peer, None).await.unwrap().machine, "laptop-a");
+
+        // The same IP now belongs to a different node: the new identity is used at once.
+        std::fs::write(
+            dir.join("answer"),
+            WHOIS.replace("laptop-a", "laptop-b").replace("alice@", "bob@"),
+        )
+        .unwrap();
+        let p = id.identify(peer, None).await.unwrap();
+        assert_eq!((p.user.as_str(), p.machine.as_str()), ("bob@example.com", "laptop-b"));
+
+        // whois fails: the connection is refused (identity fails closed).
+        std::fs::remove_file(dir.join("answer")).unwrap();
+        assert_eq!(id.identify(peer, None).await, None);
+        // A static claim header is ignored under Tailscale identity.
+        assert_eq!(id.identify(peer, Some("alice@laptop-a")).await, None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
