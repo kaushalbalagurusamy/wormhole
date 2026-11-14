@@ -13,7 +13,7 @@ wormhole assumes machines that trust each other on a private network (Tailscale 
 - Text from another session reaching a model without being wrapped, cleaned and length-limited, or able to pass as the local user's instruction.
 - File contents, prompts or message bodies leaking into the event log, activity page or hook output beyond what the design states.
 - The daemon's loopback HTTP endpoint or Unix socket being usable from a browser or another local user.
-- Hooks blocking work when the hub or daemon is down (they must fail open, except a protected path held by another session).
+- Hooks blocking work when the hub or daemon is down. They must fail open; a protected path is denied only while the hub answers and reports another holder.
 
 Out of scope: participants who are already trusted acting maliciously within their own permissions, denial of service from a trusted peer, and anything requiring the hub to be exposed to the public internet (unsupported).
 
@@ -34,4 +34,10 @@ Covered:
 - Lease TTLs from clients are clamped to 100 ms through 4 hours, and expiry arithmetic saturates within SQLite's i64 range, so a huge or wrapped TTL cannot overflow or create a lease that never expires.
 - Length caps are applied to the escaped output, so escaping cannot expand text past the cap. A block larger than the whole context budget is truncated rather than withheld.
 
-Known gaps are listed in docs/design.md under "Security notes".
+Not covered (accepted for this slice; details in docs/design.md under "Security notes"):
+
+- Processes running as the same user, including the agent's own shell, can read the hook token and use the daemon socket.
+- While the daemon is down, another local user could listen on the fixed hook port and receive hook requests.
+- Text relayed by a trusted agent may carry instructions it read elsewhere. It is wrapped, cleaned and labelled as data, and the user's permission prompts stay in force, but the receiving model can still follow it.
+- Edits through shell commands are not checked against leases or protected paths.
+- No rate limits, and no pruning of the hub's log.

@@ -12,13 +12,14 @@ First slice built: hub, daemon, Claude Code hooks, channel MCP server, activity 
 
 Build with a current stable Rust toolchain:
 
-    cargo build --release
+    cargo build --release --locked
     export PATH="$PWD/target/release:$PATH"
 
-On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused.
+On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused, and with `--allow` only the named users (or `tag:` names) are accepted.
 
     mkdir -m 700 -p ~/.wormhole
-    wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite
+    wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite \
+        --allow alice@example.com --allow bob@example.com
 
 On each developer machine, run one daemon. It serves hooks on 127.0.0.1:7421 and a socket in `~/.wormhole/` (mode 0700).
 
@@ -28,9 +29,13 @@ In each project, print the Claude Code configuration and merge it by hand; nothi
 
     wormhole install --project .
 
-Then start Claude Code as usual. Every session gets "who is working on what" at start, a warning before editing a file another session holds, and messages and "changed since you read it" notices after each tool call. To also receive messages pushed between tool calls (channels, a research preview):
+The printed settings contain this machine's hook token: put them in `.claude/settings.local.json` and `chmod 600` it.
+
+Then start Claude Code as usual. Every session gets "who is working on what" at start, a warning when it edits a file another session holds (today that warning reaches the model just after the edit; see docs/design.md), and messages and "changed since you read it" notices after each tool call. To also receive messages pushed between tool calls (channels, a research preview):
 
     claude --dangerously-load-development-channels server:wormhole
+
+Channels need a claude.ai account or a Console API key, are not available on Bedrock, Google Cloud or Foundry, and on Team and Enterprise plans an admin must enable them.
 
 The activity page is at `http://hub.your-tailnet.ts.net:7420/` from any machine on the tailnet.
 
