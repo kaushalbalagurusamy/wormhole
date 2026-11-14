@@ -75,15 +75,7 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
         return Err("static identity is only allowed when the hub listens on loopback".into());
     }
     let store = Store::open(&cfg.db).map_err(|e| format!("open {}: {e}", cfg.db.display()))?;
-    let (tx, _) = broadcast::channel(1024);
-    let (kick, _) = broadcast::channel(16);
-    let hub = Arc::new(Hub {
-        store: Mutex::new(store),
-        tx,
-        sessions: Mutex::new(HashMap::new()),
-        ident: Identifier::new(cfg.identity.clone()),
-        kick,
-    });
+    let hub = Arc::new(Hub::new(store, cfg.identity.clone()));
     let listener = tokio::net::TcpListener::bind(cfg.listen)
         .await
         .map_err(|e| format!("bind {}: {e}", cfg.listen))?;
@@ -252,6 +244,40 @@ fn db<T>(r: rusqlite::Result<T>) -> Result<T, String> {
 }
 
 impl Hub {
+    fn new(store: Store, identity: IdentityConfig) -> Hub {
+        let (tx, _) = broadcast::channel(1024);
+        let (kick, _) = broadcast::channel(16);
+        Hub {
+            store: Mutex::new(store),
+            tx,
+            sessions: Mutex::new(HashMap::new()),
+            ident: Identifier::new(identity),
+            kick,
+        }
+    }
+
+    /// Expire leases and presence as of `t`.
+    fn sweep_once(&self, t: u64) {
+        let expired = self.store.lock().unwrap().expire(t).unwrap_or_default();
+        for l in expired {
+            let _ = self.emit_lease("lease.expired", &l, json!({}));
+        }
+        let gone: Vec<(String, Peer)> = {
+            let mut ss = self.sessions.lock().unwrap();
+            let ids: Vec<String> = ss
+                .iter()
+                .filter(|(_, s)| t.saturating_sub(s.info.last_seen) > PRESENCE_TIMEOUT_MS)
+                .map(|(k, _)| k.clone())
+                .collect();
+            ids.into_iter()
+                .filter_map(|k| ss.remove(&k).map(|s| (k, s.owner)))
+                .collect()
+        };
+        for (session, owner) in gone {
+            let _ = self.emit("bye", &owner, &session, json!({"reason": "timeout"}));
+        }
+    }
+
     /// Send everything after `last` that `peer` may see. False if the database failed.
     fn replay(&self, peer: &Peer, out: &mpsc::UnboundedSender<Message>, last: &mut u64) -> bool {
         loop {
@@ -588,24 +614,6 @@ async fn sweep(hub: Arc<Hub>) {
     let mut tick = tokio::time::interval(Duration::from_millis(500));
     loop {
         tick.tick().await;
-        let t = now();
-        let expired = hub.store.lock().unwrap().expire(t).unwrap_or_default();
-        for l in expired {
-            let _ = hub.emit_lease("lease.expired", &l, json!({}));
-        }
-        let gone: Vec<(String, Peer)> = {
-            let mut ss = hub.sessions.lock().unwrap();
-            let ids: Vec<String> = ss
-                .iter()
-                .filter(|(_, s)| t.saturating_sub(s.info.last_seen) > PRESENCE_TIMEOUT_MS)
-                .map(|(k, _)| k.clone())
-                .collect();
-            ids.into_iter()
-                .filter_map(|k| ss.remove(&k).map(|s| (k, s.owner)))
-                .collect()
-        };
-        for (session, owner) in gone {
-            let _ = hub.emit("bye", &owner, &session, json!({"reason": "timeout"}));
-        }
+        hub.sweep_once(now());
     }
 }
