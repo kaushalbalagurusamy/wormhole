@@ -3,7 +3,12 @@
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
+use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
+
+use tokio::io::AsyncReadExt;
+use tokio::sync::Semaphore;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Peer {
@@ -76,7 +81,7 @@ pub struct Identifier {
     cfg: IdentityConfig,
     /// Users (login names, or tags for tagged nodes) accepted; empty accepts every identified peer.
     allow: Vec<String>,
-    whois: tokio::sync::Semaphore,
+    whois: Arc<Semaphore>,
 }
 
 impl Identifier {
@@ -88,7 +93,7 @@ impl Identifier {
         Identifier {
             cfg,
             allow,
-            whois: tokio::sync::Semaphore::new(WHOIS_LIMIT),
+            whois: Arc::new(Semaphore::new(WHOIS_LIMIT)),
         }
     }
 
@@ -108,25 +113,34 @@ impl Identifier {
                 parse_static(static_claim?)
             }
             IdentityConfig::Tailscale { bin } => {
-                // Held until the child exits or the timeout kills it (kill_on_drop).
-                let _permit = self.whois.acquire().await.ok()?;
-                let out = tokio::time::timeout(
-                    Duration::from_secs(3),
-                    tokio::process::Command::new(bin)
-                        .arg("whois")
-                        .arg("--json")
-                        .arg(ip.to_string())
-                        .stdin(std::process::Stdio::null())
-                        .kill_on_drop(true)
-                        .output(),
-                )
+                let permit = self.whois.clone().acquire_owned().await.ok()?;
+                let mut cmd = tokio::process::Command::new(bin);
+                cmd.arg("whois")
+                    .arg("--json")
+                    .arg(ip.to_string())
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null())
+                    .kill_on_drop(true);
+                // An owned task, so a dropped requester stops listening but the lookup still
+                // runs to the child's exit; the permit is freed only once the child is reaped.
+                let out = tokio::spawn(async move {
+                    let _permit = permit;
+                    let mut child = cmd.spawn().ok()?;
+                    let mut stdout = child.stdout.take()?;
+                    let out = tokio::time::timeout(Duration::from_secs(3), async {
+                        let mut buf = Vec::new();
+                        stdout.read_to_end(&mut buf).await.ok()?;
+                        child.wait().await.ok()?.success().then_some(buf)
+                    })
+                    .await;
+                    // SIGKILL and reap; a no-op once the child has been waited for.
+                    let _ = child.kill().await;
+                    out.ok().flatten()
+                })
                 .await
-                .ok()?
-                .ok()?;
-                if !out.status.success() {
-                    return None;
-                }
-                parse_whois(&String::from_utf8_lossy(&out.stdout))
+                .ok()??;
+                parse_whois(&String::from_utf8_lossy(&out))
             }
         }
     }
