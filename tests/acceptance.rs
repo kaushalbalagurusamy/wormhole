@@ -116,6 +116,27 @@ async fn path_over_body_string_limit_is_denied() {
 }
 
 #[tokio::test]
+async fn blanked_path_is_denied_from_a_subdirectory() {
+    // A blank path resolves to the cwd; from a subdirectory that is a real, checkable path.
+    let n = two_sessions(Opts {
+        protected: vec!["secrets/**".into()],
+        ..Opts::default()
+    })
+    .await;
+    hook(&n.a, pre_edit(SA, &n.repo_a, "secrets/key.txt")).await;
+    let sub = n.repo_b.join("secrets");
+    std::fs::create_dir_all(&sub).unwrap();
+    let sc = "cccccccc-0000-4000-8000-000000000003";
+    hook(&n.b, session_start(sc, &sub)).await;
+    let r = hook(
+        &n.b,
+        pre_edit(sc, &sub, &format!("{}key.txt", "./".repeat(2100))),
+    )
+    .await;
+    assert_eq!(decision(&r).as_deref(), Some("deny"), "{r}");
+}
+
+#[tokio::test]
 async fn repo_path_over_field_limit_is_denied() {
     let deep = format!(
         "secrets/{}/{}/{}/k",
