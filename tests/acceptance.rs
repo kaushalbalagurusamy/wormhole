@@ -313,11 +313,21 @@ async fn daemon_http_rejects_browser_requests() {
     let n = net(Opts::default()).await;
     let body = post_bash(SA, &n.repo_a).to_string();
     let json_ct = ("Content-Type", "application/json");
-    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[json_ct, ("Host", "evil.example:80")], &body).await;
+    let auth = format!("Bearer {}", n.a.hook_token);
+    assert!(n.a.hook_token.len() >= 32, "hook token too short");
+    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[json_ct], &body).await;
+    assert_eq!(s, 403, "no token");
+    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[json_ct, ("Authorization", "Bearer wrong")], &body).await;
+    assert_eq!(s, 403, "wrong token");
+    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[json_ct, ("Authorization", &auth)], &body).await;
+    assert_eq!(s, 200, "right token");
+    let json_ct = ("Content-Type", "application/json");
+    let auth = ("Authorization", auth.as_str());
+    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[json_ct, auth, ("Host", "evil.example:80")], &body).await;
     assert!(s >= 400, "foreign Host: {s}");
-    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[json_ct, ("Origin", "http://evil.example")], &body).await;
+    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[json_ct, auth, ("Origin", "http://evil.example")], &body).await;
     assert!(s >= 400, "Origin: {s}");
-    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[("Content-Type", "text/plain")], &body).await;
+    let (s, _, _) = http(n.a.http_addr, "POST", "/hook", &[("Content-Type", "text/plain"), auth], &body).await;
     assert!(s >= 400, "text/plain: {s}");
 }
 
@@ -393,4 +403,35 @@ async fn activity_page_refuses_rebinding_and_cross_site_reads() {
     assert_eq!(s, 200);
     assert!(state.contains("src/lib.rs"), "{state}");
     assert!(!state.contains("\"token\""), "fencing tokens leaked to the page: {state}");
+}
+
+#[tokio::test]
+async fn protected_path_cannot_be_bypassed_by_spelling() {
+    let n = two_sessions(Opts {
+        protected: vec!["secrets/**".into()],
+        ..Opts::default()
+    })
+    .await;
+    for r in [&n.repo_a, &n.repo_b] {
+        std::fs::create_dir_all(r.join("secrets")).unwrap();
+        std::fs::write(r.join("secrets/key.txt"), "k").unwrap();
+        std::fs::create_dir_all(r.join("a")).unwrap();
+    }
+    assert_eq!(decision(&hook(&n.a, pre_edit(SA, &n.repo_a, "secrets/key.txt")).await), None);
+    std::os::unix::fs::symlink(n.repo_b.join("secrets"), n.repo_b.join("link")).unwrap();
+    let mut spellings = vec!["link/key.txt", "a/../secrets/key.txt", "./secrets//key.txt"];
+    if cfg!(target_os = "macos") {
+        // The default macOS filesystem is case-insensitive.
+        spellings.push("SECRETS/key.txt");
+    }
+    for spelled in spellings {
+        let r = hook(&n.b, pre_edit(SB, &n.repo_b, spelled)).await;
+        assert_eq!(decision(&r).as_deref(), Some("deny"), "{spelled}: {r}");
+    }
+    // A symlink that leaves the repository is outside it: no lease, no warning.
+    let outside = n.dir.join("outside");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::os::unix::fs::symlink(&outside, n.repo_b.join("out")).unwrap();
+    assert_eq!(hook(&n.b, pre_edit(SB, &n.repo_b, "out/x.rs")).await, json!({}));
+    assert_eq!(hook(&n.b, pre_edit(SB, &n.repo_b, "../../outside/y.rs")).await, json!({}));
 }

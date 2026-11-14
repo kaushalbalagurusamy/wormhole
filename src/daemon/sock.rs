@@ -49,6 +49,15 @@ pub(crate) fn bind(path: &Path) -> Result<Bound, String> {
     Ok(Bound { listener, uid })
 }
 
+pub(crate) fn euid() -> u32 {
+    todo!()
+}
+
+pub(crate) fn peer_allowed(peer: Option<u32>, euid: u32) -> bool {
+    let _ = (peer, euid);
+    todo!()
+}
+
 pub(crate) async fn serve(d: Arc<Daemon>, b: Bound) {
     while let Ok((s, _)) = b.listener.accept().await {
         if s.peer_cred().ok().map(|c| c.uid()) != Some(b.uid) {
@@ -236,5 +245,74 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
             Ok("task set".into())
         }
         _ => Err(format!("unknown tool {name}")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn base(name: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("wh-sock-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[tokio::test]
+    async fn creates_private_dir_and_socket() {
+        let d = base("ok");
+        let p = d.join("run/d.sock");
+        let _b = bind(&p).unwrap();
+        assert_eq!(std::fs::metadata(d.join("run")).unwrap().mode() & 0o777, 0o700);
+        assert_eq!(std::fs::metadata(&p).unwrap().mode() & 0o777, 0o600);
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[tokio::test]
+    async fn refuses_symlinked_runtime_dir() {
+        let d = base("symdir");
+        let real = d.join("real");
+        std::fs::create_dir_all(&real).unwrap();
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::os::unix::fs::symlink(&real, d.join("run")).unwrap();
+        assert!(bind(&d.join("run/d.sock")).is_err());
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[tokio::test]
+    async fn refuses_group_or_world_accessible_dir() {
+        for mode in [0o750, 0o705, 0o770, 0o777] {
+            let d = base(&format!("mode{mode:o}"));
+            let run = d.join("run");
+            std::fs::create_dir_all(&run).unwrap();
+            std::fs::set_permissions(&run, std::fs::Permissions::from_mode(mode)).unwrap();
+            assert!(bind(&run.join("d.sock")).is_err(), "mode {mode:o}");
+            std::fs::remove_dir_all(&d).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn refuses_symlink_at_socket_path() {
+        let d = base("symsock");
+        let run = d.join("run");
+        std::fs::create_dir_all(&run).unwrap();
+        std::fs::set_permissions(&run, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::write(d.join("target"), "x").unwrap();
+        std::os::unix::fs::symlink(d.join("target"), run.join("d.sock")).unwrap();
+        assert!(bind(&run.join("d.sock")).is_err());
+        // The symlink target was not touched.
+        assert_eq!(std::fs::read_to_string(d.join("target")).unwrap(), "x");
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    // A peer with another uid cannot be produced in a test without a second account, so
+    // the rule itself is checked: only our effective uid is accepted.
+    #[test]
+    fn only_our_uid_is_accepted() {
+        let me = euid();
+        assert!(peer_allowed(Some(me), me));
+        assert!(!peer_allowed(Some(me + 1), me));
+        assert!(!peer_allowed(None, me));
     }
 }

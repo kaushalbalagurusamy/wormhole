@@ -56,6 +56,8 @@ impl DaemonConfig {
 pub struct DaemonHandle {
     pub http_addr: SocketAddr,
     pub socket_path: PathBuf,
+    /// Secret the HTTP hook requests must carry as `Authorization: Bearer <token>`.
+    pub hook_token: String,
     d: Arc<Daemon>,
     tasks: Vec<tokio::task::JoinHandle<()>>,
 }
@@ -184,6 +186,7 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
     Ok(DaemonHandle {
         http_addr,
         socket_path: cfg.socket_path,
+        hook_token: String::new(),
         d,
         tasks,
     })

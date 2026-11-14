@@ -147,11 +147,12 @@ pub async fn http(
 /// POST a hook input the way Claude Code does and return the parsed JSON output
 /// (`{}` for an empty body).
 pub async fn hook(d: &DaemonHandle, input: Value) -> Value {
+    let auth = format!("Bearer {}", d.hook_token);
     let (status, _, body) = http(
         d.http_addr,
         "POST",
         "/hook",
-        &[("Content-Type", "application/json")],
+        &[("Content-Type", "application/json"), ("Authorization", &auth)],
         &input.to_string(),
     )
     .await;
