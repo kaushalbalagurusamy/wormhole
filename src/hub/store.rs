@@ -111,12 +111,53 @@ fn event_row(r: &rusqlite::Row) -> rusqlite::Result<Event> {
 }
 
 impl Store {
-    pub fn open(path: &Path) -> rusqlite::Result<Store> {
-        let s = Self::init(rusqlite::Connection::open(path)?)?;
-        // The log holds message bodies: owner-only. SQLite gives its -wal and -shm files the
-        // same mode as the database.
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    /// Open or create the database. The log holds message bodies, so the file and its
+    /// -wal and -shm companions are created owner-only (0600) before SQLite touches them,
+    /// a missing parent directory is created 0700, and a parent others can write to (where
+    /// the file could be swapped) is refused.
+    pub fn open(path: &Path) -> Result<Store, String> {
+        use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
+        let shown = path.display();
+        let dir = path
+            .parent()
+            .filter(|d| !d.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        if !dir.exists() {
+            std::fs::DirBuilder::new()
+                .recursive(true)
+                .mode(0o700)
+                .create(dir)
+                .map_err(|e| format!("create {}: {e}", dir.display()))?;
+        }
+        let dm = std::fs::metadata(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        if dm.mode() & 0o022 != 0 {
+            return Err(format!(
+                "{} is writable by other users; put the hub database in a private directory",
+                dir.display()
+            ));
+        }
+        let private = |p: &Path| {
+            std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o600))
+                .map_err(|e| format!("chmod 600 {}: {e}", p.display()))
+        };
+        std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(path)
+            .map_err(|e| format!("open {shown}: {e}"))?;
+        private(path)?;
+        let conn = rusqlite::Connection::open(path).map_err(|e| format!("open {shown}: {e}"))?;
+        let s = Self::init(conn).map_err(|e| format!("open {shown}: {e}"))?;
+        for ext in ["-wal", "-shm"] {
+            let f = std::path::PathBuf::from(format!("{}{ext}", path.display()));
+            if f.exists() {
+                private(&f)?;
+            }
+        }
         Ok(s)
     }
 
@@ -692,8 +733,9 @@ mod tests {
 
     #[test]
     fn state_survives_reopen() {
-        let p = std::env::temp_dir().join(format!("wh-store-{}.sqlite", std::process::id()));
-        let _ = std::fs::remove_file(&p);
+        let dir = std::env::temp_dir().join(format!("wh-store-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let p = dir.join("hub.sqlite");
         let t1 = {
             let mut s = Store::open(&p).unwrap();
             s.append(1, "k", "u", "m", "s", json!({})).unwrap();
@@ -709,6 +751,6 @@ mod tests {
         s.release_session("A").unwrap();
         let t2 = granted(s.acquire(0, &h("A"), "r", "f", 1000).unwrap()).token;
         assert!(t2 > t1);
-        std::fs::remove_file(&p).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

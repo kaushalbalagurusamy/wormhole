@@ -90,7 +90,7 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
     if matches!(cfg.identity, IdentityConfig::Static) && !cfg.listen.ip().is_loopback() {
         return Err("static identity is only allowed when the hub listens on loopback".into());
     }
-    let store = Store::open(&cfg.db).map_err(|e| format!("open {}: {e}", cfg.db.display()))?;
+    let store = Store::open(&cfg.db)?;
     let hub = Arc::new(Hub::new(store, cfg.identity.clone()));
     let listener = tokio::net::TcpListener::bind(cfg.listen)
         .await
