@@ -722,3 +722,44 @@ async fn session_timed_out_by_the_hub_recovers_on_its_next_hook() {
     let c = ctx(&hook(&n.b, pre_edit(SB, &n.repo_b, "src/lib.rs")).await);
     assert!(c.contains("WARNING") && c.contains(SA), "{c}");
 }
+
+#[tokio::test]
+async fn hook_token_is_checked_before_the_body_and_bodies_are_capped() {
+    let n = net(Opts::default()).await;
+    // Claims a 50 MB body but sends none: refused at once, without waiting to read it.
+    let mut s = tokio::net::TcpStream::connect(n.a.http_addr).await.unwrap();
+    let head = format!(
+        "POST /hook HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nContent-Length: 50000000\r\n\r\n",
+        n.a.http_addr
+    );
+    s.write_all(head.as_bytes()).await.unwrap();
+    let mut buf = [0u8; 256];
+    let k = tokio::time::timeout(Duration::from_secs(2), s.read(&mut buf))
+        .await
+        .expect("server waited for the body")
+        .unwrap();
+    let reply = String::from_utf8_lossy(&buf[..k]);
+    assert!(reply.starts_with("HTTP/1.1 403"), "{reply}");
+
+    // With the token, a body over 1 MiB is refused as too large.
+    let mut big = post(
+        SA,
+        &n.repo_a,
+        "Write",
+        json!({"file_path": n.repo_a.join("x"), "content": "x".repeat(2 * 1024 * 1024)}),
+    );
+    big["tool_response"] = json!({});
+    let auth = format!("Bearer {}", n.a.hook_token);
+    let (st, _, _) = http(
+        n.a.http_addr,
+        "POST",
+        "/hook",
+        &[
+            ("Content-Type", "application/json"),
+            ("Authorization", &auth),
+        ],
+        &big.to_string(),
+    )
+    .await;
+    assert_eq!(st, 413);
+}

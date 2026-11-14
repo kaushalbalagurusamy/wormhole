@@ -100,6 +100,19 @@ mod tests {
         assert!(overlaps("area:auth", "area:auth"));
         assert!(!overlaps("area:auth", "area:billing"));
         assert!(!overlaps("area:*", "area:auth"));
-        assert!(!overlaps("src/*", "src/**"));
+    }
+
+    #[test]
+    fn globs_overlap_conservatively() {
+        assert!(overlaps("src/**", "src/hub/*"));
+        assert!(overlaps("src/hub/*", "src/**"));
+        assert!(overlaps("src/*.rs", "src/**"));
+        assert!(overlaps("src/*", "src/**"));
+        assert!(overlaps("**", "docs/*.md"));
+        assert!(!overlaps("docs/**", "src/**"));
+        assert!(!overlaps("src/hub/*", "src/daemon/*"));
+        // Same directory, different name patterns: reported as overlapping (a false
+        // positive is only an extra warning).
+        assert!(overlaps("src/a*", "src/b*"));
     }
 }
