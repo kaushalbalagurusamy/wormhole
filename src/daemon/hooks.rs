@@ -64,13 +64,16 @@ fn authorized(headers: &HeaderMap, token: &str) -> bool {
 /// they stream in (see `shrink`), so this only bounds time spent, not memory.
 const MAX_HOOK_STREAM: u64 = 1024 * 1024 * 1024;
 
-fn refuse(reason: &str) -> Response {
-    Json(json!({"hookSpecificOutput": {
+fn refusal(reason: &str) -> Value {
+    json!({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
         "permissionDecisionReason": format!("[wormhole] {reason} The edit was refused so a protected path cannot be bypassed; retry with a smaller change."),
-    }}))
-    .into_response()
+    }})
+}
+
+fn refuse(reason: &str) -> Response {
+    Json(refusal(reason)).into_response()
 }
 
 /// Headers and token are checked before any of the body is read. No body size gets a 413:
@@ -273,8 +276,7 @@ fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String
         let r = s.repo.as_ref()?;
         (r.id.clone(), r.root.clone(), s.cwd.clone()?)
     };
-    let rel = repo::canonical_relative(&root, &cwd, file)?;
-    (rel.len() <= MAX_FIELD).then_some((id, rel))
+    Some((id, repo::canonical_relative(&root, &cwd, file)?))
 }
 
 /// Protected-glob match; case-insensitive where the repository's filesystem is.
@@ -337,12 +339,22 @@ async fn pre_tool_use(
     if !EDIT_TOOLS.contains(&tool) {
         return json!({});
     }
-    let Some((repo_id, rel)) = tool_path(d, session, input) else {
+    let ti = &input["tool_input"];
+    // A path over 4 KiB reaches here blanked by `shrink`.
+    let blank = ti["file_path"]
+        .as_str()
+        .or_else(|| ti["notebook_path"].as_str())
+        == Some("");
+    let path = tool_path(d, session, input);
+    if path.is_none() && !blank {
         return json!({});
-    };
+    }
     if !hub_ok {
         return output("PreToolUse", STALE_HUB);
     }
+    let Some((repo_id, rel)) = path.filter(|(_, rel)| rel.len() <= MAX_FIELD) else {
+        return refusal("The file path was too long to check.");
+    };
     let rel = text::plain(&rel, MAX_FIELD);
     let protected = is_protected(d, session, &rel);
     let ttl_ms = d.cfg.lease_ttl.as_millis() as u64;
@@ -425,7 +437,7 @@ async fn record_activity(
     deadline: Instant,
 ) -> bool {
     let tool = input["tool_name"].as_str().unwrap_or("");
-    let path = tool_path(d, session, input);
+    let path = tool_path(d, session, input).filter(|(_, rel)| rel.len() <= MAX_FIELD);
     let last = d.st.lock().unwrap().last_seq.unwrap_or(0);
     if tool == "Read" {
         if let Some(k) = path {
