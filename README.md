@@ -29,6 +29,12 @@ WireGuard already encrypts tailnet traffic. To also encrypt the daemon-to-hub li
 
 Tailscale certificates last 90 days: run the same `tailscale cert` command before they expire (from cron or a timer) and send the hub `SIGHUP` to load the new files without a restart. The hub refuses plaintext on any address other than loopback or a Tailscale address.
 
+To join an existing hub from a developer machine in one step (macOS or Linux), run from a clone of this repo:
+
+    scripts/join.sh hub.your-tailnet.ts.net:7420 ~/code/your-repo --protected 'secrets/**'
+
+It checks the hub answers, builds and installs the binary, runs the daemon as a LaunchAgent or a systemd user unit, merges the hooks into the repo's `.claude/settings.local.json` (mode 0600) and registers the MCP server for that checkout. It is safe to re-run. The manual steps follow.
+
 On each developer machine, run one daemon. It serves hooks on 127.0.0.1:7421 and a socket in `~/.wormhole/` (mode 0700).
 
     wormhole daemon --hub ws://hub.your-tailnet.ts.net:7420/ws --protected 'secrets/**'
