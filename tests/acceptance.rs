@@ -845,9 +845,12 @@ async fn daemon_restart_does_not_lose_undelivered_messages() {
         .await
         .unwrap();
     wait_connected(&b).await;
-    hook(&b, session_start(SB, &repo_b)).await;
-    let c = next_ctx(&b, SB, &repo_b, |c| c.contains("survives-restart")).await;
-    assert_eq!(c.matches("survives-restart").count(), 1, "{c}");
+    // The replayed message reaches the session at its next hook (SessionStart or a tool call).
+    let mut seen = ctx(&hook(&b, session_start(SB, &repo_b)).await);
+    if !seen.contains("survives-restart") {
+        seen = next_ctx(&b, SB, &repo_b, |c| c.contains("survives-restart")).await;
+    }
+    assert_eq!(seen.matches("survives-restart").count(), 1, "{seen}");
     // Already-read messages are not delivered again after another restart.
     b.shutdown().await;
     let url = format!("ws://{}/ws", hub.addr);
@@ -855,8 +858,8 @@ async fn daemon_restart_does_not_lose_undelivered_messages() {
         .await
         .unwrap();
     wait_connected(&b).await;
-    hook(&b, session_start(SB, &repo_b)).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!ctx(&hook(&b, session_start(SB, &repo_b)).await).contains("survives-restart"));
     assert!(!ctx(&hook(&b, post_bash(SB, &repo_b)).await).contains("survives-restart"));
     let _ = (a, repo_a);
 }
