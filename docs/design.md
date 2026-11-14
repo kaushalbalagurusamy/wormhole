@@ -57,7 +57,7 @@ Leases expire unless renewed, so a crashed session cannot hold one indefinitely;
 | Path | Mechanism | Latency to the receiving session | Status |
 |---|---|---|---|
 | Pull at next action | `UserPromptSubmit` and `PostToolUse` hooks return unread messages and change notices | at the receiver's next tool call or prompt | generally available |
-| Lease check before an edit | `PreToolUse` HTTP hook asks the daemon | roughly 50–200 ms on a private network (estimate; cross-machine not yet measured); 0.19 ms p50 on localhost (measured). The warning text reaches the model after the edit (see the open problem below); a deny reaches it before | generally available |
+| Lease check before an edit | `PreToolUse` HTTP hook asks the daemon | roughly 50–200 ms on a private network (estimate; cross-machine not yet measured); 0.20 ms p50 on localhost over ws://, 0.21 ms over wss:// (measured). The warning text reaches the model after the edit (see the open problem below); a deny reaches it before | generally available |
 | Push | channel notification | about 1 s while the session is open (estimate; not yet measured into a live session); send to a client on the receiving daemon's socket 0.09 ms p50 on localhost (measured) | research preview |
 | Wake an idle session | channel event, or an `asyncRewake` hook | seconds (estimate) | channel: preview; `asyncRewake` support per event to be verified |
 
@@ -94,9 +94,9 @@ Decided 2026-11-14. Every other trust or safety statement in this repo follows f
 
 ## Resource use per developer machine
 
-- daemon: one process; 6.0 MB resident and no measurable CPU when idle on localhost (measured, see below). Earlier estimate: 10–20 MB, near 0%.
-- channel server: one per session; 4.0 MB resident (measured). Earlier estimate: 10–20 MB.
-- hooks: HTTP hooks run inside Claude Code; no extra process. `SessionStart` runs `wormhole hook` once per session start (about 2 ms).
+- daemon: one process; 10.2 MB resident and no measurable CPU when idle on localhost (measured, see below). Earlier estimate: 10–20 MB, near 0%.
+- channel server: one per session; 7.9 MB resident (measured). Earlier estimate: 10–20 MB.
+- hooks: HTTP hooks run inside Claude Code; no extra process. `SessionStart` runs `wormhole hook` once per session start (about 3 ms).
 
 ## First slice
 
@@ -135,25 +135,27 @@ Not built yet: the working-tree watcher and git pre-commit check for edits made 
 
 ## Measured
 
-Localhost only: one Apple M5 Pro (macOS, arm64), hub and two daemons on 127.0.0.1 with static identity, release build of commit 073bfc9, rustc 1.100.0, 2026-11-14. Produced by `scripts/bench.sh 300`. The code has changed since; the numbers have not been rerun. p95 and p99 come from 300 sequential requests by one client, not from load. Cross-machine numbers (the point of the project) are not yet measured.
+Localhost only: one Apple M5 Pro (macOS, arm64), hub and two daemons on 127.0.0.1 with static identity, release build of commit 8a852b0, rustc 1.100.0, 2026-11-14. Produced by `scripts/bench.sh 300`, which runs the same requests over `ws://` and over `wss://` (TLS on the daemon-to-hub link, with a throwaway CA). p95 and p99 come from 300 sequential requests by one client, not from load. Cross-machine numbers (the point of the project) are not yet measured.
 
-| Measurement | p50 | p95 | p99 |
-|---|---|---|---|
-| `PreToolUse` hook round trip, lease renew through the hub | 0.19 ms | 0.40 ms | 0.42 ms |
-| `PreToolUse` hook round trip, conflict warning | 0.18 ms | 0.20 ms | 0.22 ms |
-| `PostToolUse` hook round trip, nothing to deliver | 0.10 ms | 0.11 ms | 0.12 ms |
-| `SessionStart` through `wormhole hook` (process start included) | 2.03 ms | 2.38 ms | 2.57 ms |
-| Message from session A to a client attached to B's daemon socket, as the channel server attaches (send, hub, fan-out, push; the `mcp-channel` process and Claude Code are not in this path) | 0.09 ms | 0.13 ms | 0.22 ms |
+| Measurement | ws:// p50 | p95 | p99 | wss:// p50 | p95 | p99 |
+|---|---|---|---|---|---|---|
+| `PreToolUse` hook round trip, lease renew through the hub | 0.20 ms | 0.47 ms | 0.56 ms | 0.21 ms | 0.48 ms | 0.52 ms |
+| `PreToolUse` hook round trip, conflict warning | 0.18 ms | 0.21 ms | 0.25 ms | 0.18 ms | 0.20 ms | 0.22 ms |
+| `PostToolUse` hook round trip, nothing to deliver (no hub call) | 0.10 ms | 0.11 ms | 0.12 ms | 0.10 ms | 0.11 ms | 0.11 ms |
+| `SessionStart` through `wormhole hook` (process start included) | 2.91 ms | 3.26 ms | 3.53 ms | 2.95 ms | 3.31 ms | 3.76 ms |
+| Message from session A to a client attached to B's daemon socket, as the channel server attaches (send, hub, fan-out, push; the `mcp-channel` process and Claude Code are not in this path) | 0.09 ms | 0.14 ms | 0.16 ms | 0.11 ms | 0.14 ms | 0.16 ms |
 
-These exclude Claude Code's own hook overhead and network latency. A `PostToolUse` delivering a backlog returns as many messages as fit in 8,000 characters (32 short ones in the run) and keeps the rest for the next call.
+TLS adds about 0.01–0.02 ms at p50 on paths that cross the hub link, within the run-to-run noise; the hook endpoints themselves are unchanged, since TLS sits only between daemon and hub. These numbers exclude Claude Code's own hook overhead and network latency. A `PostToolUse` delivering a backlog returns as many messages as fit in 8,000 characters (32 short ones in the run) and keeps the rest for the next call.
 
-| Idle resource use (60 s, after the run above) | |
+Compared with the first run (commit 073bfc9, before the review fixes and TLS): hook round trips are the same within noise; `SessionStart` through the command went from 2.0 ms to 2.9 ms p50 and resident memory grew, both from the larger binary (rustls, ring and the added code).
+
+| Idle resource use (60 s, after the ws:// run) | |
 |---|---|
-| daemon resident memory | 6.0 MB |
+| daemon resident memory | 10.2 MB (6.0 MB at 073bfc9) |
 | daemon CPU | below 0.02% (no CPU time recorded at the 10 ms resolution of `ps`) |
-| hub resident memory | 7.6 MB |
+| hub resident memory | 11.6 MB (7.6 MB at 073bfc9) |
 | hub CPU | 0.05% (lease and presence sweep every 500 ms) |
-| channel server resident memory | 4.0 MB |
+| channel server resident memory | 7.9 MB (4.0 MB at 073bfc9) |
 
 ## Security notes
 
