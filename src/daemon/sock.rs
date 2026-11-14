@@ -1,0 +1,240 @@
+//! The daemon's Unix socket: newline-delimited JSON for the channel MCP server and the
+//! `wormhole hook` command. The socket lives in a directory only this user can enter, has
+//! mode 0600, and every peer's uid is checked.
+
+use super::{hooks, Daemon, HubError};
+use crate::proto::*;
+use crate::text;
+use serde_json::{json, Value};
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::path::Path;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::{UnixListener, UnixStream};
+use tokio::sync::mpsc;
+
+/// Longest request line accepted. Hook inputs carry file contents, so this is generous.
+const MAX_LINE: u64 = 64 * 1024 * 1024;
+
+pub(crate) struct Bound {
+    listener: UnixListener,
+    uid: u32,
+}
+
+pub(crate) fn bind(path: &Path) -> Result<Bound, String> {
+    let dir = path.parent().ok_or("socket path has no directory")?;
+    if !dir.exists() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
+    }
+    if path.exists() {
+        if std::os::unix::net::UnixStream::connect(path).is_ok() {
+            return Err(format!("a daemon is already listening on {}", path.display()));
+        }
+        std::fs::remove_file(path).map_err(|e| format!("remove stale {}: {e}", path.display()))?;
+    }
+    let listener = UnixListener::bind(path).map_err(|e| format!("bind {}: {e}", path.display()))?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
+    // The socket we just created is owned by our effective uid.
+    let uid = std::fs::metadata(path).map_err(|e| e.to_string())?.uid();
+    let dm = std::fs::metadata(dir).map_err(|e| e.to_string())?;
+    if dm.uid() != uid || dm.mode() & 0o077 != 0 {
+        let _ = std::fs::remove_file(path);
+        return Err(format!(
+            "{} must be owned by this user and not accessible to others (chmod 700)",
+            dir.display()
+        ));
+    }
+    Ok(Bound { listener, uid })
+}
+
+pub(crate) async fn serve(d: Arc<Daemon>, b: Bound) {
+    while let Ok((s, _)) = b.listener.accept().await {
+        if s.peer_cred().ok().map(|c| c.uid()) != Some(b.uid) {
+            continue;
+        }
+        tokio::spawn(client(d.clone(), s));
+    }
+}
+
+async fn client(d: Arc<Daemon>, s: UnixStream) {
+    let (r, mut w) = s.into_split();
+    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
+    let writer = tokio::spawn(async move {
+        while let Some(v) = rx.recv().await {
+            let mut line = v.to_string();
+            line.push('\n');
+            if w.write_all(line.as_bytes()).await.is_err() {
+                break;
+            }
+        }
+    });
+    let mut r = BufReader::new(r);
+    loop {
+        let mut line = String::new();
+        match (&mut r).take(MAX_LINE).read_line(&mut line).await {
+            Ok(0) | Err(_) => break,
+            Ok(_) if !line.ends_with('\n') => break,
+            Ok(_) => {}
+        }
+        let Ok(req) = serde_json::from_str::<Value>(&line) else { break };
+        let id = req["id"].clone();
+        let res = op(&d, &req, &tx).await;
+        let resp = match res {
+            Ok(data) => json!({"id": id, "ok": true, "data": data}),
+            Err(e) => json!({"id": id, "ok": false, "error": e}),
+        };
+        if tx.send(resp).is_err() {
+            break;
+        }
+    }
+    writer.abort();
+}
+
+async fn op(d: &Daemon, req: &Value, tx: &mpsc::UnboundedSender<Value>) -> Result<Value, String> {
+    match req["op"].as_str().unwrap_or("") {
+        "ping" => Ok(json!({})),
+        "hook" => Ok(hooks::handle(d, req["input"].clone()).await),
+        "attach" => {
+            let session = session_arg(req)?;
+            let sub = tx.clone();
+            let mut st = d.st.lock().unwrap();
+            st.sess(session).subs.push(sub);
+            Ok(json!({}))
+        }
+        "tool" => {
+            let session = session_arg(req)?;
+            if !d.st.lock().unwrap().sessions.contains_key(session) {
+                return Err("unknown session: no hook has run for it on this machine".into());
+            }
+            let text = tool(d, session, req["name"].as_str().unwrap_or(""), &req["args"]).await?;
+            Ok(json!({"text": text}))
+        }
+        _ => Err("unknown op".into()),
+    }
+}
+
+fn session_arg(req: &Value) -> Result<&str, String> {
+    req["session"]
+        .as_str()
+        .filter(|s| !s.is_empty() && s.len() <= MAX_FIELD)
+        .ok_or_else(|| "missing session".to_string())
+}
+
+fn hub_err(e: HubError) -> String {
+    match e {
+        HubError::Unavailable => "the wormhole hub is unreachable; try again later".into(),
+        HubError::Rejected(e) => e,
+    }
+}
+
+fn arg<'a>(args: &'a Value, k: &str) -> Result<&'a str, String> {
+    args[k].as_str().ok_or_else(|| format!("missing {k}"))
+}
+
+/// Resolve a scope argument against the session's repo: an `area:` name, a repo-relative
+/// path or glob, or an absolute path inside the repo.
+fn scope(d: &Daemon, session: &str, args: &Value) -> Result<(String, String), String> {
+    let raw = arg(args, "scope")?.trim();
+    let st = d.st.lock().unwrap();
+    let s = st.sessions.get(session).ok_or("unknown session")?;
+    let r = s.repo.as_ref().ok_or("this session is not in a git repository")?;
+    let sc = if raw.starts_with('/') {
+        crate::repo::relative(&r.root, &r.root, raw).ok_or("path is outside the repository")?
+    } else {
+        raw.trim_start_matches("./").to_string()
+    };
+    if sc.is_empty() || sc.len() > MAX_FIELD || sc.split('/').any(|p| p == "..") {
+        return Err("invalid scope".into());
+    }
+    Ok((r.id.clone(), sc))
+}
+
+async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<String, String> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    d.hello(session, deadline).await.map_err(hub_err)?;
+    let req = |r: Request| d.request(r, deadline);
+    let s = session.to_string();
+    match name {
+        "who" => hooks::who_text(d, session, deadline).await.map_err(hub_err),
+        "send" => {
+            let to = match arg(args, "to")? {
+                "all" | "broadcast" => Target::Broadcast,
+                t => match t.split_once(':') {
+                    Some(("session", id)) => Target::Session(id.into()),
+                    Some(("user", u)) => Target::User(u.into()),
+                    _ => return Err("to must be session:<id>, user:<name> or all".into()),
+                },
+            };
+            let body = arg(args, "body")?.to_string();
+            let reply_to = args["reply_to"].as_u64();
+            let v = req(Request::Send { session: s, to, body, reply_to }).await.map_err(hub_err)?;
+            Ok(format!("sent (seq {})", v["seq"]))
+        }
+        "lease" => {
+            let (repo, scope) = scope(d, session, args)?;
+            let ttl_ms = args["ttl_seconds"]
+                .as_u64()
+                .map(|t| t.saturating_mul(1000))
+                .unwrap_or(d.cfg.lease_ttl.as_millis() as u64);
+            let v = req(Request::LeaseAcquire { session: s, repo: repo.clone(), scope: scope.clone(), ttl_ms })
+                .await
+                .map_err(hub_err)?;
+            match serde_json::from_value::<LeaseResult>(v).map_err(|e| e.to_string())? {
+                LeaseResult::Granted { lease } => {
+                    d.st.lock().unwrap().sess(session).tokens.insert((repo, scope.clone()), lease.token);
+                    Ok(format!("lease granted on {} (token {}), expires in {} s", text::attr(&scope), lease.token, lease.expires.saturating_sub(now_ms()) / 1000))
+                }
+                LeaseResult::Held { lease } => Ok(format!(
+                    "not granted: {} is held by session {} ({}@{}) on scope {}",
+                    text::attr(&scope),
+                    text::attr(&lease.session),
+                    text::attr(&lease.user),
+                    text::attr(&lease.machine),
+                    text::attr(&lease.scope)
+                )),
+            }
+        }
+        "release" => {
+            let (repo, scope) = scope(d, session, args)?;
+            let key = (repo.clone(), scope.clone());
+            let token = d.st.lock().unwrap().sess(session).tokens.get(&key).copied().ok_or("this session does not hold that lease")?;
+            req(Request::LeaseRelease { session: s, repo, scope, token }).await.map_err(hub_err)?;
+            d.st.lock().unwrap().sess(session).tokens.remove(&key);
+            Ok("released".into())
+        }
+        "request_transfer" => {
+            let (repo, scope) = scope(d, session, args)?;
+            let reason = args["reason"].as_str().unwrap_or("").to_string();
+            req(Request::LeaseRequestTransfer { session: s, repo, scope, reason }).await.map_err(hub_err)?;
+            Ok("request sent to the holder; the answer arrives as a notice".into())
+        }
+        "grant" => {
+            let (repo, scope) = scope(d, session, args)?;
+            let to = arg(args, "to")?.to_string();
+            req(Request::LeaseGrant { session: s, repo: repo.clone(), scope: scope.clone(), to }).await.map_err(hub_err)?;
+            d.st.lock().unwrap().sess(session).tokens.remove(&(repo, scope));
+            Ok("granted".into())
+        }
+        "deny" => {
+            let (repo, scope) = scope(d, session, args)?;
+            let to = arg(args, "to")?.to_string();
+            let reason = args["reason"].as_str().unwrap_or("").to_string();
+            req(Request::LeaseDeny { session: s, repo, scope, to, reason }).await.map_err(hub_err)?;
+            Ok("denied".into())
+        }
+        "set_task" => {
+            let task = text::plain(arg(args, "task")?, MAX_TASK);
+            {
+                let mut st = d.st.lock().unwrap();
+                let x = st.sess(session);
+                x.task = task;
+                x.hello_gen = 0;
+            }
+            d.hello(session, deadline).await.map_err(hub_err)?;
+            Ok("task set".into())
+        }
+        _ => Err(format!("unknown tool {name}")),
+    }
+}

@@ -75,7 +75,7 @@ pub async fn start_hub(dir: &Path) -> HubHandle {
 }
 
 pub fn daemon_config(dir: &Path, hub_url: String, who: &str, opts: &Opts) -> DaemonConfig {
-    let mut c = DaemonConfig::new(hub_url, dir.join(format!("{}.sock", &who[..1])));
+    let mut c = DaemonConfig::new(hub_url, dir.join(format!("run-{}/d.sock", &who[..1])));
     c.http_listen = "127.0.0.1:0".parse().unwrap();
     c.static_identity = Some(who.to_string());
     c.protected = opts.protected.clone();
