@@ -1,0 +1,1018 @@
+{
+ "schema_version": 1,
+ "brief": {
+  "path": "/Users/kaushal/Projects/wormhole/docs/minesweep/2026-11-14-wormhole-docs/brief.md",
+  "sha256": "ce894ed3d5f1a7a470d8bfb9fe6dd51115e82d292d4755f54bb04560472ec1b8"
+ },
+ "lenses_applied": [
+  {
+   "id": "accessibility",
+   "version": "0.1.0",
+   "why": "signals: aria, ui, checkout"
+  },
+  {
+   "id": "licensing",
+   "version": "0.1.0",
+   "why": "signals: license"
+  },
+  {
+   "id": "privacy-regulated-data",
+   "version": "0.1.0",
+   "why": "signals: retention"
+  },
+  {
+   "id": "provider-terms",
+   "version": "0.1.0",
+   "why": "signals: claude, anthropic, rate limit"
+  },
+  {
+   "id": "security-ethics",
+   "version": "0.1.0",
+   "why": "signals: vulnerability, payload"
+  },
+  {
+   "id": "agent-orchestration",
+   "version": "0.2.0",
+   "why": "signals: tool call, mcp server"
+  },
+  {
+   "id": "agent-security",
+   "version": "0.1.0",
+   "why": "signals: mcp, tool call, agent, bearer token, stdio"
+  },
+  {
+   "id": "supply-chain",
+   "version": "0.1.0",
+   "why": "signals: binary, install, coding agent"
+  },
+  {
+   "id": "databases",
+   "version": "0.1.0",
+   "why": "signals: database, sql, transaction, cache"
+  },
+  {
+   "id": "distributed-systems",
+   "version": "0.1.0",
+   "why": "signals: lease, fencing, heartbeat, relay"
+  },
+  {
+   "id": "os-systems",
+   "version": "0.1.0",
+   "why": "signals: new connection, socket, oom, websocket"
+  },
+  {
+   "id": "performance",
+   "version": "0.1.0",
+   "why": "signals: latency, p99, p95, p50, fan-out"
+  },
+  {
+   "id": "realtime-transport",
+   "version": "0.1.0",
+   "why": "signals: websocket"
+  }
+ ],
+ "lenses_skipped": [
+  "ai-regulation",
+  "copyright-data-rights",
+  "cryptography",
+  "cyber-physical",
+  "media-pipelines",
+  "professional-duty",
+  "rubric-inversion",
+  "company-context (not swept: outside the owner's thin scope)",
+  "market-reality (not swept: outside the owner's thin scope)",
+  "ml-evaluation (not swept: outside the owner's thin scope)",
+  "numeric-representation (not swept: outside the owner's thin scope)",
+  "theory-complexity (not swept: outside the owner's thin scope)"
+ ],
+ "claims": [
+  {
+   "id": "C-001",
+   "kind": "assumption",
+   "text": "Only trusted devices on a private Tailscale tailnet and their Claude Code sessions participate; untrusted participants, public internet, multi-tenant use and other agents are out of scope.",
+   "locator": "L3",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-002",
+   "kind": "requirement",
+   "text": "A live connection between coding-agent sessions on different machines that share one repository.",
+   "locator": "L8",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-003",
+   "kind": "requirement",
+   "text": "Give every session a shared, live view: who is working on what, leases on files and areas, messages, file and patch passing, activity stream others can watch.",
+   "locator": "L10",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-004",
+   "kind": "requirement",
+   "text": "Status: first slice built; tested on one machine over localhost; not yet run across machines.",
+   "locator": "L14",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-005",
+   "kind": "dependency",
+   "text": "Built with a current stable Rust toolchain (cargo build --release).",
+   "locator": "L18",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-006",
+   "kind": "requirement",
+   "text": "Hub listens on its Tailscale address only; every connection is identified with `tailscale whois`; unidentified peers are refused.",
+   "locator": "L23",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-007",
+   "kind": "dependency",
+   "text": "Tailscale CLI `tailscale whois` as the identity source.",
+   "locator": "L23",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-008",
+   "kind": "requirement",
+   "text": "Hub database at ~/.wormhole/hub.sqlite in a 0700 directory; --hostname names the tailnet DNS name.",
+   "locator": "L25-26",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-009",
+   "kind": "requirement",
+   "text": "One daemon per developer machine serves hooks on 127.0.0.1:7421 and a Unix socket in ~/.wormhole/ (mode 0700).",
+   "locator": "L28",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-010",
+   "kind": "requirement",
+   "text": "Daemon option --protected 'secrets/**' marks paths where a conflicting edit is denied.",
+   "locator": "L30",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-011",
+   "kind": "requirement",
+   "text": "`wormhole install` prints the Claude Code configuration; it is merged by hand; nothing is written.",
+   "locator": "L32-34",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-012",
+   "kind": "requirement",
+   "text": "Every session gets who-is-working-on-what at start, a warning before editing a file another session holds, and messages and changed-since-read notices after each tool call.",
+   "locator": "L36",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-013",
+   "kind": "dependency",
+   "text": "Claude Code launch flag --dangerously-load-development-channels server:wormhole for channel push (research preview).",
+   "locator": "L38",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-014",
+   "kind": "requirement",
+   "text": "The activity page is reachable at http://hub.your-tailnet.ts.net:7420/ from any machine on the tailnet (plain HTTP).",
+   "locator": "L40",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-015",
+   "kind": "requirement",
+   "text": "Static identity: hub with --identity static on 127.0.0.1, daemon claims you@this-machine; refused on any other address.",
+   "locator": "L42",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-016",
+   "kind": "assumption",
+   "text": "Machines fully trust each other, over a private network (Tailscale or similar).",
+   "locator": "L46",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-017",
+   "kind": "requirement",
+   "text": "One hub process on one machine; one small daemon per developer machine.",
+   "locator": "L47",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-018",
+   "kind": "dependency",
+   "text": "Delivery into Claude Code through hooks (generally available) and optionally channels (research preview).",
+   "locator": "L48",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-019",
+   "kind": "requirement",
+   "text": "Not routing between different users' Claude accounts through Anthropic's services; wormhole runs its own relay.",
+   "locator": "L54",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-020",
+   "kind": "dependency",
+   "text": "Project licence Apache-2.0.",
+   "locator": "L58",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-021",
+   "kind": "metric",
+   "text": "ParallACT study: Claude Code pass rate fell 62% to 16% on conflicting tasks; 21-23% of messages read before first edit; conflicts fell 67% to 18% with shared task knowledge.",
+   "locator": "L67",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-022",
+   "kind": "requirement",
+   "text": "SessionStart, UserPromptSubmit, PreToolUse and PostToolUse hooks can inject additionalContext up to 10,000 characters; PreToolUse can deny with a reason.",
+   "locator": "L73",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-023",
+   "kind": "dependency",
+   "text": "Channel: MCP server declaring claude/channel sends notifications/claude/channel; research preview enabled per session with a launch flag and on Team/Enterprise by an admin setting.",
+   "locator": "L74",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-024",
+   "kind": "assumption",
+   "text": "Claude Code's own cross-session messaging reaches only the same account's sessions.",
+   "locator": "L76",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-025",
+   "kind": "requirement",
+   "text": "Hub holds ordered event log, presence, leases, inboxes and content-addressed blobs; listens on the private network only.",
+   "locator": "L88",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-026",
+   "kind": "requirement",
+   "text": "Daemon keeps one WebSocket to the hub and resumes from the last sequence number after a disconnect.",
+   "locator": "L89",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-027",
+   "kind": "requirement",
+   "text": "Channel server is a stdio MCP server per session that forwards to the local daemon and pushes inbound events.",
+   "locator": "L90",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-028",
+   "kind": "requirement",
+   "text": "Identity by the private network's own identity (tailscale whois on the peer address). No shared tokens.",
+   "locator": "L93",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-029",
+   "kind": "requirement",
+   "text": "All messages are JSON, carry a hub-assigned sequence number, and are delivered in order and at least once.",
+   "locator": "L97",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-030",
+   "kind": "requirement",
+   "text": "Message kinds: presence, events, msg, lease acquire/renew/release with fencing token, transfer, blobs, patches, watch, request/result.",
+   "locator": "L101-109",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-031",
+   "kind": "requirement",
+   "text": "Leases expire unless renewed; the fencing token increases on every grant; the pre-edit check rejects writes carrying a stale token.",
+   "locator": "L111",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-032",
+   "kind": "metric",
+   "text": "Lease check before an edit roughly 50-200 ms on a private network (estimate; cross-machine not measured); 0.19 ms p50 localhost (measured).",
+   "locator": "L118",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-033",
+   "kind": "metric",
+   "text": "Push about 1 s while the session is open (estimate, not measured into a live session); 0.09 ms p50 to a socket client on localhost.",
+   "locator": "L119",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-034",
+   "kind": "metric",
+   "text": "Waking an idle session: seconds (estimate); asyncRewake support per event to be verified.",
+   "locator": "L120",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-035",
+   "kind": "requirement",
+   "text": "Warn, do not block: a conflicting edit gets holder, scope and time and the agent decides; hard blocks opt-in per path (CoAgent finding).",
+   "locator": "L124",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-036",
+   "kind": "requirement",
+   "text": "The daemon tracks files a session has read; a later edit by another session produces a change notice at the reader's next action.",
+   "locator": "L125",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-037",
+   "kind": "requirement",
+   "text": "Server-tracked claims, not negotiation in chat (AgentRoom finding).",
+   "locator": "L126",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-038",
+   "kind": "requirement",
+   "text": "Messages from other agents are data to the receiving model; every inbound message is wrapped as coming from a named session so it cannot pass as the local user's instruction.",
+   "locator": "L130",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-039",
+   "kind": "requirement",
+   "text": "Channel permission relay (remote approval of tool calls) is off by default.",
+   "locator": "L131",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-040",
+   "kind": "requirement",
+   "text": "The hub listens only on the private network; no path is exposed to the public internet.",
+   "locator": "L132",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-041",
+   "kind": "requirement",
+   "text": "Events carry paths and one-line summaries, not file contents or prompts; full supervision detail opt-in per session.",
+   "locator": "L133",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-042",
+   "kind": "requirement",
+   "text": "Hub unreachable: hooks return within a short timeout and allow the action with a stale notice; work is never blocked by an outage.",
+   "locator": "L137",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-043",
+   "kind": "requirement",
+   "text": "Daemon reconnects resume from the last sequence number, so no event is lost.",
+   "locator": "L138",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-044",
+   "kind": "requirement",
+   "text": "Shell-command edits bypass the edit hook; the daemon watches the working tree and a git pre-commit check reports conflicts.",
+   "locator": "L139",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-045",
+   "kind": "metric",
+   "text": "Daemon 6.0 MB RSS, no measurable idle CPU; channel server 4.0 MB; SessionStart hook about 2 ms (localhost).",
+   "locator": "L143-145",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-046",
+   "kind": "requirement",
+   "text": "Acceptance: two machines; measure push and pull message latency, hook latency, resource use; show conflict warning, lease transfer, change notice.",
+   "locator": "L152",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-047",
+   "kind": "requirement",
+   "text": "Acceptance tests run hub and two daemons in one process over localhost with static identity.",
+   "locator": "L158",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-048",
+   "kind": "requirement",
+   "text": "SessionStart uses a command hook (wormhole hook) that prints a stale note if the daemon does not answer in 800 ms.",
+   "locator": "L162",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-049",
+   "kind": "requirement",
+   "text": "800 ms deadline enforced in the daemon; settings use a 5 s hook timeout as a backstop.",
+   "locator": "L163",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-050",
+   "kind": "assumption",
+   "text": "When the daemon is down, Claude Code treats the refused HTTP hook as a non-blocking error and the action goes ahead.",
+   "locator": "L164",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-051",
+   "kind": "requirement",
+   "text": "PreToolUse never returns allow; warnings in additionalContext; deny only for protected paths held by another session.",
+   "locator": "L165",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-052",
+   "kind": "requirement",
+   "text": "PostToolUse matches every tool.",
+   "locator": "L166",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-053",
+   "kind": "requirement",
+   "text": "Hook endpoint requires a bearer token; bodies reduced while streaming; unparseable bodies denied.",
+   "locator": "L167",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-054",
+   "kind": "requirement",
+   "text": "Channel push does not mark a message read; with channels enabled a message can appear twice.",
+   "locator": "L168",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-055",
+   "kind": "assumption",
+   "text": "Channel server learns its session from CLAUDE_CODE_SESSION_ID; after /clear it keeps the old id.",
+   "locator": "L169",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-056",
+   "kind": "requirement",
+   "text": "Leases on repo-relative paths after resolving symlinks; repo id is the normalised origin URL shared across checkouts.",
+   "locator": "L171",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-057",
+   "kind": "requirement",
+   "text": "Checked in one real Claude Code session (2.1.325, claude -p, one machine, static identity).",
+   "locator": "L173",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-058",
+   "kind": "requirement",
+   "text": "Open problem: PreToolUse additionalContext lands next to the tool result, so the conflict warning arrives after the edit.",
+   "locator": "L175",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-059",
+   "kind": "requirement",
+   "text": "Not built: working-tree watcher and pre-commit check; event log retention; rate limits; daemon state persistence.",
+   "locator": "L177",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-060",
+   "kind": "metric",
+   "text": "Localhost hook round trips 0.10-0.19 ms p50; SessionStart 2.03 ms; message push 0.09 ms p50; one Apple M5 Pro, release build.",
+   "locator": "L181-191",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-061",
+   "kind": "metric",
+   "text": "Idle: daemon 6.0 MB, hub 7.6 MB and 0.05% CPU, channel server 4.0 MB.",
+   "locator": "L193-199",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-062",
+   "kind": "requirement",
+   "text": "Known gaps: no rate limits; event log and session bindings never pruned; trusted peers can send many messages.",
+   "locator": "L203",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-063",
+   "kind": "requirement",
+   "text": "Report vulnerabilities through GitHub private reporting; acknowledgement within a week.",
+   "locator": "L210",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-064",
+   "kind": "requirement",
+   "text": "Security scope: unidentified connections, lease bypass, unwrapped text, content leaks, local endpoint misuse, hooks blocking on outage.",
+   "locator": "L216-221",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-065",
+   "kind": "assumption",
+   "text": "Out of scope: trusted participants acting maliciously, DoS from a trusted peer, public exposure.",
+   "locator": "L223",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-066",
+   "kind": "requirement",
+   "text": "whois runs once per new connection or HTTP request and is never cached; failure refuses the connection.",
+   "locator": "L229",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-067",
+   "kind": "requirement",
+   "text": "Relayed text cleaned: control and Unicode Cf characters including tag block removed; angle brackets escaped.",
+   "locator": "L230",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-068",
+   "kind": "requirement",
+   "text": "Session ids bound to the first peer permanently; message recipient fixed at send time.",
+   "locator": "L231",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-069",
+   "kind": "requirement",
+   "text": "Bounded per-connection outbound queue; slow consumers disconnected; replay reaches back at most 100,000 events.",
+   "locator": "L232",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-070",
+   "kind": "requirement",
+   "text": "Host header checked on every hub route; activity page refuses foreign Origin or cross-site Sec-Fetch-Site.",
+   "locator": "L233",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-071",
+   "kind": "requirement",
+   "text": "Hook token 32 random bytes from /dev/urandom in hook-token (0600); printed by install for settings.local.json.",
+   "locator": "L234",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-072",
+   "kind": "requirement",
+   "text": "Runtime directory and socket checked with lstat and geteuid; edit paths canonicalised under the repo root, case-insensitive globs where needed.",
+   "locator": "L235-236",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-073",
+   "kind": "requirement",
+   "text": "Hub database created 0600 with -wal/-shm 0600; parent dir 0700; others-writable parent refused.",
+   "locator": "L237",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-074",
+   "kind": "requirement",
+   "text": "Transfer applies the overlap check; TTLs clamped 100 ms to 4 h with saturating expiry.",
+   "locator": "L238-239",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-075",
+   "kind": "requirement",
+   "text": "Length caps applied after escaping; oversize block truncated not withheld.",
+   "locator": "L240",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-076",
+   "kind": "omission",
+   "text": "The brief states the accessibility standard and level the UI targets (for example WCAG 2.2 Level AA) and treats it as an acceptance gate.",
+   "locator": "accessibility.a11y-standard",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-077",
+   "kind": "omission",
+   "text": "The brief states whether the product is a US public-entity service (ADA Title II) or an EAA-covered EU consumer service, which set a binding accessibility floor.",
+   "locator": "accessibility.legal-coverage",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-078",
+   "kind": "omission",
+   "text": "The brief states that information and operation do not depend on a single sense or input (not colour-only, keyboard operable, works without a precise drag).",
+   "locator": "accessibility.non-visual-operable",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-079",
+   "kind": "omission",
+   "text": "The brief states, or requires producing, the licence (SPDX id and version) of every third-party component, model and dataset the deliverable uses.",
+   "locator": "licensing.dependency-licence-inventory",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-080",
+   "kind": "omission",
+   "text": "The brief states how the deliverable reaches users (shipped binary, mobile app, device image, on-prem install, or hosted service only), since copyleft triggers depend on it.",
+   "locator": "licensing.distribution-model",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-081",
+   "kind": "omission",
+   "text": "The brief states whether the deliverable is commercial (sold, revenue-bearing, or used for commercial advantage), so non-commercial assets can be excluded.",
+   "locator": "licensing.commercial-use",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-082",
+   "kind": "omission",
+   "text": "The brief lists the classes of personal data processed, flagging regulated ones (health, special-category, children's, financial).",
+   "locator": "privacy-regulated-data.data-classes",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-083",
+   "kind": "omission",
+   "text": "The brief names every third party that receives personal data and the agreement covering it (BAA, Article 28 processor contract, DPA).",
+   "locator": "privacy-regulated-data.processors-and-agreements",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-084",
+   "kind": "omission",
+   "text": "The brief states where personal data is stored, cached and processed, and how long each class is retained.",
+   "locator": "privacy-regulated-data.residency-and-retention",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-085",
+   "kind": "omission",
+   "text": "The brief names each external model or API provider and the agreement or tier it will be used under (consumer, free, paid API, enterprise).",
+   "locator": "provider-terms.provider-and-agreement",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-086",
+   "kind": "omission",
+   "text": "The brief states what happens to provider outputs beyond showing them to the user (stored, used for training or evaluation, redistributed).",
+   "locator": "provider-terms.output-use",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-087",
+   "kind": "omission",
+   "text": "The brief states what classes of data are sent to each provider.",
+   "locator": "provider-terms.data-sent",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-088",
+   "kind": "omission",
+   "text": "The brief states which systems the tool may actively test and how the owner's authorisation for each is obtained and checked.",
+   "locator": "security-ethics.authorised-targets",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-089",
+   "kind": "omission",
+   "text": "The brief states how findings about systems the operator does not own are reported (privately to the owner, vendor or a coordinator) and when, if ever, they are published.",
+   "locator": "security-ethics.disclosure-route",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-090",
+   "kind": "omission",
+   "text": "The brief states what the tool does when it meets personal or other sensitive data during testing (stop, do not retain or display, notify the owner).",
+   "locator": "security-ethics.sensitive-data-handling",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-091",
+   "kind": "omission",
+   "text": "The brief states each agent loop's iteration cap, token or cost ceiling and wall-clock limit, and the halting condition that stops the loop when the goal is not reached (with the hand-off that follows).",
+   "locator": "agent-orchestration.loop-budget",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-092",
+   "kind": "omission",
+   "text": "The brief lists which agent actions are irreversible or externally visible (payments, refunds, deletions, outbound messages, deploys, physical actuation) and, for each, the human approval gate and the compensation or idempotency path.",
+   "locator": "agent-orchestration.irreversible-actions",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-093",
+   "kind": "omission",
+   "text": "The brief states which credentials each agent and sub-agent holds, their scope and lifetime, and whose authority each action is executed under.",
+   "locator": "agent-orchestration.credential-scope",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-094",
+   "kind": "omission",
+   "text": "The brief states that agent tool calls, their arguments, the acting identity and their outcomes are recorded in a log that operators can review.",
+   "locator": "agent-orchestration.action-audit",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-095",
+   "kind": "omission",
+   "text": "The brief states which identity and scopes each tool or downstream call runs with, and how the invoking user is authenticated.",
+   "locator": "agent-security.delegated-authority",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-096",
+   "kind": "omission",
+   "text": "The brief states which tool servers are trusted, how their definitions are reviewed and pinned, and what happens when a definition changes.",
+   "locator": "agent-security.tool-trust",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-097",
+   "kind": "omission",
+   "text": "The brief states which agent actions require explicit human confirmation and what the confirmation shows.",
+   "locator": "agent-security.human-approval",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-098",
+   "kind": "omission",
+   "text": "The brief states which inputs the agent reads are untrusted (emails, web pages, documents, tool output) and what tools may run while they are in context.",
+   "locator": "agent-security.untrusted-inputs",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-099",
+   "kind": "omission",
+   "text": "The brief states where dependencies come from (registries or an allowlisted mirror) and how a new dependency is vetted before first use.",
+   "locator": "supply-chain.dependency-vetting",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-100",
+   "kind": "omission",
+   "text": "The brief states that dependencies are pinned (lockfile, hashes or digests) and how updates are reviewed.",
+   "locator": "supply-chain.pinning-policy",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-101",
+   "kind": "omission",
+   "text": "The brief states whether automated agents may add or install packages, and what human approval that requires.",
+   "locator": "supply-chain.agent-install-policy",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-102",
+   "kind": "omission",
+   "text": "The brief states the consistency model required for each class of data (linearizable, read-your-writes, eventual with a staleness bound).",
+   "locator": "databases.consistency-model",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-103",
+   "kind": "omission",
+   "text": "The brief states what the system does when replicas or regions cannot reach each other: reject or queue writes, or accept divergent writes and how they are merged.",
+   "locator": "databases.partition-behaviour",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-104",
+   "kind": "omission",
+   "text": "The brief states the transaction isolation level, or the mechanism that enforces each multi-row invariant under concurrent access.",
+   "locator": "databases.isolation-level",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-105",
+   "kind": "omission",
+   "text": "Where one operation updates more than one store (database, broker, cache, index), the brief states how they are kept consistent (outbox, change data capture, saga) and the idempotency key consumers use.",
+   "locator": "databases.cross-store-atomicity",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-106",
+   "kind": "omission",
+   "text": "The brief states the fault model: whether participants may only crash or may behave arbitrarily (Byzantine), and how many simultaneous faults f must be tolerated.",
+   "locator": "distributed-systems.fault-model",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-107",
+   "kind": "omission",
+   "text": "The brief states which nodes, relays and operators are trusted, and how messages and membership are authenticated.",
+   "locator": "distributed-systems.trust-boundary",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-108",
+   "kind": "omission",
+   "text": "The brief states message delivery and retry semantics (at-most-once or at-least-once) and the idempotency key that makes retries safe.",
+   "locator": "distributed-systems.delivery-semantics",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-109",
+   "kind": "omission",
+   "text": "The brief states what ordering is guaranteed (per key, per source, total, causal) and what assigns it (a log sequence, logical clocks), rather than relying on wall-clock time.",
+   "locator": "distributed-systems.ordering-guarantees",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-110",
+   "kind": "omission",
+   "text": "The brief states a memory budget per worker or container and the peak input size and concurrency it must hold.",
+   "locator": "os-systems.memory-budget-per-worker",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-111",
+   "kind": "omission",
+   "text": "The brief states the concurrency model (pooled connections, bounded worker pool or event loop) and the peak concurrent connections, threads and open files per host.",
+   "locator": "os-systems.concurrency-model",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-112",
+   "kind": "omission",
+   "text": "The brief states the load model - peak arrival rate, payload size distribution and concurrency - that its performance targets must hold under.",
+   "locator": "performance.load-model",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-113",
+   "kind": "omission",
+   "text": "Every latency target names a percentile and where it is measured (for example p99 at the API edge).",
+   "locator": "performance.latency-slo-percentile",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-114",
+   "kind": "omission",
+   "text": "The brief states a cost ceiling per unit (per user, request, device or GB) that infrastructure and data-transfer costs must stay under.",
+   "locator": "performance.cost-ceiling-per-unit",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-115",
+   "kind": "omission",
+   "text": "The brief states the network path assumptions - expected packet loss, round-trip time, jitter and MTU (or that the MTU is discovered) - the live channel must work over.",
+   "locator": "realtime-transport.network-path",
+   "pass": 1,
+   "origin": "brief"
+  },
+  {
+   "id": "C-116",
+   "kind": "omission",
+   "text": "The brief states an end-to-end latency budget for the live channel (for example mouth-to-ear) and how it splits across capture, processing, network, buffering and playout.",
+   "locator": "realtime-transport.latency-budget",
+   "pass": 1,
+   "origin": "brief"
+  }
+ ]
+}

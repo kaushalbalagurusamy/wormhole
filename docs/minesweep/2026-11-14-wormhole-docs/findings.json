@@ -1,0 +1,1537 @@
+[
+ {
+  "id": "F-001",
+  "claim_ids": [
+   "C-012",
+   "C-035",
+   "C-058"
+  ],
+  "lens": "agent-orchestration",
+  "trap_id": "agent-orchestration.irreversible-action-without-gate",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "retrieval",
+  "route_reason": "The hooks reference states where PreToolUse context lands; one real session observed it.",
+  "evidence": [
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/hooks.md",
+    "quote": "PreToolUse, PostToolUse, PostToolUseFailure, and PostToolBatch: next to the tool result",
+    "locator": "L1174",
+    "tier": "primary",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/hooks.md",
+    "quote": "For \"deny\", shown to Claude.",
+    "locator": "L2007",
+    "tier": "primary",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "note",
+    "ref": "docs/design.md (real claude -p run, 2026-11-14)",
+    "quote": "the model read the WARNING only after the write",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "high",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": true,
+     "why": "The core promise, a warning before a conflicting edit, does not hold: the edit happens first."
+    }
+   ]
+  },
+  "underlying_problem": "Give the model the holder's details before it commits a conflicting edit, without turning advisory leases into hard locks.",
+  "disposition": "ask-owner",
+  "owner_question": "Which pre-edit policy: (a) deny once per (session, path, holder token) with the warning as the reason, then allow the retry; (b) warn earlier, when a leased file is Read, from a local lease mirror; (c) both; (d) permissionDecision ask; (e) keep warn-only?",
+  "spec_section": "product-scope",
+  "pass": 1
+ },
+ {
+  "id": "F-002",
+  "claim_ids": [
+   "C-023",
+   "C-013"
+  ],
+  "lens": "agent-orchestration",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "retrieval",
+  "route_reason": "The MCP page states the protocol-revision rule for channel servers.",
+  "evidence": [
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/mcp.md",
+    "quote": "On the v2 runtime, a channel server that negotiates MCP protocol revision 2026-07-28 can't deliver channel messages, so Claude Code doesn't register it as a channel.",
+    "locator": "Push messages with channels",
+    "tier": "primary",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/mcp.md",
+    "quote": "Claude Code asks stdio servers for that revision by default.",
+    "locator": "Push messages with channels",
+    "tier": "primary",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/mcp.rs (before 2d50a1f)",
+    "quote": "initialize echoed the client's requested protocolVersion",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "high",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": true,
+     "why": "Channel push silently never registers on the default v2 runtime."
+    }
+   ]
+  },
+  "underlying_problem": "The channel server must negotiate a revision on which Claude Code registers channels.",
+  "disposition": "comply-safely",
+  "spec_section": "product-scope",
+  "pass": 1
+ },
+ {
+  "id": "F-003",
+  "claim_ids": [
+   "C-029",
+   "C-030",
+   "C-043",
+   "C-108"
+  ],
+  "lens": "distributed-systems",
+  "trap_id": "distributed-systems.exactly-once-delivery",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Traced in code: ack timing and in-memory inbox.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/daemon/mod.rs run_connection",
+    "quote": "Ack{seq} sent as soon as an event is applied, before delivery to the session",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/daemon/state.rs",
+    "quote": "inbox held in memory only",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "note",
+    "ref": "review",
+    "quote": "independent review (Fable agent, 2026-11-14), traced from code: a daemon restart before delivery loses the message",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "high",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": true,
+     "why": "A daemon restart (laptop reboot, upgrade) silently loses undelivered messages, contradicting 'at least once'."
+    }
+   ]
+  },
+  "underlying_problem": "Acknowledge to the hub only what has been delivered to a session, so restart replays the rest.",
+  "disposition": "comply-safely",
+  "spec_section": "trust-consensus",
+  "pass": 1
+ },
+ {
+  "id": "F-004",
+  "claim_ids": [
+   "C-025",
+   "C-026",
+   "C-043"
+  ],
+  "lens": "databases",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Traced in code: daemon dedupes by seq and ignores Welcome.head; hub uses WAL with synchronous=NORMAL.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/daemon/state.rs apply",
+    "quote": "drops every event with seq <= last_seq",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/hub/store.rs SCHEMA",
+    "quote": "PRAGMA synchronous = NORMAL (WAL): the last commits can roll back on power loss",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "note",
+    "ref": "review",
+    "quote": "independent review (Fable agent, 2026-11-14), traced from code: deleting the hub database leaves running daemons ignoring every new event",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "high",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": true,
+     "why": "After a hub database reset or power-loss rollback, daemons drop all new events until restarted."
+    }
+   ]
+  },
+  "underlying_problem": "Daemons must detect a hub log that is behind their cursor and resume from the hub's head.",
+  "disposition": "comply-safely",
+  "spec_section": "trust-consensus",
+  "pass": 1
+ },
+ {
+  "id": "F-005",
+  "claim_ids": [
+   "C-056"
+  ],
+  "lens": "databases",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Traced in normalize_remote.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/repo.rs normalize_remote",
+    "quote": "path case kept; ssh host aliases kept; local:<dir> for no origin",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "note",
+    "ref": "review",
+    "quote": "independent review (Fable agent, 2026-11-14), traced from code: git@github-work:Owner/Repo and https://github.com/owner/repo give different ids",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "Two checkouts of the same repo can fail to share leases, silently."
+    }
+   ]
+  },
+  "underlying_problem": "All checkouts of one repository must map to one id, or the user must be told they do not.",
+  "disposition": "comply-safely",
+  "spec_section": "trust-consensus",
+  "pass": 1
+ },
+ {
+  "id": "F-006",
+  "claim_ids": [
+   "C-030",
+   "C-031",
+   "C-035"
+  ],
+  "lens": "distributed-systems",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Traced in glob.rs, store.rs transfer and daemon hooks.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/glob.rs overlaps",
+    "quote": "area: and bare directory scopes overlap no file path",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/hub/store.rs transfer",
+    "quote": "conflict check counts the grantor's own sub-lease",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/daemon/state.rs",
+    "quote": "lease.expired not reported to the holder; explicit leases lapse silently",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/daemon/hooks.rs pre_tool_use",
+    "quote": "stale token re-acquired silently when the path is free",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "Explicit leases protect less than the tool description says, and fencing is invisible to the session."
+    }
+   ]
+  },
+  "underlying_problem": "Lease scopes must cover what they name, expire visibly, transfer cleanly, and tell a session when its lease was lost.",
+  "disposition": "comply-safely",
+  "spec_section": "trust-consensus",
+  "pass": 1
+ },
+ {
+  "id": "F-007",
+  "claim_ids": [
+   "C-010",
+   "C-042",
+   "C-044",
+   "C-050",
+   "C-051",
+   "C-059"
+  ],
+  "lens": "agent-security",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "retrieval",
+  "route_reason": "The hooks reference defines refused HTTP hooks as non-blocking; the docs list the watcher as not built.",
+  "evidence": [
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/hooks.md",
+    "quote": "The action goes ahead, except for hooks whose failure blocks the action",
+    "locator": "L804",
+    "tier": "primary",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "note",
+    "ref": "docs/design.md",
+    "quote": "Not built yet: the working-tree watcher and git pre-commit check",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "'Protected' reads as enforcement but Bash edits, outages and a stopped daemon all bypass it."
+    }
+   ]
+  },
+  "underlying_problem": "State plainly that protected paths are a guard on the edit tools while the hub is reachable, not access control.",
+  "disposition": "reframe",
+  "spec_section": "crypto-agent-security",
+  "pass": 1
+ },
+ {
+  "id": "F-008",
+  "claim_ids": [
+   "C-006",
+   "C-016",
+   "C-028",
+   "C-066"
+  ],
+  "lens": "agent-security",
+  "trap_id": "agent-security.confused-deputy",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "plausible",
+  "route": "retrieval",
+  "route_reason": "Tailscale semantics for shared-in and tagged nodes need the tailnet's ACLs to decide exposure.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/hub/identity.rs parse_whois",
+    "quote": "any node whois identifies is accepted; tagged nodes use their first tag",
+    "date": "2026-11-14"
+   }
+  ],
+  "would_settle": "A whois of a node shared in from another tailnet, and the owner's tailnet ACLs for the hub port.",
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "Any device that can reach the hub port is accepted with full rights; there is no allowlist."
+    }
+   ]
+  },
+  "underlying_problem": "The hub should accept only the users or tags the owner names, not every identifiable node.",
+  "disposition": "comply-safely",
+  "spec_section": "crypto-agent-security",
+  "pass": 1
+ },
+ {
+  "id": "F-009",
+  "claim_ids": [
+   "C-009",
+   "C-071",
+   "C-093"
+  ],
+  "lens": "agent-security",
+  "trap_id": "agent-security.local-server-command-execution",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Traced: fixed loopback port; token in a file whose mode Claude Code sets.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/main.rs Daemon --http default 127.0.0.1:7421",
+    "quote": "another local user can bind the port while the daemon is down and read the token from hook requests",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "install output",
+    "quote": "token pasted into .claude/settings.local.json with the default umask",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "A second local user can learn the hook token; the claim 'not usable by another local user' then fails."
+    }
+   ]
+  },
+  "underlying_problem": "Keep the hook secret unreadable by other local users, and offer a transport that does not trust a TCP port.",
+  "disposition": "comply-safely",
+  "spec_section": "crypto-agent-security",
+  "pass": 1
+ },
+ {
+  "id": "F-010",
+  "claim_ids": [
+   "C-001",
+   "C-038",
+   "C-065",
+   "C-097",
+   "C-098"
+  ],
+  "lens": "agent-security",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Wrapping is the only control; tools stay available while peer text is in context.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/text.rs block",
+    "quote": "wraps and escapes, does not restrict tools",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/mcp.rs",
+    "quote": "permission relay never declared",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/channels-reference.md",
+    "quote": "Only declare the capability if your channel authenticates the sender",
+    "locator": "L496",
+    "tier": "primary",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "A trusted agent that read poisoned content relays it with trusted provenance; the wrapper is advisory."
+    }
+   ]
+  },
+  "underlying_problem": "Treat peer text as data: say so, keep the user's permission prompts in force, and never relay permissions.",
+  "disposition": "reframe",
+  "spec_section": "crypto-agent-security",
+  "pass": 1
+ },
+ {
+  "id": "F-011",
+  "claim_ids": [
+   "C-054",
+   "C-029"
+  ],
+  "lens": "agent-orchestration",
+  "trap_id": "agent-orchestration.non-idempotent-retry",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Push and pull both deliver; blocks carry seq.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/daemon/hooks.rs take_inbox",
+    "quote": "push does not mark read; pull redelivers",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "A request can be acted on twice."
+    }
+   ]
+  },
+  "underlying_problem": "Tell the model the seq identifies a message so it acts once per seq.",
+  "disposition": "comply-safely",
+  "spec_section": "product-scope",
+  "pass": 1
+ },
+ {
+  "id": "F-012",
+  "claim_ids": [
+   "C-034",
+   "C-059",
+   "C-062",
+   "C-065",
+   "C-091"
+  ],
+  "lens": "agent-orchestration",
+  "trap_id": "agent-orchestration.unbounded-agent-loop",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "No rate limit or retention in code.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/hub/mod.rs",
+    "quote": "no per-connection send limit; events never pruned",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": "src/daemon/state.rs",
+    "quote": "inbox capped at 100 per session; context capped at 8,000 characters",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "A runaway agent loop between trusted sessions is unbounded at the hub, bounded only at the receiver."
+    }
+   ]
+  },
+  "underlying_problem": "Bound message rate per session and hub storage, so an accidental loop is shed rather than stored forever.",
+  "disposition": "comply-safely",
+  "spec_section": "capacity-physics",
+  "pass": 1
+ },
+ {
+  "id": "F-013",
+  "claim_ids": [
+   "C-004",
+   "C-032",
+   "C-033",
+   "C-034",
+   "C-046",
+   "C-047",
+   "C-049",
+   "C-060",
+   "C-112",
+   "C-113",
+   "C-115",
+   "C-116"
+  ],
+  "lens": "performance",
+  "trap_id": "performance.percentile-slo-without-load-model",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "plausible",
+  "route": "experiment",
+  "route_reason": "Only a two-machine measurement settles cross-machine latency.",
+  "evidence": [
+   {
+    "kind": "note",
+    "ref": "docs/design.md Measured",
+    "quote": "localhost only, 300 sequential samples, one client",
+    "date": "2026-11-14"
+   }
+  ],
+  "would_settle": "scripts/bench.sh across two tailnet machines, direct and DERP-relayed, with p50/p95/p99 for PreToolUse and push.",
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "The 800 ms deadline and 50-200 ms estimate are unvalidated; a relayed path could degrade every check to stale."
+    }
+   ]
+  },
+  "underlying_problem": "Measure the cross-machine path before relying on the 800 ms budget.",
+  "disposition": "comply-safely",
+  "spec_section": "capacity-physics",
+  "pass": 1
+ },
+ {
+  "id": "F-014",
+  "claim_ids": [
+   "C-026"
+  ],
+  "lens": "realtime-transport",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Traced: replay runs before requests are read.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/hub/mod.rs connection",
+    "quote": "replay is awaited before the request loop and inside the Lagged arm",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "After an outage with a backlog, hooks fail open for the length of the replay."
+    }
+   ]
+  },
+  "underlying_problem": "Serve requests while replaying.",
+  "disposition": "comply-safely",
+  "spec_section": "capacity-physics",
+  "pass": 1
+ },
+ {
+  "id": "F-015",
+  "claim_ids": [
+   "C-012",
+   "C-036"
+  ],
+  "lens": "agent-orchestration",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "Traced: the state block is cut at 2,000 characters with sessions before leases.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/daemon/hooks.rs who_text; src/text.rs MAX_BLOCK",
+    "quote": "leases are listed after up to 30 sessions from all repos",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "With about ten sessions the SessionStart lease list is cut off."
+    }
+   ]
+  },
+  "underlying_problem": "SessionStart must show this repository's leases first.",
+  "disposition": "comply-safely",
+  "spec_section": "product-scope",
+  "pass": 1
+ },
+ {
+  "id": "F-016",
+  "claim_ids": [
+   "C-022",
+   "C-048",
+   "C-049",
+   "C-050",
+   "C-074"
+  ],
+  "lens": "agent-orchestration",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "dismissed",
+  "route": "retrieval",
+  "route_reason": "Checked the hook semantics the design states.",
+  "evidence": [
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/hooks.md",
+    "quote": "Seconds before canceling.",
+    "locator": "L423",
+    "tier": "primary",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/hooks.md",
+    "quote": "The action goes ahead, except for hooks whose failure blocks the action",
+    "locator": "L804",
+    "tier": "primary",
+    "date": "2026-11-14"
+   }
+  ],
+  "dismissal_reason": "The brief states these semantics correctly (seconds, non-blocking failures, SessionStart command-only); no trap.",
+  "pass": 1
+ },
+ {
+  "id": "F-017",
+  "claim_ids": [
+   "C-023",
+   "C-083",
+   "C-085",
+   "C-086",
+   "C-087"
+  ],
+  "lens": "provider-terms",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "retrieval",
+  "route_reason": "The channels page states auth, provider and org requirements.",
+  "evidence": [
+   {
+    "kind": "quote",
+    "ref": "https://code.claude.com/docs/en/channels.md",
+    "quote": "They require Anthropic authentication through claude.ai or a Console API key, and are not available on Amazon Bedrock, Google Cloud's Agent Platform, or Microsoft Foundry. Team and Enterprise organizations must explicitly enable them.",
+    "locator": "L11",
+    "tier": "primary",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "low",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "friction",
+     "q": "Is it operational friction, weaker maintainability, or minor inefficiency?",
+     "a": true,
+     "why": "The docs omit who may use channels; relayed text is processed under each recipient's own Claude agreement."
+    }
+   ]
+  },
+  "underlying_problem": "State channel availability by plan and provider, and that relayed text is model input under each user's agreement.",
+  "disposition": "comply-safely",
+  "spec_section": "legal-terms",
+  "pass": 1
+ },
+ {
+  "id": "F-018",
+  "claim_ids": [
+   "C-079",
+   "C-081",
+   "C-099"
+  ],
+  "lens": "licensing",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "dismissed",
+  "route": "check",
+  "route_reason": "cargo metadata licence inventory.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "docs/minesweep/2026-11-14-wormhole-docs/licence-inventory.txt",
+    "quote": "110 packages, all MIT, Apache-2.0, BSD, Zlib, Unicode-3.0 or dual-licensed with one of them",
+    "date": "2026-11-14"
+   }
+  ],
+  "dismissal_reason": "Every dependency is permissively licensed or dual-licensed with a permissive option; compatible with Apache-2.0.",
+  "pass": 1
+ },
+ {
+  "id": "F-019",
+  "claim_ids": [
+   "C-005",
+   "C-100",
+   "C-007"
+  ],
+  "lens": "supply-chain",
+  "trap_id": "supply-chain.unpinned-dependencies",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "README build command and CI.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "README.md",
+    "quote": "cargo build --release without --locked",
+    "date": "2026-11-14"
+   },
+   {
+    "kind": "check",
+    "ref": ".github/workflows/ci.yml",
+    "quote": "actions/checkout@v4 tag; toolchain stable unpinned",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "low",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "friction",
+     "q": "Is it operational friction, weaker maintainability, or minor inefficiency?",
+     "a": true,
+     "why": "Builds can drift from the committed lockfile."
+    }
+   ]
+  },
+  "underlying_problem": "Build from the lockfile.",
+  "disposition": "comply-safely",
+  "spec_section": "crypto-agent-security",
+  "pass": 1
+ },
+ {
+  "id": "F-020",
+  "claim_ids": [
+   "C-059",
+   "C-062",
+   "C-082",
+   "C-084"
+  ],
+  "lens": "privacy-regulated-data",
+  "trap_id": "privacy-regulated-data.collect-all-keep-forever",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "confirmed",
+  "route": "check",
+  "route_reason": "No pruning in code.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/hub/store.rs",
+    "quote": "events (with message bodies) never deleted",
+    "date": "2026-11-14"
+   }
+  ],
+  "severity": {
+   "tier": "low",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": false,
+     "why": "No."
+    },
+    {
+     "id": "friction",
+     "q": "Is it operational friction, weaker maintainability, or minor inefficiency?",
+     "a": true,
+     "why": "Message bodies and identities persist on the hub indefinitely; trusted team, private network."
+    }
+   ]
+  },
+  "underlying_problem": "State retention and provide pruning.",
+  "disposition": "comply-safely",
+  "spec_section": "legal-terms",
+  "pass": 1
+ },
+ {
+  "id": "F-021",
+  "claim_ids": [
+   "C-070",
+   "C-014"
+  ],
+  "lens": "agent-security",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "dismissed",
+  "route": "check",
+  "route_reason": "Read the WebSocket handler.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/hub/mod.rs ws",
+    "quote": "any Origin header is refused with 403 before upgrade",
+    "date": "2026-11-14"
+   }
+  ],
+  "dismissal_reason": "Cross-site WebSocket hijacking is blocked: the hub refuses any request with an Origin header on /ws.",
+  "pass": 1
+ },
+ {
+  "id": "F-022",
+  "claim_ids": [
+   "C-075"
+  ],
+  "lens": "agent-security",
+  "trap_id": null,
+  "trap_status": "novel",
+  "cues_matched": [],
+  "status": "dismissed",
+  "route": "check",
+  "route_reason": "Read text.rs.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/text.rs block",
+    "quote": "bodies capped at 2,000 characters, far under the 8,000 budget",
+    "date": "2026-11-14"
+   }
+  ],
+  "dismissal_reason": "No single block can exceed the budget, so the truncation branch never cuts a wrapper in practice.",
+  "pass": 1
+ },
+ {
+  "id": "F-023",
+  "claim_ids": [
+   "C-030",
+   "C-074",
+   "C-104"
+  ],
+  "lens": "databases",
+  "trap_id": "databases.isolation-anomaly",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "dismissed",
+  "route": "check",
+  "route_reason": "Read store and hub locking.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/hub/mod.rs",
+    "quote": "every store call runs under one mutex on one SQLite connection",
+    "date": "2026-11-14"
+   }
+  ],
+  "dismissal_reason": "Acquire's check-then-insert is serialised by the hub's single store mutex; no concurrent writer exists.",
+  "pass": 1
+ },
+ {
+  "id": "F-024",
+  "claim_ids": [
+   "C-076",
+   "C-078"
+  ],
+  "lens": "accessibility",
+  "trap_id": "accessibility.information-by-single-sense",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "dismissed",
+  "route": "check",
+  "route_reason": "Read the page.",
+  "evidence": [
+   {
+    "kind": "check",
+    "ref": "src/hub/page.rs",
+    "quote": "plain text tables, no colour-coded state, no interaction beyond reading",
+    "date": "2026-11-14"
+   }
+  ],
+  "dismissal_reason": "Read-only text tables; no state is conveyed by colour and nothing needs pointer operation.",
+  "pass": 1
+ },
+ {
+  "id": "F-025",
+  "claim_ids": [
+   "C-003",
+   "C-101"
+  ],
+  "lens": "supply-chain",
+  "trap_id": "supply-chain.autonomous-agent-install",
+  "trap_status": "verified",
+  "cues_matched": [],
+  "status": "plausible",
+  "route": "none",
+  "route_reason": "Patch and blob passing are not built.",
+  "evidence": [
+   {
+    "kind": "note",
+    "ref": "docs/design.md",
+    "quote": "file passing and patches listed under Later",
+    "date": "2026-11-14"
+   }
+  ],
+  "would_settle": "The patch-passing design, when written, must state the confirmation rule for applying a peer's change.",
+  "severity": {
+   "tier": "medium",
+   "answers": [
+    {
+     "id": "law-licence-terms-ethics",
+     "q": "Would following the brief as written plainly break a law, a licence, third-party terms of service, or professional ethics?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "harm-safety",
+     "q": "Would following the brief as written harm users or third parties, or compromise physical safety?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "production-failure",
+     "q": "Would the deliverable fail under the production conditions the brief itself implies (load, faults, adversaries, scale)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "severe-security",
+     "q": "Would it open a severe security hole (key recovery, remote code execution, supply-chain compromise, privilege escalation, data exfiltration)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "material-exposure",
+     "q": "Would it create substantial financial or legal exposure short of a plain breach (unit economics that cannot work, unbounded spend, contractual risk)?",
+     "a": false,
+     "why": "Not this tier: see the higher-numbered answer."
+    },
+    {
+     "id": "principal-reject",
+     "q": "Is it a correctness, measurement, statistical or design flaw that a principal-level reviewer would reject?",
+     "a": true,
+     "why": "When built, a peer patch could change dependencies the receiver then builds."
+    }
+   ]
+  },
+  "underlying_problem": "Applying a peer patch needs the user's confirmation.",
+  "disposition": "comply-safely",
+  "spec_section": "crypto-agent-security",
+  "pass": 1
+ }
+]

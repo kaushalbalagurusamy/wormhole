@@ -1,0 +1,1938 @@
+[
+ {
+  "claim_id": "C-001",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "agent",
+   "untrusted participants out of scope"
+  ],
+  "reason": "Trusting devices is not trusting content: trusted agents read web pages, issues and dependency READMEs, so injected text can ride a trusted peer's message into other sessions (lens principle: retrieved data carries instructions)."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Scope statement; names no package or install path."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Product goal statement; names no tool server, token, package or install path."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Product goal statement; names no tool server, token, package or install path."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [
+   "file and patch passing"
+  ],
+  "reason": "Files and patches from other sessions are peer-authored content an agent may apply or execute; no confirmation rule for applying them is stated."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "supply-chain.autonomous-agent-install",
+  "cues_matched": [
+   "file and patch passing"
+  ],
+  "reason": "Peer patches can carry dependency changes (Cargo.toml, lockfiles) that a receiving agent builds, running build scripts, without review."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Status of testing; no tool authority, dependency or install path in it."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Status of testing; no tool authority, dependency or install path in it."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Toolchain statement only; no tool server, token or agent authority."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "supply-chain.unpinned-dependencies",
+  "cues_matched": [
+   "current stable rust toolchain",
+   "cargo build --release"
+  ],
+  "reason": "No rust-toolchain file; CI does `rustup toolchain install stable` (floating); README build omits --locked; rusqlite 'bundled' compiles C via build script at build time."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "every connection is identified with tailscale whois"
+  ],
+  "reason": "whois-accepted identity also covers nodes shared in from other tailnets (external users) and tagged nodes (one shared 'tagged-devices' identity); no hub-side user/node allowlist or tailnet ACL requirement is stated."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Network identity; no package installed."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Identity source is covered on C-006/C-066; no package installed by it."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "supply-chain.unverified-provenance",
+  "cues_matched": [
+   "tailscale whois"
+  ],
+  "reason": "Security-critical identity comes from an external `tailscale` binary found at runtime (PATH?) with no stated path, version or output-format pin."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub DB path and 0700 dir; no third-party package or artifact named."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub DB path and 0700 dir; no third-party package or artifact named."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.local-server-command-execution",
+  "cues_matched": [
+   "local server listens on localhost"
+  ],
+  "reason": "Fixed port 127.0.0.1:7421: if the daemon is down, another local user can bind it, collect the bearer token Claude Code sends, and answer hooks with injected additionalContext or denies."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Local daemon endpoint; no package, image or binary from a third party."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "protected 'secrets/**'"
+  ],
+  "reason": "'secrets/**' implies protection, but only conflicting edits through edit tools are denied: reads, Bash writes and any edit while the daemon or hub is down all pass; a denied agent will route around via shell."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Path-protection option; no dependency or install path."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Prints config for a human to merge by hand, matching the 'show the exact command' remediation; writes nothing, installs nothing."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Prints config for a human to merge by hand, matching the 'show the exact command' remediation; writes nothing, installs nothing."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [
+   "messages after each tool call"
+  ],
+  "reason": "Peer messages land in context after every tool call while the agent can still run Bash/Edit; no restriction on tools while peer text is in context."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hook delivery behaviour; no dependency or install."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-tool-servers",
+  "cues_matched": [
+   "dangerously-load-development-channels"
+  ],
+  "reason": "The flag bypasses the channel allowlist and loads whatever MCP server is configured under the name 'wormhole'; if that entry lives in a project-scoped config a peer patch can change, the command it runs can be swapped."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claude Code launch flag, not a package; nothing is installed."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "reachable from any machine on the tailnet"
+  ],
+  "reason": "Browser-reachable hub on a guessable tailnet name: Host check stops DNS rebinding but not cross-site requests/WebSockets from a malicious page in a trusted browser; whois then lends that browser the user's identity."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Activity page route; no dependency or artifact named."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "identity header"
+  ],
+  "reason": "Static mode takes identity from a client-supplied header, contradicting 'identity never from the payload'; any local user or process on the box can claim any identity against the loopback hub."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Test identity mode; no package or install."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "machines fully trust each other"
+  ],
+  "reason": "Device trust extends to every process and local user on every tailnet device (whois identifies the node, not the OS user or process), and to everything those agents ingested; brief never bounds this."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Network trust assumption; names no package or install route."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Process topology; no package or artifact."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Process topology; no package or artifact."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.silent-tool-redefinition",
+  "cues_matched": [
+   "research preview"
+  ],
+  "reason": "Delivery relies on a research-preview channel whose semantics (and allowlist bypass) may change between Claude Code releases; no re-check policy stated."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Delivery via Claude Code hooks/channels; Claude Code features, not installed packages."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "States wormhole does not route through Anthropic services or forward any account credential; no token passthrough."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "States wormhole does not route through Anthropic services or forward any account credential; no token passthrough."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Project licence (Apache-2.0); no tool authority or dependency provenance question."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Project licence (Apache-2.0); no tool authority or dependency provenance question."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Cited study metric; no tool, token or package."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Cited study metric; no tool, token or package."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Describes Claude Code hook capabilities; no package or token."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Describes Claude Code hook capabilities; no package or token."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [
+   "notifications/claude/channel"
+  ],
+  "reason": "Channel pushes inject peer text between tool calls, outside any hook's control, into a model that can act on it."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claude Code channel protocol; not a third-party package."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claude Code's own messaging reach; no tool server or package."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claude Code's own messaging reach; no tool server or package."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub state contents; no package or install."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub state contents; no package or install."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Reconnect/resume transport detail; no authority or dependency."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Reconnect/resume transport detail; no authority or dependency."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "First-party stdio MCP server from the same binary, talking to a uid-checked Unix socket; no third-party server, no package."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "First-party stdio MCP server from the same binary, talking to a uid-checked Unix socket; no third-party server, no package."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "no shared tokens"
+  ],
+  "reason": "Node-level identity with no per-user scopes: any process on an accepted node, and any accepted node, gets full rights to all sessions' messages, leases and activity."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Identity statement; no package installed (tailscale CLI covered on C-007)."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Message format and delivery semantics; no authority or dependency."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Message format and delivery semantics; no authority or dependency."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [
+   "request/result",
+   "patches",
+   "transfer"
+  ],
+  "reason": "request/result and patches let one agent ask another to act; no statement that such requests need human confirmation on the receiving side."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "supply-chain.autonomous-agent-install",
+  "cues_matched": [
+   "patches",
+   "blobs"
+  ],
+  "reason": "Blobs/patches between agents are an unreviewed channel for dependency and binary changes."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease fencing semantics; no tool authority or package."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease fencing semantics; no tool authority or package."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency estimate; no authority or dependency."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency estimate; no authority or dependency."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency estimate; no authority or dependency."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency estimate; no authority or dependency."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency estimate; no authority or dependency."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency estimate; no authority or dependency."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Conflict UX choice; agent-security relevance of deny is on C-010/C-044; no package."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Conflict UX choice; agent-security relevance of deny is on C-010/C-044; no package."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Read tracking/change notice; no authority or dependency."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Read tracking/change notice; no authority or dependency."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Server-tracked claims design; no authority or dependency."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Server-tracked claims design; no authority or dependency."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [
+   "messages from other agents are data"
+  ],
+  "reason": "Wrapping labels provenance but does not stop a model from following instructions in it; agents usually run with auto-accept, and no tool restriction or confirmation applies while peer text is in context (transitive injection from a peer's poisoned input)."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Message wrapping; no package."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [
+   "channel permission relay",
+   "approve command execution"
+  ],
+  "reason": "Off by default, but when enabled the brief does not say who may approve (any tailnet peer? another agent rather than a human?), what the prompt shows, or how it is enabled per session; an agent could approve another machine's commands."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Permission relay setting; no package."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub bind is the 100.x address; public exposure needs explicit Funnel config; no package."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub bind is the 100.x address; public exposure needs explicit Funnel config; no package."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Events carry paths and summaries only; paths go through relayed-text cleaning (C-067); no package."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Events carry paths and summaries only; paths go through relayed-text cleaning (C-067); no package."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Fail-open on hub outage is documented and leaves the user's own permission prompt in place (C-051); no package."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Fail-open on hub outage is documented and leaves the user's own permission prompt in place (C-051); no package."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resume from sequence number; no authority or dependency."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resume from sequence number; no authority or dependency."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "shell-command edits bypass the edit hook"
+  ],
+  "reason": "Agents bypass the lease/protected-path check with Bash, and the mitigating watcher and pre-commit check are not built (C-059)."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Shell-edit gap; no package."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resource metric; no authority or dependency."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resource metric; no authority or dependency."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Acceptance criteria; no package."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Acceptance criteria; no package."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "static identity"
+  ],
+  "reason": "Acceptance tests run only with static identity, so the whois path that the whole trust model rests on (fail-closed, tagged/shared nodes, per-request recheck) is never exercised."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Test harness layout; no package installed."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "First-party `wormhole hook` command resolved from the user's own PATH; same uid; no third-party install."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "First-party `wormhole hook` command resolved from the user's own PATH; same uid; no third-party install."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Timeout configuration; no authority or package."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Timeout configuration; no authority or package."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Daemon-down fail-open is documented; the user's own permission prompt still applies; no package."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Daemon-down fail-open is documented; the user's own permission prompt still applies; no package."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Never returning allow preserves the user's own permission prompt (human-in-the-loop kept); no package."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Never returning allow preserves the user's own permission prompt (human-in-the-loop kept); no package."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Delivery cadence; injection risk of peer text is recorded on C-038/C-012; no package."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Delivery cadence; injection risk of peer text is recorded on C-038/C-012; no package."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Bearer token on loopback, checked before body; not forwarded anywhere; no package."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Bearer token on loopback, checked before body; not forwarded anywhere; no package."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Duplicate delivery note; no authority or package."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Duplicate delivery note; no authority or package."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Session-id staleness after /clear misroutes to the user's own old session id; no cross-principal authority; no package."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Session-id staleness after /clear misroutes to the user's own old session id; no cross-principal authority; no package."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease path normalisation; no authority or package."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease path normalisation; no authority or package."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Records the Claude Code version tested; not an installed dependency of the build."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Records the Claude Code version tested; not an installed dependency of the build."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Warning-timing problem; options include 'ask' (human decides); no package."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Warning-timing problem; options include 'ask' (human decides); no package."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "not built: working-tree watcher"
+  ],
+  "reason": "The shell-edit bypass control is listed as built in the design text but is not built; protected paths are bypassable today."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "List of unbuilt parts; none is a dependency."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Benchmark metric; no authority or package."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Benchmark metric; no authority or package."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resource metric; no authority or package."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resource metric; no authority or package."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Per-call delivery is capped at 8,000 characters, bounding context flooding; no package."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Per-call delivery is capped at 8,000 characters, bounding context flooding; no package."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Private vulnerability reporting route; no tool authority or dependency issue."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Private vulnerability reporting route; no tool authority or dependency issue."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [
+   "unwrapped text"
+  ],
+  "reason": "Security scope covers unwrapped text only; wrapped peer text that still steers an agent into actions is not in the declared scope."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "security scope"
+  ],
+  "reason": "Declared security scope omits the build/dependency supply chain and CI entirely."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.untrusted-content-drives-tools",
+  "cues_matched": [],
+  "reason": "'Trusted participants acting maliciously' is excluded, but a prompt-injected trusted agent is not a malicious participant; that case is in scope and unaddressed beyond wrapping."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Out-of-scope list; no package."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.confused-deputy",
+  "cues_matched": [
+   "no user and node -> refused"
+  ],
+  "reason": "Refusal only when whois returns no user; tagged nodes return the shared 'tagged-devices' profile so all tagged machines (CI, servers) act as one identity with full hub rights."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Identity check per connection; no package."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Strips control/Cf incl. tag block and bidi, escapes <>&, so peer text cannot forge the wrapper; residual semantic injection is on C-038."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Strips control/Cf incl. tag block and bidi, escapes <>&, so peer text cannot forge the wrapper; residual semantic injection is on C-038."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Session handle bound to the whois-authenticated peer, matching the guessable-handle remediation; no package."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Session handle bound to the whois-authenticated peer, matching the guessable-handle remediation; no package."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Queue bounds; no authority or package."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Queue bounds; no authority or package."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "activity page refuses foreign Origin"
+  ],
+  "reason": "Origin/Sec-Fetch-Site refusal is stated only for the activity page; a web page in a tailnet developer's browser can open ws://hub.<tailnet>:7420/ws with a correct Host, and whois will authenticate it as that developer (cross-site WebSocket hijacking)."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Host/Origin checks; no package."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "printed by install for settings.local.json"
+  ],
+  "reason": "Token rationale is 'any local user can reach loopback', yet it is printed to the terminal and pasted into settings.local.json whose mode is unstated (default umask leaves it world-readable), which reopens that same exposure."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Token from /dev/urandom; no package."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "lstat/geteuid and socket peer-uid checks bind the local endpoint to the owner; no package."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "lstat/geteuid and socket peer-uid checks bind the local endpoint to the owner; no package."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "DB file modes; no authority or package."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "DB file modes; no authority or package."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease transfer/TTL clamp; no authority or package."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease transfer/TTL clamp; no authority or package."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "oversize block truncated"
+  ],
+  "reason": "Truncation must preserve the wrapper's closing delimiter; if the cut drops it, following wormhole or system text can read as part of (or outside) the peer block."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Length caps; no package."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility omission; asks nothing about tool authority, tokens, packages or installs."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility omission; asks nothing about tool authority, tokens, packages or installs."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility omission; asks nothing about tool authority, tokens, packages or installs."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility omission; asks nothing about tool authority, tokens, packages or installs."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility omission; asks nothing about tool authority, tokens, packages or installs."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility omission; asks nothing about tool authority, tokens, packages or installs."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Licensing omission; dependency provenance/pinning is judged on C-099/C-100, not here."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Licensing omission; dependency provenance/pinning is judged on C-099/C-100, not here."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Licensing omission; dependency provenance/pinning is judged on C-099/C-100, not here."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Licensing omission; dependency provenance/pinning is judged on C-099/C-100, not here."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Licensing omission; dependency provenance/pinning is judged on C-099/C-100, not here."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Licensing omission; dependency provenance/pinning is judged on C-099/C-100, not here."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Privacy omission; no tool authority or dependency route in it."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Privacy omission; no tool authority or dependency route in it."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Privacy omission; no tool authority or dependency route in it."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Privacy omission; no tool authority or dependency route in it."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Privacy omission; no tool authority or dependency route in it."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Privacy omission; no tool authority or dependency route in it."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider-terms omission; no tool server, token or package in it."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider-terms omission; no tool server, token or package in it."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider-terms omission; no tool server, token or package in it."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider-terms omission; no tool server, token or package in it."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider-terms omission; no tool server, token or package in it."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider-terms omission; no tool server, token or package in it."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Security-ethics omission about testing third-party systems; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Security-ethics omission about testing third-party systems; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Security-ethics omission about testing third-party systems; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Security-ethics omission about testing third-party systems; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Security-ethics omission about testing third-party systems; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Security-ethics omission about testing third-party systems; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Loop-budget omission; wormhole runs no agent loop of its own."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Loop-budget omission; wormhole runs no agent loop of its own."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Irreversible-action omission owned by agent-orchestration; the agent-security counterpart is flagged on C-097."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Irreversible-action omission owned by agent-orchestration; the agent-security counterpart is flagged on C-097."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "credential scope"
+  ],
+  "reason": "Hook token is one per daemon with no session scope; any holder can act for any local session id; credential lifetime/rotation of hook-token is not stated."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Credential scope of agents, not packages."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub event log already records per-session tool activity with whois identity; no package."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub event log already records per-session tool activity with whois identity; no package."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.confused-deputy",
+  "cues_matched": [
+   "identity and scopes"
+  ],
+  "reason": "Identity is stated (whois user+node, hook bearer token) but scopes are not: no per-repo or per-user authorisation on the hub, and channel server acts with the daemon's full authority."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Not a dependency statement."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "agent-security.silent-tool-redefinition",
+  "cues_matched": [
+   "tool-trust"
+  ],
+  "reason": "No claim states which MCP servers are trusted or how the wormhole channel server's definition is pinned; first-party only, so medium."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Not a dependency statement; tool trust is agent-security's."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "human-approval"
+  ],
+  "reason": "Only C-051 (keep user's prompt) and C-039 (relay off) touch this; no statement of which wormhole-driven actions (applying a peer patch, accepting a lease transfer, acting on a request) need confirmation or what it shows."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Not a dependency statement."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "agent-security",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "untrusted-inputs"
+  ],
+  "reason": "C-038 says peer messages are data, but no claim says which inputs are untrusted (peer messages, filenames, patches, blobs) or what tools may run while they are in context."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Not a dependency statement."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Dependency-source omission; no tool authority or token question for agent-security."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "dependency-vetting"
+  ],
+  "reason": "Brief never states dependency source (crates.io) or how a new crate is vetted; repo has no cargo-deny/cargo-audit/vet step in CI."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Pinning omission; no tool authority or token question for agent-security."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "supply-chain.unpinned-dependencies",
+  "cues_matched": [
+   "pinning-policy"
+  ],
+  "reason": "Cargo.lock is committed and CI uses --locked, but the brief does not state it or the update-review route; actions/checkout@v4 is a mutable tag, not a SHA; toolchain floats."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Agent package-install policy is judged (suspect) under supply-chain; no tool-server or token question here."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "supply-chain",
+  "verdict": "suspect",
+  "trap_id": "supply-chain.autonomous-agent-install",
+  "cues_matched": [
+   "agent-install-policy"
+  ],
+  "reason": "Not stated whether coding agents may add crates; wormhole patch/file passing gives agents a route to push Cargo.toml changes to peers."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "agent-security",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "supply-chain",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data/transport/performance omission; no tool authority, token, package or install in it."
+ }
+]

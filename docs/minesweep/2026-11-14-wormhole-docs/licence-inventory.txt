@@ -1,0 +1,15 @@
+110 packages
+65 MIT OR Apache-2.0
+25 MIT
+5 MIT/Apache-2.0
+3 Apache-2.0 OR MIT
+3 Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+2 BSD-2-Clause OR Apache-2.0 OR MIT
+1 Zlib
+1 MIT AND BSD-3-Clause
+1 Unlicense OR MIT
+1 MIT OR Apache-2.0 OR LGPL-2.1-or-later
+1 Apache-2.0 OR BSL-1.0
+1 Apache-2.0
+1 (MIT OR Apache-2.0) AND Unicode-3.0
+non-permissive or unusual: []

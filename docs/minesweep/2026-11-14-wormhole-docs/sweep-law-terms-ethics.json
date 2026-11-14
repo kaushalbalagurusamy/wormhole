@@ -1,0 +1,4674 @@
+[
+ {
+  "claim_id": "C-001",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "provider-terms",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "research preview",
+   "admin setting"
+  ],
+  "reason": "Channels need a launch flag and, on Team/Enterprise, an admin setting; using it on a managed tier without that approval would breach the org's policy. Tier not stated."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "privacy-regulated-data",
+  "verdict": "suspect",
+  "trap_id": "privacy-regulated-data.collect-all-keep-forever",
+  "cues_matched": [
+   "blobs",
+   "patches"
+  ],
+  "reason": "File and patch passing stores content-addressed blobs of repository content in the hub; combined with no pruning, source and any secrets or PII inside it persist indefinitely."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "privacy-regulated-data",
+  "verdict": "suspect",
+  "trap_id": "privacy-regulated-data.collect-all-keep-forever",
+  "cues_matched": [
+   "event log retention not built"
+  ],
+  "reason": "Event log retention is explicitly not built, so message bodies and identities persist with no deletion path."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "privacy-regulated-data",
+  "verdict": "suspect",
+  "trap_id": "privacy-regulated-data.collect-all-keep-forever",
+  "cues_matched": [
+   "never pruned"
+  ],
+  "reason": "Event log and session bindings never pruned; message bodies and identities kept indefinitely with no retention limit (storage limitation)."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim is protocol/CLI/security behaviour with no UI content; a11y concern for the activity page is carried by C-076/C-078."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim adds no third-party code, model or dataset beyond permissive Cargo deps and Apache-2.0 own code; nothing conveyed under copyleft."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim does not collect, send or retain personal data beyond what C-062/C-084 already flag, or it reduces exposure (private network, 0600/0700 modes, minimal events)."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claim concerns wormhole's own relay and hooks; it does not resell, proxy or distil Claude access, and each developer uses their own account."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole tests no third-party systems; claim is about securing the deliverable itself, which belongs to other lenses."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "accessibility",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "ui",
+   "accessibility standard"
+  ],
+  "reason": "Activity page (C-014, live stream others watch) is a web UI used by the owner's team and no WCAG target or acceptance gate is stated; live-updating content also needs pause/aria-live handling. Low severity: internal tool, no legal floor."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Stated by C-001/C-016: private tailnet of trusted developers, not a US public-entity or EAA consumer service, so no binding legal floor applies."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "accessibility",
+  "verdict": "suspect",
+  "trap_id": "accessibility.information-by-single-sense",
+  "cues_matched": [
+   "not colour-only",
+   "keyboard operable"
+  ],
+  "reason": "Nothing states the activity page is not colour-only (presence/lease state) or keyboard operable; relevant to the owner's own users of the page."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "licensing",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "licence of every third-party component"
+  ],
+  "reason": "Only the project licence (C-020) is stated; no inventory of the ~111 crates in Cargo.lock (axum, tokio, rusqlite bundled SQLite, tungstenite, clap are MIT/Apache/public-domain per Cargo.toml, so likely compatible, but no check is required or stated)."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Stated by C-005/C-020: distributed as Apache-2.0 source built with cargo; deps are permissive, so no copyleft trigger."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "licensing",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "commercial use"
+  ],
+  "reason": "Brief never says whether the tool is commercial; Apache-2.0 and permissive deps make this low risk, but the statement is absent."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "privacy-regulated-data",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "classes of personal data"
+  ],
+  "reason": "Hub stores identities from tailscale whois (user login, node), message bodies, paths, activity summaries and blobs/patches (file contents) indefinitely; personal data classes are never listed and file/patch passing may carry secrets or PII."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "privacy-regulated-data",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "third party receives personal data"
+  ],
+  "reason": "Relayed messages, notices and patches are injected into other developers' Claude Code sessions and so reach Anthropic; no agreement or tier is named for that recipient."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "privacy-regulated-data",
+  "verdict": "suspect",
+  "trap_id": "privacy-regulated-data.collect-all-keep-forever",
+  "cues_matched": [
+   "retention"
+  ],
+  "reason": "Storage location is stated (C-008, ~/.wormhole/hub.sqlite) but retention is not: C-059 and C-062 say the event log and session bindings are never pruned."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "provider-terms",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "provider and tier"
+  ],
+  "reason": "Brief names Claude Code but not the agreement or tier (consumer, Team/Enterprise, API) each developer's sessions run under; channels availability and data clauses depend on it."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "provider-terms",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "outputs stored/redistributed"
+  ],
+  "reason": "Claude-authored messages and patches are stored in the hub log (never pruned) and redistributed to other developers' sessions; the brief does not say whether the tier's terms allow that."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "provider-terms",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [
+   "data sent to provider"
+  ],
+  "reason": "Inbound relayed messages, change notices and patches become model input in each session and go to Anthropic; the classes of data sent are not stated."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Wormhole does not actively test any systems; C-001/C-065 limit it to the owner's own tailnet."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No third-party systems are tested; the only disclosure route needed is for wormhole's own flaws, given in C-063."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Tool does no testing of others' systems, so no sensitive data is met during testing."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "accessibility",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "licensing",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "privacy-regulated-data",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "provider-terms",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "security-ethics",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission of a required statement owned by another lens; nothing in this lens is broken, and scope is trusted tailnet peers only."
+ }
+]

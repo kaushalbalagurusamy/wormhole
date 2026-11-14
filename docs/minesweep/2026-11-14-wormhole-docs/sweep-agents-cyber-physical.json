@@ -1,0 +1,936 @@
+[
+ {
+  "claim_id": "C-001",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Scope narrows participants to the owner's own tailnet devices and sessions; the trust boundary itself creates no agent action, and agent-output risk is raised at C-016 and C-065."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Problem statement for a connection between sessions; no loop, tool action or credential is specified here."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.delegation-without-least-privilege",
+  "cues_matched": [
+   "agents trust messages from other agents"
+  ],
+  "reason": "Messages, patch passing and work delegation between sessions let one session's model output drive another session's actions; no narrowing of authority or downstream check on the receiving side is stated (principle 5)."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Status line on testing coverage; agent-safety gaps it implies are raised at C-057."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Build toolchain statement; no agent action or loop."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub binds the tailnet address and refuses unidentified peers: identity check outside the model, as principle 4 wants."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "tailscale whois as identity source is a network-attested identity, not a model-held credential; per-session gap raised at C-028."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub database location and permissions; storage hardening with no agent action."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Local daemon endpoints on loopback and a 0700 socket; same-uid agent access is raised at C-071/C-072."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Protected-path deny is the only before-edit gate, but it covers edit-tool hooks only: Bash writes bypass it (C-044) and it disappears when hub or daemon is down (C-042, C-050); principle 2 gate is incomplete."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "install only prints configuration and writes nothing: no agent or tool silently modifies Claude Code settings."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Claims a warning 'before editing a file another session holds', but C-058 observed the PreToolUse additionalContext arriving after the edit; the warn path does not precede the conflicting action (principle 2)."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Ground: exact flag name --dangerously-load-development-channels, that it is research preview, and what else it loads or bypasses (allowlist, permission relay) in the target Claude Code version; push path depends on it."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Read-only activity page; no agent action can be taken from it."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Static identity restricted to loopback for tests; refused elsewhere, so it grants no cross-machine authority."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.delegation-without-least-privilege",
+  "cues_matched": [
+   "agents trust messages from other agents"
+  ],
+  "reason": "Full mutual trust between machines is extended to their agents' output: a trusted human's model can err or run away, and peer messages, patches, requests and permission relay carry its output to other sessions with no per-action narrowing (principle 5; agent-action-safety is never out of scope)."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Process topology statement; no loop or action."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Design keeps a GA pull path (hooks) that works without the preview channel; preview-flag specifics are raised at C-013/C-023."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Own relay instead of Anthropic account routing; no agent action or delegated credential involved."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Licence statement; not an agent-orchestration matter."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Cited study figures motivating the design; no agent action, loop or credential."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Ground: which hook events accept additionalContext, the 10,000-character cap, where PreToolUse additionalContext lands (C-058 says after the tool result) and that PreToolUse deny blocks the call; the only pre-edit gate depends on this."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Ground: channel capability name, notification method, per-session launch-flag enablement and the Team/Enterprise admin setting; silent drops when not enabled (C-054) affect delivery guarantees."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Statement about Claude Code's built-in messaging reach; it motivates the relay but grants no authority or action."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub state inventory and private-network binding; authorisation lives in the hub, not a model."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Single WebSocket with sequence resume; delivery mechanics with no side-effecting agent action."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Per-session stdio channel server forwarding to the local daemon; no tool authority beyond pushing text."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Identity is per Tailscale user and node; session identity within a machine is asserted by the daemon, so any same-uid process (including an agent's own Bash) can act as any session on that machine; acting identity per agent action is not attested (principles 4 and 6)."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.non-idempotent-retry",
+  "cues_matched": [],
+  "reason": "At-least-once delivery into a model consumer: request, patch.propose and msg kinds can be acted on twice; no idempotency key or dedupe at the model boundary is stated (C-054 confirms duplicates)."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.delegation-without-least-privilege",
+  "cues_matched": [
+   "agents trust messages from other agents"
+  ],
+  "reason": "request/result 'delegating work' and patch.propose let one agent hand tasks and changes to another; no statement of what authority the receiver acts under, who approves, or how the action is audited (principle 5)."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease expiry and monotonically increasing fencing tokens are enforced by the hub, not the model, and stop a crashed session holding a lease forever."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency metric labelled estimate vs measured; no agent action."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Push latency metric labelled estimate; no agent action."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.unbounded-agent-loop",
+  "cues_matched": [],
+  "reason": "Waking idle sessions via channel or asyncRewake lets agents trigger each other with no human turn; with no rate limit (C-062) two sessions can ping-pong indefinitely; also ground asyncRewake semantics per event."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.irreversible-action-without-gate",
+  "cues_matched": [],
+  "reason": "Warn-not-block leaves the model to decide whether to overwrite another session's held (possibly uncommitted, unrecoverable) work; the lens asks 'is the model itself deciding whether an action is permitted?' (principle 2)."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Change notices are informational to the reader's next action; no side effect."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Ownership tracked by the server rather than negotiated by agents: authorisation outside the model, matching principle 5."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Wrapping inbound messages relies on the receiving model's judgement not to act on peer text; no downstream gate on actions taken in response (requests, patches) is stated (principle 5: authorisation not by the model)."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.delegation-without-least-privilege",
+  "cues_matched": [],
+  "reason": "Permission relay, when enabled, lets another person approve command execution on this machine via a peer session: wholesale delegation of the local approval gate; ground relay semantics and enablement in Claude Code; default-off does not clear it."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No public exposure of the hub; narrows reach, no agent action."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Events carry paths and summaries, not contents or prompts; limits data in the log (audit completeness raised at C-094)."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Fail-open on hub outage also drops the protected-path deny (needs the hub's lease state), contradicting SECURITY.md's 'fail open except a protected path held by another session'; the only hard gate vanishes during outages (principle 2)."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub-side replay from cursor; delivery reliability with no agent side effect (duplicate-delivery risk raised at C-054)."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Shell-command edits bypass the edit hook and the claimed mitigation (working-tree watcher, pre-commit check) is listed as not built (C-059); agents routinely edit through Bash, so leases and protected paths are bypassable today."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resource metrics; no agent action."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Acceptance measurements and demos; no agent action is granted by it."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Test harness topology; no production agent authority."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Ground: SessionStart accepts only command and MCP-tool hooks (not HTTP), and MCP-tool hooks are skipped at launch, in the target Claude Code version."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Ground: hook timeout unit (whole seconds), behaviour on timeout (non-blocking error vs block), and the onFailure option; the fail-open design rests on these semantics."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Ground: a refused HTTP hook connection is a non-blocking error in Claude Code; if true, a dead daemon silently removes the protected-path deny with no notice to the model or user (principle 2)."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Never returning allow preserves the user's own permission prompt; deny is narrow and enforced by the daemon, not the model."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "PostToolUse on every tool only delivers notices; it adds no authority or side effect."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Bearer-checked endpoint that fails closed on unparseable bodies: a deterministic gate outside the model (token exposure raised at C-071)."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.non-idempotent-retry",
+  "cues_matched": [],
+  "reason": "Duplicate delivery to the model (push plus pull) of a message or request can make the agent perform the requested action twice; no dedupe identifier the model or daemon uses is stated."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "After /clear the channel server keeps the old session id, so pushes go to the wrong session and actions are attributed to a stale id; ground CLAUDE_CODE_SESSION_ID behaviour (principle 6: acting identity)."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Lease paths canonicalised and repo id shared across checkouts; deterministic scope resolution outside the model."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Verification was one headless claude -p run with static identity: interactive permission-prompt interplay, deny handling, channels and permission relay were not exercised; hook semantics the gates rely on stay unverified."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.irreversible-action-without-gate",
+  "cues_matched": [],
+  "reason": "Observed: the conflict warning reaches the model after the write, so warn-not-block gives no gate at all for non-protected paths; options (deny-then-retry, ask) are undecided."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.unbounded-agent-loop",
+  "cues_matched": [],
+  "reason": "Rate limits, event-log retention and the shell-edit watcher are not built; agent message storms and log growth are unbounded and the shell bypass is open; 'not built yet' does not clear it."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Localhost latency metrics; no agent action."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Idle resource metrics; no agent action."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.unbounded-agent-loop",
+  "cues_matched": [],
+  "reason": "No rate limits and unpruned log/bindings: a trusted peer's runaway agent loop (not malice) can flood other sessions' context and the hub with no cap or halt."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Vulnerability reporting route; not an agent action."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Security scope covers browsers and other local users but not the local agent itself: Claude Code's Bash runs as the same uid, passes the socket uid check and can read hook-token, so it can forge hooks or release leases (principle 4)."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.unbounded-agent-loop",
+  "cues_matched": [],
+  "reason": "Puts 'denial of service from a trusted peer' out of scope, which also excludes a trusted session's agent looping or flooding by mistake; agent-action safety is never out of scope (principle 1)."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "whois per connection, uncached, failing closed: identity enforced outside the model on every request."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Text sanitisation before reaching a model; injection mechanics belong to agent-security, no orchestration gap here."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Session ids bound to first peer and recipients fixed at send time: prevents one connection acting for another's session."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Bounded per-connection queue and capped replay: a resource bound enforced by the hub, consistent with principle 1."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Host/Origin/Sec-Fetch-Site checks block browser-driven actions against the hub."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.standing-broad-credentials",
+  "cues_matched": [],
+  "reason": "The hook token sits in .claude/settings.local.json inside the project, readable by the very agent the hooks constrain; a long-lived token with full hook-endpoint authority and no lifetime or per-session scope (principle 4)."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "uid and lstat checks exclude other users but not the agent's own processes running as the same euid; the socket grants full daemon authority to any same-uid process (principle 4)."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Database file and directory permissions; storage hardening with no agent action."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Transfer overlap check and TTL clamps: deterministic bounds on lease authority enforced by the hub."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Length caps after escaping bound injected context size; deterministic, outside the model."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility standard for the read-only activity page; not an agent-orchestration requirement."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Accessibility legal coverage of a self-hosted dev tool; no agent action involved."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Non-visual operability of the activity page; no agent action involved."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Dependency licence inventory; no agent loop, action or credential."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Distribution model (source build, Apache-2.0) for copyleft triggers; not an agent-action matter."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Commercial-use status; not an agent-action matter."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Personal-data classes (user names, message bodies); privacy lens owns, no agent action involved."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Third-party data recipients; wormhole runs its own relay, no agent credential delegated to a processor."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data residency and retention; privacy lens owns (log retention gap already raised at C-059)."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider agreement tier; wormhole calls no model API itself."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Provider output reuse; wormhole relays session text but calls no provider."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Data classes sent to providers; wormhole calls no provider API."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Authorised security-testing targets; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Disclosure route for third-party findings; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Sensitive-data handling during testing; wormhole is not a testing tool."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.unbounded-agent-loop",
+  "cues_matched": [],
+  "reason": "No cap, rate limit or halt on agent-to-agent message exchange, wake-ups or delegated request loops is stated; C-062 confirms none exists."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.irreversible-action-without-gate",
+  "cues_matched": [],
+  "reason": "Brief does not list externally visible agent actions it enables (overwriting held files, applying proposed patches, delegated requests, permission-relayed command approval) with approval gate and compensation for each."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.standing-broad-credentials",
+  "cues_matched": [],
+  "reason": "Credentials are partly stated (Tailscale identity, hook token, socket uid) but not per session or agent: no lifetime, scope per session, or rule for whose authority a delegated request runs under."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.no-action-audit-trail",
+  "cues_matched": [],
+  "reason": "The event log records edits/commands with paths, one-line daemon-generated summaries and user/machine, but not tool arguments, outcomes, lease denies or permission-relay approvals, and the hub trusts the daemon's summaries; partial audit only."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.standing-broad-credentials",
+  "cues_matched": [],
+  "reason": "Same gap as C-093: identity and scope per downstream call (hub, daemon, peer session acting on a request) and authentication of the invoking session are not stated."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Tool-server trust and definition pinning; the only tool server is wormhole's own channel server, and definition review belongs to agent-security."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.irreversible-action-without-gate",
+  "cues_matched": [],
+  "reason": "Same gap as C-092: which agent actions need explicit human confirmation is not stated; PreToolUse 'ask' is only an open option (C-058)."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Untrusted-input classes; C-038 states peer messages are data, and injection handling belongs to agent-security."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Dependency sources and vetting; supply-chain lens, no agent action."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Dependency pinning; supply-chain lens, no agent action."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Brief is silent on whether a delegated request or proposed patch from a peer session may lead the receiving agent to add or install packages, and what approval that needs (principle 2)."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Consistency model per data class; hub is the single serialisation point, a databases-lens question with no agent action."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Partition behaviour; single hub with fail-open hooks, a distributed-systems question (gate loss raised at C-042)."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Isolation level for lease invariants; databases lens, transfer is stated as one transaction (C-074)."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Cross-store atomicity; single SQLite store, no agent action."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Fault model (crash vs Byzantine); distributed-systems lens, trust stated at C-016."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Node and membership authentication are stated (whois per connection, C-066); no further orchestration gap."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "agent-orchestration",
+  "verdict": "suspect",
+  "trap_id": "agent-orchestration.non-idempotent-retry",
+  "cues_matched": [],
+  "reason": "Same as C-029/C-054: at-least-once delivery is stated but no idempotency key the consuming agent uses to avoid acting twice."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Ordering is a hub-assigned sequence (C-029); no agent action."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Memory budget per worker; os-systems lens, measured RSS given."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Concurrency model; os-systems lens, no agent action."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Load model for performance targets; performance lens, no agent action."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Latency percentiles are given (p50/p95/p99); no agent action."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Cost ceiling per unit for infrastructure; wormhole spends no tokens itself."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Network path assumptions; realtime-transport lens, no agent action."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "agent-orchestration",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "End-to-end latency budget; realtime-transport lens, no agent action."
+ }
+]

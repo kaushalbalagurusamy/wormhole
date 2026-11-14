@@ -1,0 +1,1896 @@
+[
+ {
+  "claim_id": "C-001",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "States one trust domain with crash faults only, so CFT/no-BFT design is consistent with scope."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "States one trust domain with crash faults only, so CFT/no-BFT design is consistent with scope."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: A live connection between coding-agent sessions on different machines "
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: A live connection between coding-agent sessions on different machines "
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Give every session a shared, live view: who is working on what, leases"
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "leases on files"
+  ],
+  "reason": "File leases are advisory: the protected resource (the working tree) never checks a fencing token; only the pre-edit hook does, and it warns or fails open."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Status: first slice built; tested on one machine over localhost; not y"
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Fault-model principle: never run across machines, so partitions, clock skew, reconnects over a real network and lease expiry under delay are untested."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Built with a current stable Rust toolchain (cargo build --release)."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Built with a current stable Rust toolchain (cargo build --release)."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Every hub connection is authenticated by tailnet whois; trust boundary is the tailnet."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Every hub connection is authenticated by tailnet whois; trust boundary is the tailnet."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Single identity source on the trusted tailnet; no relay forwards unauthenticated payloads."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Single identity source on the trusted tailnet; no relay forwards unauthenticated payloads."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Path and permissions of a single-node SQLite file; no replication involved."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Path and permissions of a single-node SQLite file; no replication involved."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: One daemon per developer machine serves hooks on 127.0.0.1:7421 and a "
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: One daemon per developer machine serves hooks on 127.0.0.1:7421 and a "
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Daemon option --protected 'secrets/**' marks paths where a conflicting"
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "only one ... writes"
+  ],
+  "reason": "Protected-path deny depends on the hub being reachable and the daemon up; on outage the hook fails open (C-042, C-050), so the hard block is not enforced at the resource."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: `wormhole install` prints the Claude Code configuration; it is merged "
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: `wormhole install` prints the Claude Code configuration; it is merged "
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Every session gets who-is-working-on-what at start, a warning before e"
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "lock guarantees no two workers"
+  ],
+  "reason": "The 'warning before editing' is contradicted by C-058: the warning lands after the write, so the lease does not protect the conflicting edit."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Claude Code launch flag --dangerously-load-development-channels server"
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Claude Code launch flag --dangerously-load-development-channels server"
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: The activity page is reachable at http://hub.your-tailnet.ts.net:7420/"
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: The activity page is reachable at http://hub.your-tailnet.ts.net:7420/"
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Self-claimed identity confined to loopback and refused elsewhere."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Self-claimed identity confined to loopback and refused elsewhere."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Full mutual trust over a private network bounds the fault model to crash faults."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Full mutual trust over a private network bounds the fault model to crash faults."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Single hub is the sole sequencer; no replication or consensus is claimed; outage handled in C-042."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Single hub is the sole sequencer; no replication or consensus is claimed; outage handled in C-042."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Delivery into Claude Code through hooks (generally available) and opti"
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Delivery into Claude Code through hooks (generally available) and opti"
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Own hub is the single trusted relay; no cross-account routing."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Own hub is the single trusted relay; no cross-account routing."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Project licence Apache-2.0."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Project licence Apache-2.0."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: ParallACT study: Claude Code pass rate fell 62% to 16% on conflicting "
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: ParallACT study: Claude Code pass rate fell 62% to 16% on conflicting "
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: SessionStart, UserPromptSubmit, PreToolUse and PostToolUse hooks can i"
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: SessionStart, UserPromptSubmit, PreToolUse and PostToolUse hooks can i"
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Channel: MCP server declaring claude/channel sends notifications/claud"
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Channel: MCP server declaring claude/channel sends notifications/claud"
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Claude Code's own cross-session messaging reaches only the same accoun"
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Claude Code's own cross-session messaging reaches only the same accoun"
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Durability principle: the ordered log, fencing-token counter and leases live in one SQLite file, but the synchronous/WAL durability setting is not stated; a hub crash that loses committed tail rows could reissue sequence numbers or fencing tokens daemons already saw."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Hub holds ordered event log, presence, leases, inboxes and content-add"
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Daemon keeps one WebSocket to the hub and resumes from the last sequen"
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Delivery principle: the resume cursor is said to be stored at the hub (L177); if it advances on send rather than on daemon acknowledgement, events in flight when a daemon crashes are skipped. Ack semantics unstated."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Channel server is a stdio MCP server per session that forwards to the "
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Channel server is a stdio MCP server per session that forwards to the "
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Per-connection identity from the private network; no forgeable sender id in payloads."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Per-connection identity from the private network; no forgeable sender id in payloads."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub-assigned sequence gives a total order and at-least-once with seq as the dedup key."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Hub-assigned sequence gives a total order and at-least-once with seq as the dedup key."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "databases.isolation-anomaly",
+  "cues_matched": [
+   "read available seats and book if any remain"
+  ],
+  "reason": "lease.acquire is a check-for-overlap-then-insert invariant; only transfer is stated to run in one transaction (C-074); acquire's transaction and SQLite busy/retry handling are unstated."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "leader holds a lease and writes directly to storage"
+  ],
+  "reason": "Leases advertise mutual exclusion but the files are written directly by the agent; no resource-side token check, and the acquire/renew messages carry no idempotency key for at-least-once retries."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Token monotonicity comes from one SQLite hub; durability risk recorded under C-025."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "lock ttl prevents double processing"
+  ],
+  "reason": "Stale-token rejection happens in the pre-edit hook, not at the file write; a session paused past TTL, a hub outage (fail open) or a shell edit (C-044) writes without any token check; daemon restart also loses held tokens (C-059)."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Lease check before an edit roughly 50-200 ms on a private network (est"
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Lease check before an edit roughly 50-200 ms on a private network (est"
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Push about 1 s while the session is open (estimate, not measured into "
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Push about 1 s while the session is open (estimate, not measured into "
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Waking an idle session: seconds (estimate); asyncRewake support per ev"
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Waking an idle session: seconds (estimate); asyncRewake support per ev"
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Warn, do not block: a conflicting edit gets holder, scope and time and"
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "the lock guarantees no two workers process the same item"
+  ],
+  "reason": "Warn-not-block makes leases advisory, so lease 'mutual exclusion' (C-030) holds only by agent choice; acceptable only if the brief drops the exclusion claim."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: The daemon tracks files a session has read; a later edit by another se"
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Crash-recovery principle: files-read tracking is daemon in-memory only (C-059); a daemon restart silently drops pending change notices."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claims are tracked by one authoritative server, not negotiated between peers."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Claims are tracked by one authoritative server, not negotiated between peers."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Messages from other agents are data to the receiving model; every inbo"
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Messages from other agents are data to the receiving model; every inbo"
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Channel permission relay (remote approval of tool calls) is off by def"
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Channel permission relay (remote approval of tool calls) is off by def"
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: The hub listens only on the private network; no path is exposed to the"
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: The hub listens only on the private network; no path is exposed to the"
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Events carry paths and one-line summaries, not file contents or prompt"
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Events carry paths and one-line summaries, not file contents or prompt"
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Partition-behaviour principle: during a hub outage edits proceed (accept divergent writes) but how leases and conflicting edits are reconciled on reconnect is unstated."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "leader holds a lease and writes directly to storage"
+  ],
+  "reason": "Fail-open during an outage means a partitioned holder and a new grantee can both edit; nothing at the resource rejects the stale holder."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Daemon reconnects resume from the last sequence number, so no event is"
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.exactly-once-delivery",
+  "cues_matched": [
+   "retry on failure until delivered, with no duplicates"
+  ],
+  "reason": "'No event is lost' conflicts with the 100,000-event replay cap (C-069), the possibly send-advanced cursor (C-026) and daemon in-memory state lost on restart (C-059)."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Shell-command edits bypass the edit hook; the daemon watches the worki"
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "acquire a redis lock (setnx) so only one worker writes"
+  ],
+  "reason": "Shell-command edits bypass the lease check entirely, and the watcher/pre-commit backstop is not built (C-059)."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Daemon 6.0 MB RSS, no measurable idle CPU; channel server 4.0 MB; Sess"
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Daemon 6.0 MB RSS, no measurable idle CPU; channel server 4.0 MB; Sess"
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Acceptance: two machines; measure push and pull message latency, hook "
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Fault-model principle: two-machine acceptance lists latency and happy-path lease demos but no partition, hub or daemon restart, clock skew or paused-holder test."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Acceptance tests run hub and two daemons in one process over localhost"
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Fault-model principle: one process over localhost cannot exercise partitions, independent crashes, clock skew or real network delay, yet the tests claim fencing and lossless reconnect."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: SessionStart uses a command hook (wormhole hook) that prints a stale n"
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: SessionStart uses a command hook (wormhole hook) that prints a stale n"
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: 800 ms deadline enforced in the daemon; settings use a 5 s hook timeou"
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Timeout-ambiguity principle (two generals): when the 800 ms deadline expires the hub may still commit the lease acquire, leaving a ghost lease the session does not know it holds until TTL; retry idempotency unstated."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: When the daemon is down, Claude Code treats the refused HTTP hook as a"
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "lock ttl prevents double processing"
+  ],
+  "reason": "Daemon down means no lease or protected-path check at all and no stale notice; exclusion silently lapses."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: PreToolUse never returns allow; warnings in additionalContext; deny on"
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "only one worker writes"
+  ],
+  "reason": "The one hard enforcement (protected-path deny) lives in the hook, which fails open when hub or daemon is unreachable."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: PostToolUse matches every tool."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: PostToolUse matches every tool."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Hook endpoint requires a bearer token; bodies reduced while streaming;"
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Hook endpoint requires a bearer token; bodies reduced while streaming;"
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Channel push does not mark a message read; with channels enabled a mes"
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.exactly-once-delivery",
+  "cues_matched": [
+   "consumers need no dedup"
+  ],
+  "reason": "Brief admits duplicates via channel push plus hook pull; no consumer-side dedup by sequence number into the session."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Channel server learns its session from CLAUDE_CODE_SESSION_ID; after /"
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Delivery principle: after /clear pushes route to a stale session id, so messages go to an endpoint no live session reads; loss/misrouting not handled."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Key-design principle: lease key is normalised origin URL plus repo-relative path with no branch or worktree, so checkouts on different branches collide on false conflicts and forks with different origins never share leases."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Leases on repo-relative paths after resolving symlinks; repo id is the"
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Checked in one real Claude Code session (2.1.325, claude -p, one machi"
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Checked in one real Claude Code session (2.1.325, claude -p, one machi"
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Open problem: PreToolUse additionalContext lands next to the tool resu"
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "the lock guarantees no two workers process the same item"
+  ],
+  "reason": "Open problem confirms the lease does not gate the edit; the decision among the listed options is still open."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Not built: working-tree watcher and pre-commit check; event log retent"
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Crash-recovery principle: daemon restart loses lease tokens, files-read and unread notices; behaviour of a session whose token vanished is unstated."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Localhost hook round trips 0.10-0.19 ms p50; SessionStart 2.03 ms; mes"
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Localhost hook round trips 0.10-0.19 ms p50; SessionStart 2.03 ms; mes"
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Idle: daemon 6.0 MB, hub 7.6 MB and 0.05% CPU, channel server 4.0 MB."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Idle: daemon 6.0 MB, hub 7.6 MB and 0.05% CPU, channel server 4.0 MB."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Known gaps: no rate limits; event log and session bindings never prune"
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Known gaps: no rate limits; event log and session bindings never prune"
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Report vulnerabilities through GitHub private reporting; acknowledgeme"
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Report vulnerabilities through GitHub private reporting; acknowledgeme"
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Security scope: unidentified connections, lease bypass, unwrapped text"
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Security scope: unidentified connections, lease bypass, unwrapped text"
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Excludes malicious trusted peers, consistent with the owner's non-Byzantine scope."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Excludes malicious trusted peers, consistent with the owner's non-Byzantine scope."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Identity checked per connection/request without caching; refusal on failure."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Identity checked per connection/request without caching; refusal on failure."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Relayed text cleaned: control and Unicode Cf characters including tag "
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Relayed text cleaned: control and Unicode Cf characters including tag "
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Session binding and recipient are fixed at a single hub authority; no cross-node merge."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Session binding and recipient are fixed at a single hub authority; no cross-node merge."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Bounded per-connection outbound queue; slow consumers disconnected; re"
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.exactly-once-delivery",
+  "cues_matched": [
+   "retry on failure until delivered"
+  ],
+  "reason": "Replay capped at 100,000 events and 2 s queue wait: a long-offline or slow daemon loses events (contradicts C-043) and may loop disconnect/replay; behaviour past the cap unstated."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Host header checked on every hub route; activity page refuses foreign "
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Host header checked on every hub route; activity page refuses foreign "
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Hook token 32 random bytes from /dev/urandom in hook-token (0600); pri"
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Hook token 32 random bytes from /dev/urandom in hook-token (0600); pri"
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Runtime directory and socket checked with lstat and geteuid; edit path"
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Runtime directory and socket checked with lstat and geteuid; edit path"
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "File permission handling for SQLite WAL/SHM, no consistency claim."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "File permission handling for SQLite WAL/SHM, no consistency claim."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Transfer overlap check runs in one SQLite transaction; SQLite serialises writers."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.lock-without-fencing-token",
+  "cues_matched": [
+   "take a lock with a 5-second expiry"
+  ],
+  "reason": "TTL floor of 100 ms is below the estimated 50-200 ms cross-machine round trip (C-032), so a lease can expire before it is used or renewed; 4 h ceiling leaves a crashed holder's lease for hours."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to databases in: Length caps applied after escaping; oversize block truncated not withh"
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "No stored-data consistency, transaction, coordination, ordering or delivery claim relevant to distributed-systems in: Length caps applied after escaping; oversize block truncated not withh"
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens accessibility; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens accessibility; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens accessibility; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens accessibility; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens accessibility; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens accessibility; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens licensing; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens licensing; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens licensing; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens licensing; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens licensing; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens licensing; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens privacy-regulated-data; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens privacy-regulated-data; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens privacy-regulated-data; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens privacy-regulated-data; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens privacy-regulated-data; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens privacy-regulated-data; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens provider-terms; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens provider-terms; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens provider-terms; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens provider-terms; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens provider-terms; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens provider-terms; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens security-ethics; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens security-ethics; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens security-ethics; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens security-ethics; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens security-ethics; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens security-ethics; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-orchestration; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens agent-security; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens supply-chain; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens supply-chain; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens supply-chain; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens supply-chain; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens supply-chain; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens supply-chain; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Omission: no claim states the staleness bound of the daemon's cached presence/lease view or the consistency each data class (leases, inbox, activity) needs."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens databases; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Omission only partly covered: C-042 says actions proceed during an outage but not how divergent edits and expired/regranted leases are reconciled afterwards."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens databases; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "databases.isolation-anomaly",
+  "cues_matched": [
+   "transactions prevent race conditions"
+  ],
+  "reason": "Only lease transfer is stated as one transaction (C-074); the mechanism enforcing no-overlap on acquire, and SQLite transaction mode/busy retry, are not stated."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens databases; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "databases",
+  "verdict": "suspect",
+  "trap_id": "databases.dual-write-without-outbox",
+  "cues_matched": [
+   "keep the cache in sync by writing to both"
+  ],
+  "reason": "The file write and the PostToolUse edit record are separate writes (crash between loses the change notice), and whether hub broadcast happens strictly after the SQLite commit is unstated."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens databases; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens distributed-systems; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Omission only partly covered: C-001/C-016/C-065 exclude Byzantine participants, but the crash budget f and the single-hub crash/restart behaviour are not stated."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "C-006/C-016/C-028/C-068 state the trusted nodes, the hub as relay, and whois-authenticated membership."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "C-006/C-016/C-028/C-068 state the trusted nodes, the hub as relay, and whois-authenticated membership."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens distributed-systems; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "distributed-systems",
+  "verdict": "suspect",
+  "trap_id": "distributed-systems.exactly-once-delivery",
+  "cues_matched": [
+   "retry on failure until delivered, with no duplicates"
+  ],
+  "reason": "C-029 states at-least-once with a sequence number, but C-054 admits duplicates reaching the session and no idempotency key is stated for client-originated retries (lease.acquire, msg)."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "C-029 states total order assigned by a hub sequence number, not wall clocks."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "C-029 states total order assigned by a hub sequence number, not wall clocks."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens os-systems; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens os-systems; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens os-systems; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens os-systems; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens performance; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens performance; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens performance; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens performance; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens performance; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens performance; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens realtime-transport; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens realtime-transport; no stored-data or coordination claim for distributed-systems."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "databases",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens realtime-transport; no stored-data or coordination claim for databases."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "distributed-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission for lens realtime-transport; no stored-data or coordination claim for distributed-systems."
+ }
+]

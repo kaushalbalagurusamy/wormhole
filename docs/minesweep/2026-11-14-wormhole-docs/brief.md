@@ -1,0 +1,242 @@
+# Brief: wormhole README, design and security docs (commit b94bfbb)
+
+Scope set by the owner: trusted devices on a private Tailscale tailnet and their Claude Code sessions only. Untrusted participants, the public internet, multi-tenant use and other agents (Codex, Cursor) are out of scope.
+
+<!-- README.md -->
+# wormhole
+
+A live connection between coding-agent sessions running on different machines that share one repository.
+
+Several developers, each with their own agent sessions (Claude Code first), work in the same repo. Today those agents cannot see each other: two of them can build the same feature in parallel, edit the same file, or act on state that changed minutes ago. wormhole gives every session on a trusted network a shared, live view: who is working on what, leases on files and areas, messages between agents, file and patch passing, and a stream of each session's activity that others can watch.
+
+## Status
+
+First slice built: hub, daemon, Claude Code hooks, channel MCP server, activity page. Tested on one machine over localhost; not yet run across machines. See [docs/design.md](docs/design.md) for the protocol, the measured numbers and what is left, [docs/related-work.md](docs/related-work.md) for what exists, and [SECURITY.md](SECURITY.md) for reporting and the threat model.
+
+## Use
+
+Build with a current stable Rust toolchain:
+
+    cargo build --release
+    export PATH="$PWD/target/release:$PATH"
+
+On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused.
+
+    mkdir -m 700 -p ~/.wormhole
+    wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite
+
+On each developer machine, run one daemon. It serves hooks on 127.0.0.1:7421 and a socket in `~/.wormhole/` (mode 0700).
+
+    wormhole daemon --hub ws://hub.your-tailnet.ts.net:7420/ws --protected 'secrets/**'
+
+In each project, print the Claude Code configuration and merge it by hand; nothing is written for you:
+
+    wormhole install --project .
+
+Then start Claude Code as usual. Every session gets "who is working on what" at start, a warning before editing a file another session holds, and messages and "changed since you read it" notices after each tool call. To also receive messages pushed between tool calls (channels, a research preview):
+
+    claude --dangerously-load-development-channels server:wormhole
+
+The activity page is at `http://hub.your-tailnet.ts.net:7420/` from any machine on the tailnet.
+
+For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address, and a browser cannot open the activity page in this mode because it cannot send the identity header.
+
+## Scope
+
+- Machines that fully trust each other, connected over a private network (Tailscale or similar).
+- One hub process on one machine; one small daemon per developer machine.
+- Delivery into Claude Code through hooks (generally available) and, optionally, channels (research preview).
+
+## Not in scope
+
+- Untrusted participants or public networks.
+- Replacing git, pull requests or code review.
+- Routing between different users' Claude accounts through Anthropic's services; wormhole runs its own relay.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
+
+<!-- docs/design.md -->
+# Design
+
+Status: first slice built and tested on one machine (2026-11-14). Numbers marked "estimate" are not measured. Localhost measurements are under "Measured"; cross-machine numbers are not yet measured.
+
+## Problem
+
+Agents in separate sessions act on a stale view of the repo. A 2026 study of independent coding agents with no coordinator (ParallACT, see related-work.md) found that on conflicting tasks Claude Code's pass rate fell from 62% to 16%, and that only 21–23% of messages between agents were read before the recipient's first edit. When agents knew each other's tasks and agreed who owned the contested code, conflicts fell from 67% to 18%. The failure is timing, so delivery has to happen at edit time, not in an inbox the agent might check later.
+
+## How a session receives outside input
+
+A Claude Code session takes in outside input at two points:
+
+1. Between tool calls, through hooks. `SessionStart`, `UserPromptSubmit`, `PreToolUse` and `PostToolUse` hooks can inject text as a system reminder (`additionalContext`, up to 10,000 characters). `PreToolUse` can deny a tool call with a reason. Hooks can be commands or HTTP calls. Generally available.
+2. At any time, through a channel: an MCP server that declares the `claude/channel` capability and sends `notifications/claude/channel`. The event appears in the session as a tagged block. Research preview: enabled per session with a launch flag, and on Team or Enterprise plans by an admin setting.
+
+Claude Code's own cross-session messaging (`ListAgents`, `SendMessage`) uses the same two entry points but only reaches sessions on the same account. wormhole provides the relay across accounts and machines.
+
+## Components
+
+```
+ developer machine A                      hub machine                          developer machine B
+ Claude Code sessions                     hub                                  Claude Code sessions
+   channel MCP server  <-unix socket->     ordered event log (SQLite)            channel MCP server
+   hooks (HTTP)           daemon <-WS->    presence, leases, inboxes, blobs  <-WS-> daemon <-unix socket->
+                                           supervision fan-out                     hooks (HTTP)
+```
+
+- **hub**: one process. Holds the ordered event log, presence, leases, inboxes and content-addressed blobs. Listens on the private network only.
+- **daemon**: one process per developer machine. Keeps one WebSocket to the hub, resumes from the last sequence number after a disconnect, and serves local sessions over a Unix socket.
+- **channel server**: a stdio MCP server Claude Code starts per session; it forwards between the session and the local daemon and pushes inbound events into the session.
+- **hooks**: HTTP hooks to the local daemon for the synchronous paths (lease check before an edit, activity after a tool call, context at session start).
+
+Identity: the hub identifies each connection by the private network's own identity (for Tailscale, `tailscale whois` on the peer address). No shared tokens.
+
+## Messages
+
+All messages are JSON, carry a hub-assigned sequence number, and are delivered in order and at least once.
+
+| Kind | Fields | Purpose |
+|---|---|---|
+| `hello`, `heartbeat`, `bye` | session id, user, machine, repo, branch, task | presence and discovery |
+| `event` | kind (edit, command, commit, push, pr), paths, one-line summary, ref | activity stream |
+| `msg` | from, to (session, user or broadcast), body, reply_to | messaging |
+| `lease.acquire`, `lease.renew`, `lease.release` | scope (path glob or named area), ttl, fencing token | mutual exclusion |
+| `lease.request_transfer`, `lease.grant`, `lease.deny` | scope, from, to, reason | handing a lease to another session |
+| `blob.offer`, `blob.fetch` | content hash, size, name | file passing |
+| `patch.propose` | base ref, diff, target session | proposing a change to another session |
+| `watch`, `unwatch` | session id, detail level | supervision subscription |
+| `request`, `result` | task text, status, output summary | delegating work |
+
+Leases expire unless renewed, so a crashed session cannot hold one indefinitely. The fencing token increases on every grant; the pre-edit check rejects writes that carry a stale token.
+
+## Delivery and latency
+
+| Path | Mechanism | Latency to the receiving session | Status |
+|---|---|---|---|
+| Pull at next action | `UserPromptSubmit` and `PostToolUse` hooks return unread messages and change notices | at the receiver's next tool call or prompt | generally available |
+| Lease check before an edit | `PreToolUse` HTTP hook asks the daemon | before the edit, roughly 50–200 ms on a private network (estimate; cross-machine not yet measured); 0.19 ms p50 on localhost (measured) | generally available |
+| Push | channel notification | about 1 s while the session is open (estimate; not yet measured into a live session); send to a client on the receiving daemon's socket 0.09 ms p50 on localhost (measured) | research preview |
+| Wake an idle session | channel event, or an `asyncRewake` hook | seconds (estimate) | channel: preview; `asyncRewake` support per event to be verified |
+
+## Defaults chosen from the evidence
+
+- **Warn, do not block.** A conflicting edit gets the holder, the scope and the time, and the agent decides. Hard blocks are opt-in per path. CoAgent (related-work.md) found hard locks perform worse than telling an agent what changed and letting it repair.
+- **Tell an agent when something it read has changed.** The daemon tracks files a session has read; a later edit by another session produces a change notice at the reader's next action.
+- **Server-tracked claims, not negotiation in chat.** AgentRoom (related-work.md) found claims tracked by a server beat agents negotiating ownership in messages.
+
+## Trust and safety
+
+- Participants are trusted, but messages from other agents are still data to the receiving model. Every inbound message is wrapped as coming from a named session, so it cannot pass as the local user's instruction.
+- Remote approval of another session's tool calls (channel permission relay) is off by default. Enabling it lets another person approve command execution on your machine.
+- The hub listens only on the private network. No path is exposed to the public internet.
+- By default events carry paths and one-line summaries, not file contents or prompts. Full supervision detail is opt-in per session.
+
+## Failure behaviour
+
+- Hub unreachable: hooks return within a short timeout and allow the action, with a notice that state is stale. Work is never blocked by an outage.
+- Daemon reconnects resume from the last sequence number, so no event is lost.
+- Edits made through shell commands bypass the edit hook; the daemon also watches the working tree and a git pre-commit check reports conflicts.
+
+## Resource use per developer machine
+
+- daemon: one process; 6.0 MB resident and no measurable CPU when idle on localhost (measured, see below). Earlier estimate: 10–20 MB, near 0%.
+- channel server: one per session; 4.0 MB resident (measured). Earlier estimate: 10–20 MB.
+- hooks: HTTP hooks run inside Claude Code; no extra process. `SessionStart` runs `wormhole hook` once per session start (about 2 ms).
+
+## First slice
+
+1. hub and daemon: presence, messaging, leases with expiry and fencing.
+2. Claude Code integration: `SessionStart` context, `PreToolUse` lease check (warn), `PostToolUse` activity and inbox, channel push.
+3. A read-only activity page.
+4. Acceptance: two machines; measure message latency (push and pull), hook latency, and resource use; show a lease conflict warning and a lease transfer between sessions; show a change notice after another session edits a file the first one read. Results recorded in this file with the date and versions.
+
+Later: file passing, patch proposals, supervision detail levels, work delegation, other agents (Codex, Cursor) through the same daemon.
+
+## First slice as built
+
+What exists: `wormhole hub`, `wormhole daemon`, `wormhole mcp-channel`, `wormhole hook` and `wormhole install`, in one Rust binary. Acceptance tests (tests/acceptance.rs) run a hub and two daemons in one process over localhost with static identity: lease conflict warning, protected-path deny, lease transfer handshake (grant and deny), fencing rejects a stale holder, message delivery at the next `PostToolUse`, change notice after another session edits a file the first one read, reconnect resumes without loss or duplicates, hooks fail open when the hub is down, the activity page and its live updates, and the channel server as a real process.
+
+Where the implementation differs from the text above, because of what Claude Code supports today (hooks reference read 2026-11-13):
+
+- `SessionStart` does not accept HTTP hooks, only command and MCP-tool hooks, and MCP-tool hooks are skipped at launch. It runs `wormhole hook`, which asks the daemon over its Unix socket and prints the stale-state note itself if the daemon does not answer within 800 ms.
+- Hook `timeout` is in whole seconds, so the 800 ms limit is enforced inside the daemon: every hub request carries a deadline, and on expiry the hook answers with a stale-state note and lets the action go ahead. The settings use a 5 s timeout only as a backstop, and never `onFailure: "block"`.
+- When the daemon itself is down, Claude Code treats the refused HTTP hook as a non-blocking error: the action goes ahead, but no stale-state note can be shown. Only the hub-down case and `SessionStart` produce the note.
+- `PreToolUse` never returns `permissionDecision: "allow"`, since that would skip the user's own permission prompt. Warnings go in `additionalContext`; `deny` is used only for a protected path held by another session.
+- `PostToolUse` matches every tool, so messages arrive at the next tool call of any kind and `Read` is seen for change notices.
+- The hook endpoint requires a bearer token (`hook-token` next to the socket), because any local user can reach loopback. It checks the token before reading the body. Bodies carry file contents (a `Write` input holds the whole file), so the daemon reduces each body while it streams in, replacing strings over 4 KiB with empty ones; memory stays bounded and edits of any size get the normal lease check. It never answers 413, since Claude Code would treat that as a non-blocking error and the edit would skip the check. A body it cannot parse, or one that is still over 1 MiB once reduced, or over 1 GiB in total, gets a deny with the reason; this is the one case where a hook fails closed.
+- A channel push does not mark a message read: Claude Code drops channel events silently when the channel is not enabled for the session. Only the pull path marks messages read, so with channels enabled a message can appear twice.
+- The channel server learns its session from `CLAUDE_CODE_SESSION_ID`. After `/clear` an MCP server keeps the id it was started with, so pushes keep going to the old id until restart.
+- `MultiEdit` is not in the current tools reference; the matcher keeps it in case it is used, and `NotebookEdit` paths are read from `file_path` or `notebook_path`.
+- Leases are acquired on repo-relative paths after resolving symlinks and `..`; the repository id is the normalised `origin` URL, so checkouts on different machines share leases.
+
+Checked in a real Claude Code session (2.1.325, `claude -p`, 2026-11-14, one machine, static identity): the settings printed by `wormhole install` were accepted as written; the `SessionStart` context reached the model; `PreToolUse` took a lease, `PostToolUse` recorded the edit and `SessionEnd` released the lease. Claude Code's HTTP hook client sent no `Origin` header, so the daemon's browser check does not get in its way.
+
+Open problem found in that run: the conflict warning arrives after the edit. Claude Code inserts `PreToolUse` `additionalContext` next to the tool result, so the model read "WARNING from wormhole: notes.txt ... is leased by another session" only once the write had happened. Warn-not-block therefore informs the next action, not the conflicting one. Options to decide: deny the first conflicting attempt with the warning as the reason and allow a deliberate retry of the same path within a short window (the agent still decides, before the edit); use `permissionDecision: "ask"` so the user decides; or keep the current behaviour and rely on `SessionStart` and push to warn earlier. Until then, only protected paths are stopped before the edit.
+
+Not built yet: the working-tree watcher and git pre-commit check for edits made through shell commands; file passing, patches, supervision, delegation; event log retention; rate limits; persistence of the daemon's in-memory state (unread notices, files read, lease tokens are lost if the daemon restarts; the hub keeps the log and resumes from the stored cursor).
+
+## Measured
+
+Localhost only: one Apple M5 Pro (macOS, arm64), hub and two daemons on 127.0.0.1 with static identity, release build of commit 073bfc9, rustc 1.100.0, 2026-11-14. Produced by `scripts/bench.sh 300`. Cross-machine numbers (the point of the project) are not yet measured.
+
+| Measurement | p50 | p95 | p99 |
+|---|---|---|---|
+| `PreToolUse` hook round trip, lease renew through the hub | 0.19 ms | 0.40 ms | 0.42 ms |
+| `PreToolUse` hook round trip, conflict warning | 0.18 ms | 0.20 ms | 0.22 ms |
+| `PostToolUse` hook round trip, nothing to deliver | 0.10 ms | 0.11 ms | 0.12 ms |
+| `SessionStart` through `wormhole hook` (process start included) | 2.03 ms | 2.38 ms | 2.57 ms |
+| Message from session A to a client attached to B's daemon socket, as the channel server attaches (send, hub, fan-out, push; the `mcp-channel` process and Claude Code are not in this path) | 0.09 ms | 0.13 ms | 0.22 ms |
+
+These exclude Claude Code's own hook overhead and network latency. A `PostToolUse` delivering a backlog returns as many messages as fit in 8,000 characters (32 short ones in the run) and keeps the rest for the next call.
+
+| Idle resource use (60 s, after the run above) | |
+|---|---|
+| daemon resident memory | 6.0 MB |
+| daemon CPU | below 0.02% (no CPU time recorded at the 10 ms resolution of `ps`) |
+| hub resident memory | 7.6 MB |
+| hub CPU | 0.05% (lease and presence sweep every 500 ms) |
+| channel server resident memory | 4.0 MB |
+
+## Security notes
+
+See SECURITY.md for what is covered. Known gaps in this slice: no rate limits on a trusted peer; the event log and session-id bindings are never pruned; messages are size-capped but a trusted peer can still send many; activity summaries are generated by the daemon from paths, never from command text or contents, but the hub trusts the daemon to do so.
+
+<!-- SECURITY.md -->
+# Security
+
+## Reporting
+
+Report a vulnerability privately through GitHub's "Report a vulnerability" form on this repository (Security tab). Do not open a public issue. Include the version or commit, what an attacker needs, and a reproduction if you have one. Expect an acknowledgement within a week.
+
+## Scope
+
+wormhole assumes machines that trust each other on a private network (Tailscale or similar). In scope:
+
+- The hub accepting a connection it cannot identify, or letting one connection act for a session, user or machine it does not own.
+- Lease bypass: a stale fencing token accepted, a lease released or granted by a non-holder.
+- Text from another session reaching a model without being wrapped, cleaned and length-limited, or able to pass as the local user's instruction.
+- File contents, prompts or message bodies leaking into the event log, activity page or hook output beyond what the design states.
+- The daemon's loopback HTTP endpoint or Unix socket being usable from a browser or another local user.
+- Hooks blocking work when the hub or daemon is down (they must fail open, except a protected path held by another session).
+
+Out of scope: participants who are already trusted acting maliciously within their own permissions, denial of service from a trusted peer, and anything requiring the hub to be exposed to the public internet (unsupported).
+
+## Threat model notes
+
+Covered:
+
+- Identity comes from the network (`tailscale whois` on the peer address), never from the payload. whois runs once for every new connection or HTTP request and is never cached, so a tailnet address reassigned to another node is identified afresh; if whois fails or returns no user and node, the connection is refused (identity fails closed, unlike hooks). Static identity is for tests; the hub refuses it unless bound to loopback and rejects non-loopback peers.
+- Relayed text is cleaned before it reaches a model: control characters and all Unicode format (Cf) characters are removed, including the tag block U+E0000 to U+E007F used to smuggle hidden instructions, variation selectors, U+00AD, U+034F and U+180E. U+2028, U+2029 and U+0085 are treated as line breaks. `<`, `>` and `&` are escaped so a body cannot close its wrapper.
+- A session id is bound in the hub database to the first peer that registers it, and stays bound after the session ends or times out; another peer cannot re-register it. A timed-out session's leases are released. A message to a session records the recipient's user and machine when it is sent, and only that peer can receive it, before or after the session expires.
+- Each hub connection has a bounded outbound queue. A consumer that cannot keep up is disconnected (and resumes from its cursor on reconnect); replay waits at most 2 s for queue space and reaches back at most 100,000 events.
+- Every hub route checks that the Host header names the hub (its listen address, or a name given with `--hostname`), against DNS rebinding. The activity page also refuses a foreign `Origin` or a cross-site `Sec-Fetch-Site`, and never shows fencing tokens.
+- The daemon's loopback hook endpoint requires `Authorization: Bearer <token>`, compared in constant time. The token is 32 random bytes from `/dev/urandom`, kept in `hook-token` (mode 0600) in the daemon's private directory; `wormhole install` prints it for `.claude/settings.local.json`, which is not committed. The endpoint also rejects any `Origin` header and any `Host` that is not loopback, so other local users and browsers cannot drive it. Headers and token are checked before any of the body is read. No body size is refused with 413 (which Claude Code would treat as a non-blocking error, letting the edit skip the check): the body is reduced while it streams in, keeping only strings up to 4 KiB, so the path is recovered and the normal deny or warning applies to edits of any size. A body that cannot be parsed, is still over 1 MiB once reduced, or exceeds 1 GiB is answered with a PreToolUse deny that says why.
+- The daemon's runtime directory is checked with `lstat` before use: it must be a real directory (not a symlink), owned by the effective uid (`geteuid`), with no group or other access. The socket path is never followed if it is a symlink or replaced if it is not a socket. Each Unix socket peer's uid must equal the daemon's effective uid. (The other-uid case is tested as a rule, since tests have no second account.)
+- Edit paths are resolved on disk before leases and protected globs are applied: symlinks and `..` are followed, the result must lie under the canonical repository root, and on a case-insensitive filesystem protected globs match regardless of case. A symlink that leads out of the repository is treated as outside it.
+- The hub database holds message bodies. It is created with mode 0600 before SQLite opens it (not following a symlink), its `-wal` and `-shm` files are set to 0600, and a failure to set modes is an error. A missing parent directory is created 0700, and a parent directory other users can write to is refused.
+- A lease transfer applies the same overlap check as an acquire, in one transaction: it is refused if the recipient would overlap a lease held by a third session.
+- Lease TTLs from clients are clamped to 100 ms through 4 hours, and expiry arithmetic saturates within SQLite's i64 range, so a huge or wrapped TTL cannot overflow or create a lease that never expires.
+- Length caps are applied to the escaped output, so escaping cannot expand text past the cap. A block larger than the whole context budget is truncated rather than withheld.
+
+Known gaps are listed in docs/design.md under "Security notes".

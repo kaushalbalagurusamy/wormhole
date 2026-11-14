@@ -1,0 +1,2820 @@
+[
+ {
+  "claim_id": "C-001",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Only trusted devices on a private Tailscale tailnet and their Claude C...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Only trusted devices on a private Tailscale tailnet and their Claude C...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-001",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Only trusted devices on a private Tailscale tailnet and their Claude C...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'A live connection between coding-agent sessions on different machines ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'A live connection between coding-agent sessions on different machines ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-002",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'A live connection between coding-agent sessions on different machines ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Give every session a shared, live view: who is working on what, leases...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Give every session a shared, live view: who is working on what, leases...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-003",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Give every session a shared, live view: who is working on what, leases...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Status: first slice built; tested on one machine over localhost; not y...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "All latency and resource figures are localhost-only and 'not yet run across machines'; any latency claim carried forward from them is unverified for the product's actual purpose."
+ },
+ {
+  "claim_id": "C-004",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Status: first slice built; tested on one machine over localhost; not y...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Built with a current stable Rust toolchain (cargo build --release).': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Built with a current stable Rust toolchain (cargo build --release).': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-005",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Built with a current stable Rust toolchain (cargo build --release).': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub listens on its Tailscale address only; every connection is identif...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub listens on its Tailscale address only; every connection is identif...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-006",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub listens on its Tailscale address only; every connection is identif...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Tailscale CLI `tailscale whois` as the identity source.': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Tailscale CLI `tailscale whois` as the identity source.': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-007",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Tailscale CLI `tailscale whois` as the identity source.': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub database at ~/.wormhole/hub.sqlite in a 0700 directory; --hostname...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub database at ~/.wormhole/hub.sqlite in a 0700 directory; --hostname...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-008",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub database at ~/.wormhole/hub.sqlite in a 0700 directory; --hostname...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'One daemon per developer machine serves hooks on 127.0.0.1:7421 and a ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'One daemon per developer machine serves hooks on 127.0.0.1:7421 and a ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-009",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'One daemon per developer machine serves hooks on 127.0.0.1:7421 and a ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon option --protected 'secrets/**' marks paths where a conflicting...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon option --protected 'secrets/**' marks paths where a conflicting...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-010",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon option --protected 'secrets/**' marks paths where a conflicting...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'`wormhole install` prints the Claude Code configuration; it is merged ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'`wormhole install` prints the Claude Code configuration; it is merged ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-011",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'`wormhole install` prints the Claude Code configuration; it is merged ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Every session gets who-is-working-on-what at start, a warning before e...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Every session gets who-is-working-on-what at start, a warning before e...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-012",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Every session gets who-is-working-on-what at start, a warning before e...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Claude Code launch flag --dangerously-load-development-channels server...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Claude Code launch flag --dangerously-load-development-channels server...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-013",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Claude Code launch flag --dangerously-load-development-channels server...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The activity page is reachable at http://hub.your-tailnet.ts.net:7420/...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The activity page is reachable at http://hub.your-tailnet.ts.net:7420/...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-014",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The activity page is reachable at http://hub.your-tailnet.ts.net:7420/...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Static identity: hub with --identity static on 127.0.0.1, daemon claim...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Static identity: hub with --identity static on 127.0.0.1, daemon claim...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-015",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Static identity: hub with --identity static on 127.0.0.1, daemon claim...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Machines fully trust each other, over a private network (Tailscale or ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Machines fully trust each other, over a private network (Tailscale or ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-016",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Machines fully trust each other, over a private network (Tailscale or ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'One hub process on one machine; one small daemon per developer machine...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'One hub process on one machine; one small daemon per developer machine...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-017",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'One hub process on one machine; one small daemon per developer machine...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Delivery into Claude Code through hooks (generally available) and opti...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Delivery into Claude Code through hooks (generally available) and opti...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-018",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Delivery into Claude Code through hooks (generally available) and opti...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Not routing between different users' Claude accounts through Anthropic...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Not routing between different users' Claude accounts through Anthropic...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-019",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Not routing between different users' Claude accounts through Anthropic...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Project licence Apache-2.0.': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Project licence Apache-2.0.': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-020",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Project licence Apache-2.0.': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'ParallACT study: Claude Code pass rate fell 62% to 16% on conflicting ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'ParallACT study: Claude Code pass rate fell 62% to 16% on conflicting ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-021",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'ParallACT study: Claude Code pass rate fell 62% to 16% on conflicting ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'SessionStart, UserPromptSubmit, PreToolUse and PostToolUse hooks can i...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'SessionStart, UserPromptSubmit, PreToolUse and PostToolUse hooks can i...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-022",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'SessionStart, UserPromptSubmit, PreToolUse and PostToolUse hooks can i...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel: MCP server declaring claude/channel sends notifications/claud...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel: MCP server declaring claude/channel sends notifications/claud...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-023",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel: MCP server declaring claude/channel sends notifications/claud...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Claude Code's own cross-session messaging reaches only the same accoun...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Claude Code's own cross-session messaging reaches only the same accoun...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-024",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Claude Code's own cross-session messaging reaches only the same accoun...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub holds ordered event log, presence, leases, inboxes and content-add...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub holds ordered event log, presence, leases, inboxes and content-add...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-025",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub holds ordered event log, presence, leases, inboxes and content-add...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "One long-lived WebSocket per daemon is a pooled connection; no per-request connection churn."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon keeps one WebSocket to the hub and resumes from the last sequen...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-026",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'reliable in-order stream means head-of-line blocking': one WebSocket per daemon carries all kinds, so a large blob/patch or replay backlog delays latency-sensitive lease replies behind it; no priority or separate stream stated."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "One stdio MCP process per Claude Code session is bounded by human-started sessions (4 MB each), not by request rate."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel server is a stdio MCP server per session that forwards to the ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-027",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel server is a stdio MCP server per session that forwards to the ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Identity by the private network's own identity (tailscale whois on the...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Identity by the private network's own identity (tailscale whois on the...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-028",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Identity by the private network's own identity (tailscale whois on the...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'All messages are JSON, carry a hub-assigned sequence number, and are d...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'All messages are JSON, carry a hub-assigned sequence number, and are d...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-029",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Ordered at-least-once JSON for leases and messages is control/state traffic, which the lens keeps on reliable streams."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Message kinds: presence, events, msg, lease acquire/renew/release with...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Message kinds: presence, events, msg, lease acquire/renew/release with...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-030",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Message kinds: presence, events, msg, lease acquire/renew/release with...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Leases expire unless renewed; the fencing token increases on every gra...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Leases expire unless renewed; the fencing token increases on every gra...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-031",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Leases expire unless renewed; the fencing token increases on every gra...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Lease check before an edit roughly 50-200 ms on a private network (est...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.percentile-slo-without-load-model",
+  "cues_matched": [
+   "p99 under 50 ms, with no request rate or payload stated"
+  ],
+  "reason": "50-200 ms cross-machine is an estimate with no percentile, no load model and no measurement; it sits on the synchronous pre-edit path and is shown next to a measured localhost p50 that does not transfer."
+ },
+ {
+  "claim_id": "C-032",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'state the network path': the estimate assumes a private-network RTT, but a tailnet path may be direct or relayed through DERP with very different RTT and loss; path, loss and RTT percentile are unstated."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Push about 1 s while the session is open (estimate, not measured into ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.percentile-slo-without-load-model",
+  "cues_matched": [
+   "real-time performance"
+  ],
+  "reason": "'About 1 s' push is an estimate, not measured into a live session, with no percentile or load; the 0.09 ms localhost figure excludes mcp-channel, Claude Code and the network."
+ },
+ {
+  "claim_id": "C-033",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'state the latency budget': end-to-end push latency (~1 s) is not split across hub, network, daemon, channel server and Claude Code ingestion, and the cross-machine network leg is unmeasured."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Waking an idle session: seconds (estimate); asyncRewake support per ev...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.percentile-slo-without-load-model",
+  "cues_matched": [
+   "the API must be fast"
+  ],
+  "reason": "'Seconds' to wake an idle session is an unmeasured estimate with no percentile, and asyncRewake support is itself unverified."
+ },
+ {
+  "claim_id": "C-034",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'state the latency budget': idle-wake latency has no budget or split and depends on an unverified mechanism."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Warn, do not block: a conflicting edit gets holder, scope and time and...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Warn, do not block: a conflicting edit gets holder, scope and time and...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-035",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Warn, do not block: a conflicting edit gets holder, scope and time and...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The daemon tracks files a session has read; a later edit by another se...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The daemon tracks files a session has read; a later edit by another se...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-036",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The daemon tracks files a session has read; a later edit by another se...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Server-tracked claims, not negotiation in chat (AgentRoom finding).': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Server-tracked claims, not negotiation in chat (AgentRoom finding).': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-037",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Server-tracked claims, not negotiation in chat (AgentRoom finding).': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Messages from other agents are data to the receiving model; every inbo...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Messages from other agents are data to the receiving model; every inbo...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-038",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Messages from other agents are data to the receiving model; every inbo...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel permission relay (remote approval of tool calls) is off by def...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel permission relay (remote approval of tool calls) is off by def...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-039",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel permission relay (remote approval of tool calls) is off by def...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The hub listens only on the private network; no path is exposed to the...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The hub listens only on the private network; no path is exposed to the...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-040",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'The hub listens only on the private network; no path is exposed to the...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Events carry paths and one-line summaries, not file contents or prompt...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Events carry paths and one-line summaries, not file contents or prompt...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-041",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Events carry paths and one-line summaries, not file contents or prompt...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub unreachable: hooks return within a short timeout and allow the act...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub unreachable: hooks return within a short timeout and allow the act...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-042",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub unreachable: hooks return within a short timeout and allow the act...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon reconnects resume from the last sequence number, so no event is...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon reconnects resume from the last sequence number, so no event is...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-043",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Resume from sequence number is control-plane recovery, not live media."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.fd-limit-exhaustion",
+  "cues_matched": [
+   "open a file handle for every upload and process it later"
+  ],
+  "reason": "A working-tree watcher on a large repo can need one descriptor or watch per directory/file (kqueue on macOS, inotify max_user_watches on Linux); no watch budget against RLIMIT_NOFILE is stated."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Shell-command edits bypass the edit hook; the daemon watches the worki...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-044",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Shell-command edits bypass the edit hook; the daemon watches the worki...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.memory-limit-oom-kill",
+  "cues_matched": [
+   "the function has 512 MB, which should be plenty"
+  ],
+  "reason": "6.0 MB / 4.0 MB are idle RSS on localhost after a 300-iteration run, not peak RSS under backlog, replay or large hook bodies (up to 1 MiB reduced each); peak per-process memory times concurrency is not measured."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon 6.0 MB RSS, no measurable idle CPU; channel server 4.0 MB; Sess...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-045",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Daemon 6.0 MB RSS, no measurable idle CPU; channel server 4.0 MB; Sess...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Acceptance: two machines; measure push and pull message latency, hook ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.percentile-slo-without-load-model",
+  "cues_matched": [
+   "responses under 100 ms"
+  ],
+  "reason": "Acceptance says 'measure' push, pull and hook latency across two machines but names no percentile, pass threshold, sample size or load (sessions, message rate)."
+ },
+ {
+  "claim_id": "C-046",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'state the network path': the two-machine acceptance does not say whether peers connect directly or via DERP relay, nor the loss/RTT the run must cover, so a LAN result could be reported as representative."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Acceptance tests run hub and two daemons in one process over localhost...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'compute or experiment, do not quote': acceptance tests run hub and two daemons in one process on localhost, so they cannot evidence any cross-machine latency, timeout or reconnect behaviour."
+ },
+ {
+  "claim_id": "C-047",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'packet networks lose, reorder and delay': one-process localhost tests exercise no loss, jitter or partition, so reconnect/resume and deadline behaviour are untested on a real path."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'SessionStart uses a command hook (wormhole hook) that prints a stale n...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'SessionStart uses a command hook (wormhole hook) that prints a stale n...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-048",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'SessionStart uses a command hook (wormhole hook) that prints a stale n...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'800 ms deadline enforced in the daemon; settings use a 5 s hook timeou...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'percentile under a load model': the 800 ms deadline was chosen without any cross-machine latency distribution; if real p99 (incl. per-request whois, DERP) approaches it, lease checks silently degrade to stale warnings."
+ },
+ {
+  "claim_id": "C-049",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'800 ms deadline enforced in the daemon; settings use a 5 s hook timeou...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'When the daemon is down, Claude Code treats the refused HTTP hook as a...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'When the daemon is down, Claude Code treats the refused HTTP hook as a...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-050",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'When the daemon is down, Claude Code treats the refused HTTP hook as a...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'PreToolUse never returns allow; warnings in additionalContext; deny on...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'PreToolUse never returns allow; warnings in additionalContext; deny on...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-051",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'PreToolUse never returns allow; warnings in additionalContext; deny on...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.ephemeral-port-exhaustion",
+  "cues_matched": [
+   "close the socket after each call to keep things stateless"
+  ],
+  "reason": "PostToolUse fires on every tool call of every session as an HTTP hook to 127.0.0.1:7421; whether Claude Code reuses connections is unstated, so per-call loopback connections plus TIME-WAIT against the ephemeral range is uncomputed (rate likely low; grounding settles)."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'PostToolUse matches every tool.': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-052",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'PostToolUse matches every tool.': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Bodies reduced while streaming (strings over 4 KiB dropped, 1 MiB cap after reduction) bound per-request memory."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hook endpoint requires a bearer token; bodies reduced while streaming;...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-053",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hook endpoint requires a bearer token; bodies reduced while streaming;...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel push does not mark a message read; with channels enabled a mes...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel push does not mark a message read; with channels enabled a mes...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-054",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel push does not mark a message read; with channels enabled a mes...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel server learns its session from CLAUDE_CODE_SESSION_ID; after /...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel server learns its session from CLAUDE_CODE_SESSION_ID; after /...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-055",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Channel server learns its session from CLAUDE_CODE_SESSION_ID; after /...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Leases on repo-relative paths after resolving symlinks; repo id is the...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Leases on repo-relative paths after resolving symlinks; repo id is the...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-056",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Leases on repo-relative paths after resolving symlinks; repo id is the...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Checked in one real Claude Code session (2.1.325, claude -p, one machi...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Checked in one real Claude Code session (2.1.325, claude -p, one machi...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-057",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Checked in one real Claude Code session (2.1.325, claude -p, one machi...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Open problem: PreToolUse additionalContext lands next to the tool resu...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Open problem: PreToolUse additionalContext lands next to the tool resu...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-058",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Open problem: PreToolUse additionalContext lands next to the tool resu...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Not built: working-tree watcher and pre-commit check; event log retent...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.unbounded-queue",
+  "cues_matched": [
+   "queue every request so none are ever dropped"
+  ],
+  "reason": "Event log retention and rate limits are 'not built yet'; until then nothing bounds log or inbox growth, and 'later' is where the trap lives."
+ },
+ {
+  "claim_id": "C-059",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Not built: working-tree watcher and pre-commit check; event log retent...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Localhost hook round trips 0.10-0.19 ms p50; SessionStart 2.03 ms; mes...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'percentile under a load model': p95/p99 come from 300 sequential samples from one client on one idle machine (p99 is ~3 samples), with no concurrency; they are not tail latency under load."
+ },
+ {
+  "claim_id": "C-060",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Localhost hook round trips 0.10-0.19 ms p50; SessionStart 2.03 ms; mes...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.memory-limit-oom-kill",
+  "cues_matched": [
+   "the function has 512 MB, which should be plenty"
+  ],
+  "reason": "Hub 7.6 MB is idle RSS with tiny state; with a never-pruned log (C-062), per-connection outbound queues and 100,000-event replays, peak hub memory is unmeasured."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Idle: daemon 6.0 MB, hub 7.6 MB and 0.05% CPU, channel server 4.0 MB.': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-061",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Idle: daemon 6.0 MB, hub 7.6 MB and 0.05% CPU, channel server 4.0 MB.': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.memory-limit-oom-kill",
+  "cues_matched": [
+   "load the whole dataset into memory for speed"
+  ],
+  "reason": "Event log and session bindings are never pruned and trusted peers can send many messages; hub disk, SQLite page cache and daemon in-memory state grow without bound and no limit or retention is stated."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.unbounded-queue",
+  "cues_matched": [
+   "queue every request so none are ever dropped"
+  ],
+  "reason": "No rate limits and an unpruned log/inboxes: under a runaway (not malicious) agent, arrivals exceed what readers drain and storage and replay length grow without bound."
+ },
+ {
+  "claim_id": "C-062",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Known gaps: no rate limits; event log and session bindings never prune...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Report vulnerabilities through GitHub private reporting; acknowledgeme...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Report vulnerabilities through GitHub private reporting; acknowledgeme...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-063",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Report vulnerabilities through GitHub private reporting; acknowledgeme...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Security scope: unidentified connections, lease bypass, unwrapped text...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Security scope: unidentified connections, lease bypass, unwrapped text...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-064",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Security scope: unidentified connections, lease bypass, unwrapped text...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Out of scope: trusted participants acting maliciously, DoS from a trus...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.unbounded-queue",
+  "cues_matched": [
+   "retry failed calls until they succeed"
+  ],
+  "reason": "DoS from a trusted peer is declared out of scope, but an accidental loop in a trusted Claude Code session (in scope) floods the hub just the same; with no rate limits nothing sheds the load."
+ },
+ {
+  "claim_id": "C-065",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Out of scope: trusted participants acting maliciously, DoS from a trus...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.thread-or-process-per-request",
+  "cues_matched": [
+   "fork a worker process per job"
+  ],
+  "reason": "whois comes from the Tailscale CLI (C-007) and runs uncached per new connection AND per HTTP request: a subprocess spawn per request, unbounded by configuration; process limits and spawn cost scale with request rate."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'compute, do not quote': an uncached tailscale whois (CLI spawn plus local API call) sits on every hub request, including the pre-edit lease check, and is not in the 50-200 ms estimate or the 800 ms deadline arithmetic."
+ },
+ {
+  "claim_id": "C-066",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'whois runs once per new connection or HTTP request and is never cached...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Relayed text cleaned: control and Unicode Cf characters including tag ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Relayed text cleaned: control and Unicode Cf characters including tag ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-067",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Relayed text cleaned: control and Unicode Cf characters including tag ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Session ids bound to the first peer permanently; message recipient fix...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Session ids bound to the first peer permanently; message recipient fix...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-068",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Session ids bound to the first peer permanently; message recipient fix...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Per-connection outbound queue is bounded and replay waits for queue space, so hub memory per connection is bounded."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'retries amplify overload': slow consumers are disconnected and then replay up to 100,000 events on reconnect, which can re-fill the same bounded queue and loop disconnect/replay; no reconnect backoff or replay budget stated."
+ },
+ {
+  "claim_id": "C-069",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Bounded queue with disconnect-and-resume is a control-plane policy, not live-media transport."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Host header checked on every hub route; activity page refuses foreign ...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Host header checked on every hub route; activity page refuses foreign ...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-070",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Host header checked on every hub route; activity page refuses foreign ...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hook token 32 random bytes from /dev/urandom in hook-token (0600); pri...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hook token 32 random bytes from /dev/urandom in hook-token (0600); pri...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-071",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hook token 32 random bytes from /dev/urandom in hook-token (0600); pri...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Runtime directory and socket checked with lstat and geteuid; edit path...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Runtime directory and socket checked with lstat and geteuid; edit path...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-072",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Runtime directory and socket checked with lstat and geteuid; edit path...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub database created 0600 with -wal/-shm 0600; parent dir 0700; others...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub database created 0600 with -wal/-shm 0600; parent dir 0700; others...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-073",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Hub database created 0600 with -wal/-shm 0600; parent dir 0700; others...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Transfer applies the overlap check; TTLs clamped 100 ms to 4 h with sa...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "Principle 'compute from the brief's numbers': a 100 ms TTL floor is below the 50-200 ms cross-machine estimate and the hub's 500 ms sweep interval, so short leases can expire before a renew arrives or linger past expiry."
+ },
+ {
+  "claim_id": "C-074",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Transfer applies the overlap check; TTLs clamped 100 ms to 4 h with sa...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Length caps applied after escaping; oversize block truncated not withh...': names no per-request connections, descriptors, threads/processes or memory demand that could exhaust a host."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Length caps applied after escaping; oversize block truncated not withh...': makes no latency, throughput, queue or cost claim for this lens to test."
+ },
+ {
+  "claim_id": "C-075",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "'Length caps applied after escaping; oversize block truncated not withh...': carries no live audio/video or latency-critical network path; no transport, jitter or MTU issue."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.a11y-standard'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.a11y-standard'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-076",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.a11y-standard'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.legal-coverage'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.legal-coverage'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-077",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.legal-coverage'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.non-visual-operable'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.non-visual-operable'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-078",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by accessibility lens ('accessibility.non-visual-operable'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.dependency-licence-inventory'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.dependency-licence-inventory'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-079",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.dependency-licence-inventory'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.distribution-model'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.distribution-model'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-080",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.distribution-model'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.commercial-use'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.commercial-use'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-081",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by licensing lens ('licensing.commercial-use'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.data-classes'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.data-classes'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-082",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.data-classes'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.processors-and-agreements'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.processors-and-agreements'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-083",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.processors-and-agreements'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.residency-and-retention'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.residency-and-retention'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-084",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by privacy-regulated-data lens ('privacy-regulated-data.residency-and-retention'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.provider-and-agreement'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.provider-and-agreement'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-085",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.provider-and-agreement'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.output-use'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.output-use'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-086",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.output-use'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.data-sent'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.data-sent'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-087",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by provider-terms lens ('provider-terms.data-sent'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.authorised-targets'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.authorised-targets'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-088",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.authorised-targets'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.disclosure-route'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.disclosure-route'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-089",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.disclosure-route'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.sensitive-data-handling'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.sensitive-data-handling'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-090",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by security-ethics lens ('security-ethics.sensitive-data-handling'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.loop-budget'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.loop-budget'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-091",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.loop-budget'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.irreversible-actions'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.irreversible-actions'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-092",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.irreversible-actions'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.credential-scope'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.credential-scope'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-093",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.credential-scope'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.action-audit'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.action-audit'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-094",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-orchestration lens ('agent-orchestration.action-audit'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.delegated-authority'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.delegated-authority'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-095",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.delegated-authority'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.tool-trust'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.tool-trust'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-096",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.tool-trust'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.human-approval'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.human-approval'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-097",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.human-approval'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.untrusted-inputs'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.untrusted-inputs'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-098",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by agent-security lens ('agent-security.untrusted-inputs'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.dependency-vetting'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.dependency-vetting'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-099",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.dependency-vetting'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.pinning-policy'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.pinning-policy'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-100",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.pinning-policy'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.agent-install-policy'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.agent-install-policy'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-101",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by supply-chain lens ('supply-chain.agent-install-policy'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.consistency-model'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.consistency-model'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-102",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.consistency-model'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.partition-behaviour'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.partition-behaviour'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-103",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.partition-behaviour'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.isolation-level'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.isolation-level'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-104",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.isolation-level'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.cross-store-atomicity'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.cross-store-atomicity'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-105",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by databases lens ('databases.cross-store-atomicity'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.fault-model'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.fault-model'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-106",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.fault-model'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.trust-boundary'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.trust-boundary'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-107",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.trust-boundary'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.delivery-semantics'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.delivery-semantics'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-108",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.delivery-semantics'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.ordering-guarantees'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.ordering-guarantees'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-109",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by distributed-systems lens ('distributed-systems.ordering-guarantees'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.memory-limit-oom-kill",
+  "cues_matched": [
+   "run each job in a small container, memory is not a concern"
+  ],
+  "reason": "No claim states a memory budget per process or the peak input size/concurrency; C-045/C-061 give only idle RSS."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by os-systems lens ('os-systems.memory-budget-per-worker'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-110",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by os-systems lens ('os-systems.memory-budget-per-worker'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "os-systems",
+  "verdict": "suspect",
+  "trap_id": "os-systems.fd-limit-exhaustion",
+  "cues_matched": [
+   "keep a socket open per connected client"
+  ],
+  "reason": "No claim states peak concurrent sessions, WebSockets, hook connections, whois subprocesses or watcher descriptors per host; C-026 states one WS per daemon but not the hub's peak or its concurrency model."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by os-systems lens ('os-systems.concurrency-model'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-111",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by os-systems lens ('os-systems.concurrency-model'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by performance lens ('performance.load-model'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.percentile-slo-without-load-model",
+  "cues_matched": [
+   "p99 under 50 ms, with no request rate or payload stated"
+  ],
+  "reason": "No claim states machines, sessions per machine, tool-call or message rate, or payload sizes that latency figures must hold under."
+ },
+ {
+  "claim_id": "C-112",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by performance lens ('performance.load-model'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by performance lens ('performance.latency-slo-percentile'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.percentile-slo-without-load-model",
+  "cues_matched": [
+   "the API must be fast"
+  ],
+  "reason": "Localhost numbers name percentiles, but the cross-machine figures (C-032, C-033, C-034) and the acceptance (C-046) name none."
+ },
+ {
+  "claim_id": "C-113",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by performance lens ('performance.latency-slo-percentile'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by performance lens ('performance.cost-ceiling-per-unit'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "performance",
+  "verdict": "suspect",
+  "trap_id": "performance.egress-unit-economics",
+  "cues_matched": [],
+  "reason": "No cost ceiling is stated; likely negligible on a self-hosted tailnet, but relay usage and plan limits are unstated, and the omission rule makes it a suspect until grounded."
+ },
+ {
+  "claim_id": "C-114",
+  "lens": "realtime-transport",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by performance lens ('performance.cost-ceiling-per-unit'); not a realtime-transport required statement."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by realtime-transport lens ('realtime-transport.network-path'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by realtime-transport lens ('realtime-transport.network-path'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-115",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "No claim states packet loss, RTT, jitter or whether the tailnet path is direct or DERP-relayed; the 'private network' estimate in C-032 assumes it."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "os-systems",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by realtime-transport lens ('realtime-transport.latency-budget'); not a os-systems required statement."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "performance",
+  "verdict": "clear",
+  "trap_id": null,
+  "cues_matched": [],
+  "reason": "Omission owned by realtime-transport lens ('realtime-transport.latency-budget'); not a performance required statement."
+ },
+ {
+  "claim_id": "C-116",
+  "lens": "realtime-transport",
+  "verdict": "suspect",
+  "trap_id": "novel",
+  "cues_matched": [],
+  "reason": "No end-to-end latency budget for push or the lease check is split across hook, daemon, network, hub (incl. whois) and Claude Code ingestion; only unsplit estimates exist."
+ }
+]
