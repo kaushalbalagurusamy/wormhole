@@ -664,6 +664,33 @@ mod tests {
     }
 
     #[test]
+    fn database_files_are_private_under_a_default_umask() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = std::env::temp_dir().join(format!("wh-perm-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        // SAFETY: umask only sets the process file-creation mask.
+        let old = unsafe { libc::umask(0o022) };
+        let p = d.join("db/hub.sqlite");
+        let mut s = Store::open(&p).unwrap();
+        s.append(1, "k", "u", "m", "s", json!({})).unwrap();
+        unsafe { libc::umask(old) };
+        let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&p), 0o600);
+        for ext in ["-wal", "-shm"] {
+            let f = std::path::PathBuf::from(format!("{}{ext}", p.display()));
+            assert_eq!(mode(&f), 0o600, "{ext}");
+        }
+        assert_eq!(mode(&d.join("db")), 0o700);
+        drop(s);
+        // A directory others can write to is refused.
+        let open = d.join("open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
+        assert!(Store::open(&open.join("hub.sqlite")).is_err());
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
     fn state_survives_reopen() {
         let p = std::env::temp_dir().join(format!("wh-store-{}.sqlite", std::process::id()));
         let _ = std::fs::remove_file(&p);
