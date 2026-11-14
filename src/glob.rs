@@ -51,9 +51,17 @@ fn is_glob(s: &str) -> bool {
     s.contains('*')
 }
 
+/// Path segments before the first one containing a wildcard.
+fn literal_prefix(glob: &str) -> Vec<&str> {
+    glob.split('/')
+        .take_while(|seg| !seg.contains('*'))
+        .collect()
+}
+
 /// Do two lease scopes overlap? Equal scopes overlap; a glob overlaps a path it matches.
-/// Named areas overlap only when equal. shortcut: two different globs are treated as not
-/// overlapping; upgrade if teams start leasing overlapping globs.
+/// Named areas overlap only when equal. Two globs overlap when one's literal prefix is a
+/// segment-prefix of the other's: conservative, so `src/a*` and `src/b*` count as
+/// overlapping. A false positive only adds a warning.
 pub fn overlaps(a: &str, b: &str) -> bool {
     if a == b {
         return true;
@@ -64,7 +72,12 @@ pub fn overlaps(a: &str, b: &str) -> bool {
     match (is_glob(a), is_glob(b)) {
         (true, false) => matches(a, b),
         (false, true) => matches(b, a),
-        _ => false,
+        (true, true) => {
+            let (pa, pb) = (literal_prefix(a), literal_prefix(b));
+            let n = pa.len().min(pb.len());
+            pa[..n] == pb[..n]
+        }
+        (false, false) => false,
     }
 }
 

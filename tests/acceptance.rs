@@ -750,16 +750,18 @@ async fn hook_token_is_checked_before_the_body_and_bodies_are_capped() {
     );
     big["tool_response"] = json!({});
     let auth = format!("Bearer {}", n.a.hook_token);
-    let (st, _, _) = http(
+    let body = big.to_string();
+    let mut s = tokio::net::TcpStream::connect(n.a.http_addr).await.unwrap();
+    let head = format!(
+        "POST /hook HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nAuthorization: {auth}\r\nContent-Length: {}\r\n\r\n",
         n.a.http_addr,
-        "POST",
-        "/hook",
-        &[
-            ("Content-Type", "application/json"),
-            ("Authorization", &auth),
-        ],
-        &big.to_string(),
-    )
-    .await;
-    assert_eq!(st, 413);
+        body.len()
+    );
+    s.write_all(head.as_bytes()).await.unwrap();
+    // The server may answer and close before all of the body is sent.
+    let _ = s.write_all(body.as_bytes()).await;
+    let mut reply = Vec::new();
+    let _ = tokio::time::timeout(Duration::from_secs(2), s.read_to_end(&mut reply)).await;
+    let reply = String::from_utf8_lossy(&reply);
+    assert!(reply.starts_with("HTTP/1.1 413"), "{reply}");
 }

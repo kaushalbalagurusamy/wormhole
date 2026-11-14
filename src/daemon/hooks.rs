@@ -23,7 +23,7 @@ const EDIT_TOOLS: &[&str] = &["Edit", "Write", "MultiEdit", "NotebookEdit"];
 pub(crate) async fn serve_http(d: Arc<Daemon>, l: tokio::net::TcpListener) {
     let app = axum::Router::new()
         .route("/hook", axum::routing::post(http_hook))
-        .layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024))
+        .layer(axum::extract::DefaultBodyLimit::max(MAX_HOOK_BODY))
         .with_state(d);
     let _ = axum::serve(l, app).await;
 }
@@ -61,17 +61,34 @@ fn authorized(headers: &HeaderMap, token: &str) -> bool {
         && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-async fn http_hook(
-    State(d): State<Arc<Daemon>>,
-    headers: HeaderMap,
-    body: Option<Json<Value>>,
-) -> Response {
-    let port = d.cfg_port();
-    if !local_request(&headers, port) || !authorized(&headers, &d.hook_token) {
+/// Largest hook body accepted. A `Write` of a larger file gets 413, which Claude Code
+/// treats as a non-blocking error: the edit goes ahead without a lease check.
+const MAX_HOOK_BODY: usize = 1024 * 1024;
+
+/// Headers are checked before any of the body is read.
+async fn http_hook(State(d): State<Arc<Daemon>>, req: axum::extract::Request) -> Response {
+    let headers = req.headers();
+    if !local_request(headers, d.cfg_port()) || !authorized(headers, &d.hook_token) {
         return StatusCode::FORBIDDEN.into_response();
     }
-    let Some(Json(input)) = body else {
+    let json_body = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| {
+            v.split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .eq_ignore_ascii_case("application/json")
+        });
+    if !json_body {
         return StatusCode::UNSUPPORTED_MEDIA_TYPE.into_response();
+    }
+    let Ok(bytes) = axum::body::to_bytes(req.into_body(), MAX_HOOK_BODY).await else {
+        return StatusCode::PAYLOAD_TOO_LARGE.into_response();
+    };
+    let Ok(input) = serde_json::from_slice::<Value>(&bytes) else {
+        return StatusCode::BAD_REQUEST.into_response();
     };
     Json(handle(&d, input).await).into_response()
 }
