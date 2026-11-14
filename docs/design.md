@@ -56,7 +56,7 @@ Leases expire unless renewed, so a crashed session cannot hold one indefinitely.
 |---|---|---|---|
 | Pull at next action | `UserPromptSubmit` and `PostToolUse` hooks return unread messages and change notices | at the receiver's next tool call or prompt | generally available |
 | Lease check before an edit | `PreToolUse` HTTP hook asks the daemon | before the edit, roughly 50–200 ms on a private network (estimate; cross-machine not yet measured); 0.19 ms p50 on localhost (measured) | generally available |
-| Push | channel notification | about 1 s while the session is open (estimate; not yet measured into a live session); daemon-to-channel-server 0.09 ms p50 on localhost (measured) | research preview |
+| Push | channel notification | about 1 s while the session is open (estimate; not yet measured into a live session); send to a client on the receiving daemon's socket 0.09 ms p50 on localhost (measured) | research preview |
 | Wake an idle session | channel event, or an `asyncRewake` hook | seconds (estimate) | channel: preview; `asyncRewake` support per event to be verified |
 
 ## Defaults chosen from the evidence
@@ -122,7 +122,7 @@ Localhost only: one Apple M5 Pro (macOS, arm64), hub and two daemons on 127.0.0.
 | `PreToolUse` hook round trip, conflict warning | 0.18 ms | 0.20 ms | 0.22 ms |
 | `PostToolUse` hook round trip, nothing to deliver | 0.10 ms | 0.11 ms | 0.12 ms |
 | `SessionStart` through `wormhole hook` (process start included) | 2.03 ms | 2.38 ms | 2.57 ms |
-| Message from session A to session B's channel server (send, hub, fan-out, push) | 0.09 ms | 0.13 ms | 0.22 ms |
+| Message from session A to a client attached to B's daemon socket, as the channel server attaches (send, hub, fan-out, push; the `mcp-channel` process and Claude Code are not in this path) | 0.09 ms | 0.13 ms | 0.22 ms |
 
 These exclude Claude Code's own hook overhead and network latency. A `PostToolUse` delivering a backlog returns as many messages as fit in 8,000 characters (32 short ones in the run) and keeps the rest for the next call.
 

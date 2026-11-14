@@ -17,6 +17,7 @@ Build with a current stable Rust toolchain:
 
 On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused.
 
+    mkdir -m 700 -p ~/.wormhole
     wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite
 
 On each developer machine, run one daemon. It serves hooks on 127.0.0.1:7421 and a socket in `~/.wormhole/` (mode 0700).
@@ -33,7 +34,7 @@ Then start Claude Code as usual. Every session gets "who is working on what" at 
 
 The activity page is at `http://hub.your-tailnet.ts.net:7420/` from any machine on the tailnet.
 
-For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address.
+For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address, and a browser cannot open the activity page in this mode because it cannot send the identity header.
 
 ## Scope
 
