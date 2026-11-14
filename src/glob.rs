@@ -163,7 +163,16 @@ mod tests {
         assert!(covers("src/**", "src/hub/a.rs"));
         assert!(covers("src", "src/a.rs"));
         assert!(covers("src", "src/hub/**"));
-        assert!(covers("src/*.rs", "src/a.rs"));
+        // A plain scope may name a directory, so a glob covers it only if it also covers
+        // everything under it; when unsure, not covered (a transfer is then refused, never lossy).
+        assert!(!covers("src/*.rs", "src/a.rs"));
+        assert!(!covers("src/*", "src/hub"));
+        assert!(covers("src/**", "src/hub"));
+        assert!(covers("src/**", "src/a/b"));
+        assert!(covers("**", "x"));
+        // `a**` is not a recursive glob.
+        assert!(!covers("src/a**", "src/a/b"));
+        assert!(!covers("src/a**", "src/a/*"));
         assert!(covers("x", "x"));
         assert!(!covers("src/hub/*", "src/**"));
         assert!(!covers("src/hub/a.rs", "src/hub/*"));
