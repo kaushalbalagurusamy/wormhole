@@ -160,6 +160,11 @@ impl State {
         self.last_seq = Some(e.seq);
         let d = &e.data;
         let s = |k: &str| d[k].as_str().unwrap_or("").to_string();
+        // Shown names come from the hub as stored: folded to one line so none can start a
+        // forged line. Only a message body keeps its line breaks.
+        let one = |v: &str| text::plain(v, text::MAX_BLOCK);
+        let p = |k: &str| one(&s(k));
+        let (from, user, machine) = (one(&e.session), one(&e.user), one(&e.machine));
         match e.kind.as_str() {
             "msg" => {
                 let to: Option<Target> = serde_json::from_value(d["to"].clone()).ok();
@@ -172,14 +177,11 @@ impl State {
                 };
                 let to_desc = match &to {
                     Some(Target::Session(_)) => "this session".to_string(),
-                    Some(Target::User(u)) => format!("user {u}"),
+                    Some(Target::User(u)) => format!("user {}", one(u)),
                     _ => "everyone".to_string(),
                 };
                 let body = format!(
-                    "Message from session {} ({}@{}) to {}:\n{}",
-                    e.session,
-                    e.user,
-                    e.machine,
+                    "Message from session {from} ({user}@{machine}) to {}:\n{}",
                     to_desc,
                     s("body")
                 );
@@ -207,8 +209,8 @@ impl State {
                         if sess.reads.get(&key).is_some_and(|&at| at < e.seq) {
                             sess.reads.remove(&key);
                             let body = format!(
-                                "{p} in {repo} was changed by session {} ({}@{}) at {}, after this session read it. The copy you read may be out of date.",
-                                e.session, e.user, e.machine, hms(e.ts)
+                                "{} in {} was changed by session {from} ({user}@{machine}) at {}, after this session read it. The copy you read may be out of date.",
+                                one(p), one(&repo), hms(e.ts)
                             );
                             sess.notify(notice(e, "wormhole-change", "change", &body, false));
                         }
@@ -219,16 +221,16 @@ impl State {
                 let holder = s("holder");
                 if let Some(sess) = self.sessions.get_mut(&holder) {
                     let body = format!(
-                        "Session {} ({}@{}) asks for this session's lease on {} in {}. Their reason: {}\nTo hand it over, call wormhole_grant with scope \"{}\" and to_session \"{}\"; to refuse, call wormhole_deny.",
-                        e.session, e.user, e.machine, text::attr(&s("scope")), text::attr(&s("repo")), s("reason"), text::attr(&s("scope")), text::attr(&e.session)
+                        "Session {from} ({user}@{machine}) asks for this session's lease on {} in {}. Their reason: {}\nTo hand it over, call wormhole_grant with scope \"{}\" and to_session \"{}\"; to refuse, call wormhole_deny.",
+                        text::attr(&s("scope")), text::attr(&s("repo")), p("reason"), text::attr(&s("scope")), text::attr(&e.session)
                     );
                     sess.notify(notice(e, "wormhole-lease", "lease_request", &body, false));
                 }
             }
             "lease.granted" => {
                 let key = (s("repo"), s("scope"));
-                let from = s("from");
-                if let Some(old) = self.sessions.get_mut(&from) {
+                let granter = s("from");
+                if let Some(old) = self.sessions.get_mut(&granter) {
                     old.tokens.remove(&key);
                 }
                 if let Some(sess) = self.sessions.get_mut(&e.session) {
@@ -238,7 +240,9 @@ impl State {
                     if s("via") == "transfer" {
                         let body = format!(
                             "The lease on {} in {} was granted to this session by session {}.",
-                            key.1, key.0, from
+                            one(&key.1),
+                            one(&key.0),
+                            one(&granter)
                         );
                         sess.notify(notice(e, "wormhole-lease", "lease_granted", &body, false));
                     }
@@ -247,8 +251,8 @@ impl State {
             "lease.denied" => {
                 if let Some(sess) = self.sessions.get_mut(&s("to")) {
                     let body = format!(
-                        "Session {} ({}@{}) denied this session's request for the lease on {} in {}. Their reason: {}",
-                        e.session, e.user, e.machine, s("scope"), s("repo"), s("reason")
+                        "Session {from} ({user}@{machine}) denied this session's request for the lease on {} in {}. Their reason: {}",
+                        p("scope"), p("repo"), p("reason")
                     );
                     sess.notify(notice(e, "wormhole-lease", "lease_denied", &body, false));
                 }

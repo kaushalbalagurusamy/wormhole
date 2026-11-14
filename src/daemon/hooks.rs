@@ -273,7 +273,9 @@ fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String
         let r = s.repo.as_ref()?;
         (r.id.clone(), r.root.clone(), s.cwd.clone()?)
     };
-    let rel = repo::canonical_relative(&root, &cwd, file)?;
+    // Cleaned once here so the lease check, the protection check and the reported
+    // activity all use the same path, one the hub accepts.
+    let rel = text::plain(&repo::canonical_relative(&root, &cwd, file)?, MAX_FIELD);
     (rel.len() <= MAX_FIELD).then_some((id, rel))
 }
 
@@ -343,7 +345,6 @@ async fn pre_tool_use(
     if !hub_ok {
         return output("PreToolUse", STALE_HUB);
     }
-    let rel = text::plain(&rel, MAX_FIELD);
     let protected = is_protected(d, session, &rel);
     let ttl_ms = d.cfg.lease_ttl.as_millis() as u64;
     let key = (repo_id.clone(), rel.clone());
@@ -510,6 +511,8 @@ pub(crate) async fn who_text(
         }
     };
     let here = |repo: &str| my_repo.as_deref().is_none_or(|r| r == repo);
+    // Names come from the hub as stored; folded to one line so none can start a forged line.
+    let one = |s: &str| text::plain(s, MAX_FIELD);
     let leases: Vec<String> = snap
         .leases
         .iter()
@@ -517,10 +520,10 @@ pub(crate) async fn who_text(
         .map(|l| {
             format!(
                 "- {} held by session {} ({}@{}) since {}\n",
-                l.scope,
-                l.session,
-                l.user,
-                l.machine,
+                one(&l.scope),
+                one(&l.session),
+                one(&l.user),
+                one(&l.machine),
                 super::state::hms(l.since)
             )
         })
@@ -539,14 +542,14 @@ pub(crate) async fn who_text(
             let task: String = if s.task.is_empty() {
                 "not set".into()
             } else {
-                s.task.chars().take(80).collect()
+                text::plain(&s.task, 80)
             };
             format!(
                 "- session {} ({}@{}), branch {}, task: {}; last seen {}\n",
-                s.session,
-                s.user,
-                s.machine,
-                s.branch,
+                one(&s.session),
+                one(&s.user),
+                one(&s.machine),
+                one(&s.branch),
                 task,
                 super::state::hms(s.last_seen)
             )
