@@ -110,6 +110,10 @@ Where the implementation differs from the text above, because of what Claude Cod
 - `MultiEdit` is not in the current tools reference; the matcher keeps it in case it is used, and `NotebookEdit` paths are read from `file_path` or `notebook_path`.
 - Leases are acquired on repo-relative paths after resolving symlinks and `..`; the repository id is the normalised `origin` URL, so checkouts on different machines share leases.
 
+Checked in a real Claude Code session (2.1.325, `claude -p`, 2026-11-14, one machine, static identity): the settings printed by `wormhole install` were accepted as written; the `SessionStart` context reached the model; `PreToolUse` took a lease, `PostToolUse` recorded the edit and `SessionEnd` released the lease. Claude Code's HTTP hook client sent no `Origin` header, so the daemon's browser check does not get in its way.
+
+Open problem found in that run: the conflict warning arrives after the edit. Claude Code inserts `PreToolUse` `additionalContext` next to the tool result, so the model read "WARNING from wormhole: notes.txt ... is leased by another session" only once the write had happened. Warn-not-block therefore informs the next action, not the conflicting one. Options to decide: deny the first conflicting attempt with the warning as the reason and allow a deliberate retry of the same path within a short window (the agent still decides, before the edit); use `permissionDecision: "ask"` so the user decides; or keep the current behaviour and rely on `SessionStart` and push to warn earlier. Until then, only protected paths are stopped before the edit.
+
 Not built yet: the working-tree watcher and git pre-commit check for edits made through shell commands; file passing, patches, supervision, delegation; event log retention; rate limits; persistence of the daemon's in-memory state (unread notices, files read, lease tokens are lost if the daemon restarts; the hub keeps the log and resumes from the stored cursor).
 
 ## Measured
