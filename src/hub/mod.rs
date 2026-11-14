@@ -390,7 +390,7 @@ fn now() -> u64 {
 }
 
 fn field(name: &str, s: &str) -> Result<(), String> {
-    if s.is_empty() || s.len() > MAX_FIELD || s.chars().any(|c| c.is_control()) {
+    if s.is_empty() || s.len() > MAX_FIELD || s.chars().any(text::unsafe_in_name) {
         return Err(format!("invalid {name}"));
     }
     Ok(())

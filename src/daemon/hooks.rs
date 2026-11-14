@@ -276,7 +276,11 @@ fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String
         let r = s.repo.as_ref()?;
         (r.id.clone(), r.root.clone(), s.cwd.clone()?)
     };
-    Some((id, repo::canonical_relative(&root, &cwd, file)?))
+    let rel = repo::canonical_relative(&root, &cwd, file)?;
+    // Cleaned once here so the lease check, the protection check and the reported activity
+    // all use the same path. One over MAX_FIELD comes back uncleaned (cleaning would cut it
+    // to a different, shorter path) for the caller to refuse.
+    Some((id, if rel.len() <= MAX_FIELD { text::plain(&rel, MAX_FIELD) } else { rel }))
 }
 
 /// Protected-glob match; case-insensitive where the repository's filesystem is.
@@ -377,7 +381,6 @@ async fn pre_tool_use(
             _ => refusal("The file path was too long to check."),
         };
     };
-    let rel = text::plain(&rel, MAX_FIELD);
     let protected = is_protected(d, session, &rel);
     let ttl_ms = d.cfg.lease_ttl.as_millis() as u64;
     let key = (repo_id.clone(), rel.clone());
@@ -544,6 +547,8 @@ pub(crate) async fn who_text(
         }
     };
     let here = |repo: &str| my_repo.as_deref().is_none_or(|r| r == repo);
+    // Names come from the hub as stored; folded to one line so none can start a forged line.
+    let one = |s: &str| text::plain(s, MAX_FIELD);
     let leases: Vec<String> = snap
         .leases
         .iter()
@@ -551,10 +556,10 @@ pub(crate) async fn who_text(
         .map(|l| {
             format!(
                 "- {} held by session {} ({}@{}) since {}\n",
-                l.scope,
-                l.session,
-                l.user,
-                l.machine,
+                one(&l.scope),
+                one(&l.session),
+                one(&l.user),
+                one(&l.machine),
                 super::state::hms(l.since)
             )
         })
@@ -573,14 +578,14 @@ pub(crate) async fn who_text(
             let task: String = if s.task.is_empty() {
                 "not set".into()
             } else {
-                s.task.chars().take(80).collect()
+                text::plain(&s.task, 80)
             };
             format!(
                 "- session {} ({}@{}), branch {}, task: {}; last seen {}\n",
-                s.session,
-                s.user,
-                s.machine,
-                s.branch,
+                one(&s.session),
+                one(&s.user),
+                one(&s.machine),
+                one(&s.branch),
                 task,
                 super::state::hms(s.last_seen)
             )

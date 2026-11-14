@@ -191,7 +191,7 @@ async fn call_tool(socket: &std::path::Path, session: Option<&str>, params: &Val
     match r {
         Ok(t) => json!({"content": [{"type": "text", "text": t}], "isError": false}),
         Err(e) => {
-            json!({"content": [{"type": "text", "text": crate::text::clean(&e, 500)}], "isError": true})
+            json!({"content": [{"type": "text", "text": crate::text::one_line(&e, 500)}], "isError": true})
         }
     }
 }

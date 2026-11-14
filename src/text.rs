@@ -53,6 +53,12 @@ fn line_break(c: char) -> bool {
     matches!(c, '\n' | '\r' | '\u{0085}' | '\u{2028}' | '\u{2029}')
 }
 
+/// True for a character that `clean` would drop or turn into a line break: not allowed
+/// in a single-line name such as a scope or session id.
+pub fn unsafe_in_name(c: char) -> bool {
+    c.is_control() || line_break(c) || invisible(c)
+}
+
 /// Remove control and invisible characters, escape angle brackets and ampersands, and
 /// truncate so the escaped text is at most `max` characters (plus a truncation marker).
 pub fn clean(s: &str, max: usize) -> String {
