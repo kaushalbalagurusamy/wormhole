@@ -35,6 +35,8 @@ pub enum LeaseError {
     NotHolder,
     /// A different session holds an overlapping scope.
     Conflict(LeaseInfo),
+    /// The grantor holds a broader lease overlapping the one it is handing over.
+    GrantorHoldsBroader(LeaseInfo),
 }
 
 const SCHEMA: &str = "
@@ -426,7 +428,7 @@ impl Store {
         scope: &str,
         to: &Holder,
         ttl_ms: u64,
-    ) -> rusqlite::Result<Result<LeaseInfo, LeaseError>> {
+    ) -> rusqlite::Result<Result<(LeaseInfo, Vec<LeaseInfo>), LeaseError>> {
         let now = clamp_now(now);
         let tx = self.conn.unchecked_transaction()?;
         let current = match self.lease(now, repo, scope)? {
@@ -468,7 +470,7 @@ impl Store {
         };
         self.put(&lease)?;
         tx.commit()?;
-        Ok(Ok(lease))
+        Ok(Ok((lease, Vec::new())))
     }
 
     /// The live lease on exactly `scope`, if any.
@@ -595,11 +597,14 @@ mod tests {
         }
         assert_eq!(s.lease(10, "r", "src/**").unwrap().unwrap().session, "A");
         // Handing it to the session that holds the overlapping lease is fine.
-        let t = s
+        let (t, released) = s
             .transfer(10, "A", "r", "src/**", &h("B"), 1000)
             .unwrap()
             .unwrap();
         assert_eq!(t.session, "B");
+        // B's own lease is not the grantor's: it stays.
+        assert!(released.is_empty());
+        assert_eq!(s.lease(10, "r", "src/a.rs").unwrap().unwrap().session, "B");
     }
 
     #[test]
@@ -607,11 +612,52 @@ mod tests {
         let mut s = Store::open_memory().unwrap();
         granted(s.acquire(0, &h("A"), "r", "src/**", 1000).unwrap());
         granted(s.acquire(0, &h("A"), "r", "src/a.rs", 1000).unwrap());
-        let t = s
+        let (t, released) = s
             .transfer(10, "A", "r", "src/**", &h("B"), 1000)
             .unwrap()
             .unwrap();
         assert_eq!(t.session, "B");
+        // The grantor's sub-lease inside the scope went with it, and is reported.
+        assert_eq!(s.lease(10, "r", "src/a.rs").unwrap(), None);
+        assert_eq!(
+            released
+                .iter()
+                .map(|l| l.scope.as_str())
+                .collect::<Vec<_>>(),
+            ["src/a.rs"]
+        );
+    }
+
+    #[test]
+    fn transfer_never_silently_drops_a_broader_grantor_lease() {
+        let mut s = Store::open_memory().unwrap();
+        granted(s.acquire(0, &h("A"), "r", "src/**", 1000).unwrap());
+        granted(s.acquire(0, &h("A"), "r", "src/hub/*", 1000).unwrap());
+        match s
+            .transfer(10, "A", "r", "src/hub/*", &h("B"), 1000)
+            .unwrap()
+        {
+            Err(LeaseError::GrantorHoldsBroader(l)) => assert_eq!(l.scope, "src/**"),
+            o => panic!("{o:?}"),
+        }
+        // Nothing changed.
+        assert_eq!(s.lease(10, "r", "src/**").unwrap().unwrap().session, "A");
+        assert_eq!(s.lease(10, "r", "src/hub/*").unwrap().unwrap().session, "A");
+    }
+
+    #[test]
+    fn transfer_releases_covered_sub_leases() {
+        let mut s = Store::open_memory().unwrap();
+        granted(s.acquire(0, &h("A"), "r", "src/hub/*", 1000).unwrap());
+        granted(s.acquire(0, &h("A"), "r", "src/hub/a.rs", 1000).unwrap());
+        let (t, released) = s
+            .transfer(10, "A", "r", "src/hub/*", &h("B"), 1000)
+            .unwrap()
+            .unwrap();
+        assert_eq!(t.session, "B");
+        assert_eq!(released.len(), 1);
+        assert_eq!(released[0].scope, "src/hub/a.rs");
+        assert_eq!(s.lease(10, "r", "src/hub/a.rs").unwrap(), None);
     }
 
     #[test]
@@ -629,7 +675,7 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(r.expires, now + MAX_TTL_MS);
-        let t = s
+        let (t, _) = s
             .transfer(now, "B", "r", "g", &h("D"), u64::MAX)
             .unwrap()
             .unwrap();
@@ -704,7 +750,7 @@ mod tests {
             s.transfer(10, "B", "r", "f", &h("C"), 1000).unwrap(),
             Err(LeaseError::NotHolder)
         );
-        let b = s
+        let (b, _) = s
             .transfer(10, "A", "r", "f", &h("B"), 1000)
             .unwrap()
             .unwrap();

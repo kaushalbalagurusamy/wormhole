@@ -58,6 +58,12 @@ fn literal_prefix(glob: &str) -> Vec<&str> {
         .collect()
 }
 
+/// Does `outer` cover everything `inner` can name? Conservative: false when unsure.
+pub fn covers(outer: &str, inner: &str) -> bool {
+    let _ = (outer, inner);
+    todo!()
+}
+
 /// A directory scope (`src/auth`) overlaps a glob under it (`src/auth/**`).
 fn overlaps_glob_prefix(glob: &str, path: &str) -> bool {
     let (g, p): (Vec<&str>, Vec<&str>) = (literal_prefix(glob), path.split('/').collect());
@@ -124,6 +130,22 @@ mod tests {
         assert!(overlaps("area:auth", "area:auth"));
         assert!(!overlaps("area:auth", "area:billing"));
         assert!(!overlaps("area:*", "area:auth"));
+    }
+
+    #[test]
+    fn covers_is_containment_not_overlap() {
+        assert!(covers("src/hub/*", "src/hub/a.rs"));
+        assert!(covers("src/**", "src/hub/*"));
+        assert!(covers("src/**", "src/hub/a.rs"));
+        assert!(covers("src", "src/a.rs"));
+        assert!(covers("src", "src/hub/**"));
+        assert!(covers("src/*.rs", "src/a.rs"));
+        assert!(covers("x", "x"));
+        assert!(!covers("src/hub/*", "src/**"));
+        assert!(!covers("src/hub/a.rs", "src/hub/*"));
+        assert!(!covers("src/a*", "src/b*"));
+        assert!(!covers("src/*", "src/hub/*"));
+        assert!(!covers("area:auth", "area:auth/x"));
     }
 
     #[test]

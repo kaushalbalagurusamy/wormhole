@@ -308,6 +308,10 @@ fn lease_err(e: LeaseError) -> String {
         LeaseError::NotHeld => "not_held: no live lease on that scope".into(),
         LeaseError::StaleToken => "stale_token: that token is no longer the current one".into(),
         LeaseError::NotHolder => "not_holder: another session holds that lease".into(),
+        LeaseError::GrantorHoldsBroader(l) => format!(
+            "grantor_holds_broader: you also hold {}, which overlaps this scope; narrow or release it first",
+            l.scope
+        ),
         LeaseError::Conflict(l) => format!(
             "conflict: session {} holds overlapping scope {}",
             l.session, l.scope
@@ -701,7 +705,7 @@ impl Hub {
                     &who,
                     TRANSFER_TTL_MS,
                 ))?;
-                let l = r.map_err(lease_err)?;
+                let (l, _released) = r.map_err(lease_err)?;
                 self.emit_lease(
                     "lease.granted",
                     &l,
@@ -834,6 +838,43 @@ mod tests {
         )
         .unwrap();
         assert!(h.handle(&b, hello("s1")).is_err());
+    }
+
+    #[test]
+    fn transfer_announces_released_sub_leases() {
+        let h = hub();
+        let (a, b) = (p("alice", "ma"), p("bob", "mb"));
+        h.handle(&a, hello("s1")).unwrap();
+        h.handle(&b, hello("s2")).unwrap();
+        for scope in ["src/hub/*", "src/hub/a.rs"] {
+            h.handle(
+                &a,
+                Request::LeaseAcquire {
+                    session: "s1".into(),
+                    repo: "r".into(),
+                    scope: scope.into(),
+                    ttl_ms: 60_000,
+                },
+            )
+            .unwrap();
+        }
+        h.handle(
+            &a,
+            Request::LeaseGrant {
+                session: "s1".into(),
+                repo: "r".into(),
+                scope: "src/hub/*".into(),
+                to: "s2".into(),
+            },
+        )
+        .unwrap();
+        let events = h.recent(10).unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|e| e.kind == "lease.released" && e.data["scope"] == "src/hub/a.rs"),
+            "{events:?}"
+        );
     }
 
     #[test]
