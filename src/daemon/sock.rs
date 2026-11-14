@@ -22,45 +22,109 @@ pub(crate) struct Bound {
     uid: u32,
 }
 
-pub(crate) fn bind(path: &Path) -> Result<Bound, String> {
-    let dir = path.parent().ok_or("socket path has no directory")?;
-    if !dir.exists() {
-        std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
-        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
+/// Create `dir` with mode 0700 if missing, then require that it is a real directory (not
+/// a symlink), owned by our effective uid, with no group or other access.
+pub(crate) fn private_dir(dir: &Path) -> Result<(), String> {
+    use std::os::unix::fs::DirBuilderExt;
+    match std::fs::symlink_metadata(dir) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => std::fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(dir)
+            .map_err(|e| format!("create {}: {e}", dir.display()))?,
+        Err(e) => return Err(format!("{}: {e}", dir.display())),
+        Ok(_) => {}
     }
-    if path.exists() {
-        if std::os::unix::net::UnixStream::connect(path).is_ok() {
-            return Err(format!("a daemon is already listening on {}", path.display()));
-        }
-        std::fs::remove_file(path).map_err(|e| format!("remove stale {}: {e}", path.display()))?;
+    let m = std::fs::symlink_metadata(dir).map_err(|e| e.to_string())?;
+    if m.file_type().is_symlink() || !m.is_dir() {
+        return Err(format!("{} must be a directory, not a symlink", dir.display()));
     }
-    let listener = UnixListener::bind(path).map_err(|e| format!("bind {}: {e}", path.display()))?;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
-    // The socket we just created is owned by our effective uid.
-    let uid = std::fs::metadata(path).map_err(|e| e.to_string())?.uid();
-    let dm = std::fs::metadata(dir).map_err(|e| e.to_string())?;
-    if dm.uid() != uid || dm.mode() & 0o077 != 0 {
-        let _ = std::fs::remove_file(path);
+    if m.uid() != euid() || m.mode() & 0o077 != 0 {
         return Err(format!(
             "{} must be owned by this user and not accessible to others (chmod 700)",
             dir.display()
         ));
     }
-    Ok(Bound { listener, uid })
+    Ok(())
+}
+
+pub(crate) fn bind(path: &Path) -> Result<Bound, String> {
+    use std::os::unix::fs::FileTypeExt;
+    let dir = path.parent().ok_or("socket path has no directory")?;
+    private_dir(dir)?;
+    match std::fs::symlink_metadata(path) {
+        Ok(m) if m.file_type().is_socket() => {
+            if std::os::unix::net::UnixStream::connect(path).is_ok() {
+                return Err(format!("a daemon is already listening on {}", path.display()));
+            }
+            std::fs::remove_file(path).map_err(|e| format!("remove stale {}: {e}", path.display()))?;
+        }
+        Ok(_) => return Err(format!("{} exists and is not a socket; refusing to replace it", path.display())),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    }
+    let listener = UnixListener::bind(path).map_err(|e| format!("bind {}: {e}", path.display()))?;
+    // The directory is ours and closed to others, so nothing can swap the path in between.
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
+    Ok(Bound { listener, uid: euid() })
+}
+
+/// The secret HTTP hook requests must carry, kept in `dir/hook-token` (mode 0600) so it
+/// survives daemon restarts and `wormhole install` can print it.
+pub(crate) fn hook_token(dir: &Path) -> Result<String, String> {
+    use std::io::{Read, Write};
+    use std::os::unix::fs::OpenOptionsExt;
+    private_dir(dir)?;
+    let p = dir.join("hook-token");
+    if let Some(t) = read_hook_token(&p)? {
+        return Ok(t);
+    }
+    let mut raw = [0u8; 32];
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut raw))
+        .map_err(|e| format!("read /dev/urandom: {e}"))?;
+    let token: String = raw.iter().map(|b| format!("{b:02x}")).collect();
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&p)
+        .map_err(|e| format!("create {}: {e}", p.display()))?;
+    f.write_all(token.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(token)
+}
+
+/// Read an existing token file, refusing one that is a symlink, not ours, or readable by others.
+pub(crate) fn read_hook_token(p: &Path) -> Result<Option<String>, String> {
+    match std::fs::symlink_metadata(p) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("{}: {e}", p.display())),
+        Ok(m) => {
+            if !m.file_type().is_file() || m.uid() != euid() || m.mode() & 0o077 != 0 {
+                return Err(format!("{} must be a regular file owned by this user with mode 600", p.display()));
+            }
+            let t = std::fs::read_to_string(p).map_err(|e| e.to_string())?.trim().to_string();
+            if t.len() < 32 {
+                return Err(format!("{} is too short; delete it to regenerate", p.display()));
+            }
+            Ok(Some(t))
+        }
+    }
 }
 
 pub(crate) fn euid() -> u32 {
-    todo!()
+    // SAFETY: geteuid takes no arguments, has no preconditions and cannot fail.
+    unsafe { libc::geteuid() }
 }
 
 pub(crate) fn peer_allowed(peer: Option<u32>, euid: u32) -> bool {
-    let _ = (peer, euid);
-    todo!()
+    peer == Some(euid)
 }
 
 pub(crate) async fn serve(d: Arc<Daemon>, b: Bound) {
     while let Ok((s, _)) = b.listener.accept().await {
-        if s.peer_cred().ok().map(|c| c.uid()) != Some(b.uid) {
+        if !peer_allowed(s.peer_cred().ok().map(|c| c.uid()), b.uid) {
             continue;
         }
         tokio::spawn(client(d.clone(), s));

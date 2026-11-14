@@ -121,6 +121,54 @@ pub fn relative(root: &Path, cwd: &Path, file: &str) -> Option<String> {
     Some(parts[root_parts.len()..].join("/"))
 }
 
+/// Like `relative`, but resolved on disk: symlinks and `..` are followed for every
+/// component that exists, so `link/x` and `a/../x` name the file they really are. The
+/// result must lie under the canonical root. Missing trailing components (a file about to
+/// be created) are appended as written, and may not contain `..`.
+pub fn canonical_relative(root: &Path, cwd: &Path, file: &str) -> Option<String> {
+    use std::path::Component;
+    let root = std::fs::canonicalize(root).ok()?;
+    let abs = cwd.join(file);
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    let mut cur = abs.clone();
+    let base = loop {
+        if let Ok(c) = std::fs::canonicalize(&cur) {
+            break c;
+        }
+        match cur.components().next_back()? {
+            Component::Normal(n) => tail.push(n.to_os_string()),
+            Component::CurDir => {}
+            _ => return None,
+        }
+        cur = cur.parent()?.to_path_buf();
+    };
+    let mut full = base;
+    for n in tail.iter().rev() {
+        full.push(n);
+    }
+    let rel = full.strip_prefix(&root).ok()?;
+    let parts: Vec<String> = rel.components().map(|c| c.as_os_str().to_string_lossy().to_string()).collect();
+    (!parts.is_empty()).then(|| parts.join("/"))
+}
+
+/// Does the filesystem holding `root` ignore case? (macOS and Windows defaults do.)
+pub fn case_insensitive(root: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(root) = std::fs::canonicalize(root) else { return false };
+    let Some(name) = root.file_name().map(|n| n.to_string_lossy().to_string()) else { return false };
+    let flipped: String = name
+        .chars()
+        .map(|c| if c.is_lowercase() { c.to_ascii_uppercase() } else { c.to_ascii_lowercase() })
+        .collect();
+    if flipped == name {
+        return false;
+    }
+    match (std::fs::metadata(&root), std::fs::metadata(root.with_file_name(flipped))) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

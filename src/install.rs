@@ -3,8 +3,8 @@
 use std::path::Path;
 
 /// The text `wormhole install` prints.
-pub fn render(project: &Path, exe: &Path, http_port: u16, socket: &Path) -> String {
-    let _ = (project, exe, http_port, socket);
+pub fn render(project: &Path, exe: &Path, http_port: u16, socket: &Path, token: &str) -> String {
+    let _ = (project, exe, http_port, socket, token);
     todo!()
 }
 
@@ -15,7 +15,7 @@ mod tests {
 
     #[test]
     fn prints_valid_settings_and_mcp_config() {
-        let out = render(Path::new("/p"), Path::new("/bin/wormhole"), 7421, Path::new("/s/d.sock"));
+        let out = render(Path::new("/p"), Path::new("/bin/wormhole"), 7421, Path::new("/s/d.sock"), "abc123");
         // Every fenced JSON block parses.
         let blocks: Vec<&str> = out.split("```json\n").skip(1).map(|b| b.split("```").next().unwrap()).collect();
         assert_eq!(blocks.len(), 2);
@@ -30,10 +30,13 @@ mod tests {
             assert_eq!(h["type"], "http", "{ev}");
             assert_eq!(h["url"], "http://127.0.0.1:7421/hook", "{ev}");
             assert!(h.get("onFailure").is_none());
+            assert_eq!(h["headers"]["Authorization"], "Bearer abc123", "{ev}");
         }
         assert_eq!(hooks["PreToolUse"][0]["matcher"], "^(Edit|Write|MultiEdit|NotebookEdit)$");
         assert_eq!(mcp["mcpServers"]["wormhole"]["command"], "/bin/wormhole");
         assert_eq!(mcp["mcpServers"]["wormhole"]["args"][0], "mcp-channel");
         assert!(out.contains("--dangerously-load-development-channels server:wormhole"));
+        // The token is a secret: the snippet goes in the git-ignored local settings file.
+        assert!(out.contains("settings.local.json"));
     }
 }

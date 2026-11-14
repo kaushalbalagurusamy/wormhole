@@ -101,6 +101,7 @@ pub(crate) struct Daemon {
     pub st: Mutex<State>,
     pub link: Link,
     pub http_port: AtomicU64,
+    pub hook_token: String,
 }
 
 impl Daemon {
@@ -161,17 +162,27 @@ impl Daemon {
     }
 }
 
+/// The hook token stored next to a daemon socket, for `wormhole install`.
+pub fn read_hook_token(socket_path: &std::path::Path) -> Result<Option<String>, String> {
+    match socket_path.parent() {
+        Some(d) => sock::read_hook_token(&d.join("hook-token")),
+        None => Ok(None),
+    }
+}
+
 pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
     if !cfg.http_listen.ip().is_loopback() {
         return Err("the hook HTTP endpoint must listen on loopback".into());
     }
+    let unix = sock::bind(&cfg.socket_path)?;
+    let hook_token = sock::hook_token(cfg.socket_path.parent().ok_or("socket path has no directory")?)?;
     let d = Arc::new(Daemon {
         cfg: cfg.clone(),
         st: Mutex::new(State::default()),
         link: Link::default(),
         http_port: AtomicU64::new(0),
+        hook_token: hook_token.clone(),
     });
-    let unix = sock::bind(&cfg.socket_path)?;
     let http = tokio::net::TcpListener::bind(cfg.http_listen)
         .await
         .map_err(|e| format!("bind {}: {e}", cfg.http_listen))?;
@@ -186,7 +197,7 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
     Ok(DaemonHandle {
         http_addr,
         socket_path: cfg.socket_path,
-        hook_token: String::new(),
+        hook_token,
         d,
         tasks,
     })

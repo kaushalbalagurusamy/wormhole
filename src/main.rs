@@ -158,11 +158,18 @@ async fn main() {
             match exe {
                 Ok(exe) => {
                     let project = std::fs::canonicalize(&project).unwrap_or(project);
-                    print!(
-                        "{}",
-                        install::render(&project, &exe, port, &socket.unwrap_or_else(default_socket))
-                    );
-                    Ok(())
+                    let socket = socket.unwrap_or_else(default_socket);
+                    match daemon::read_hook_token(&socket) {
+                        Ok(Some(token)) => {
+                            print!("{}", install::render(&project, &exe, port, &socket, &token));
+                            Ok(())
+                        }
+                        Ok(None) => Err(format!(
+                            "no hook token next to {}; start `wormhole daemon` once first",
+                            socket.display()
+                        )),
+                        Err(e) => Err(e),
+                    }
                 }
                 Err(e) => Err(e),
             }

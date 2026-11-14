@@ -40,9 +40,21 @@ fn local_request(headers: &HeaderMap, port: u16) -> bool {
         .any(|h| h == host)
 }
 
+/// Constant-time comparison of the Authorization header with the daemon's hook token, so
+/// other local users (who can reach loopback) cannot drive this user's daemon.
+fn authorized(headers: &HeaderMap, token: &str) -> bool {
+    let got = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .unwrap_or("");
+    let (a, b) = (got.as_bytes(), token.as_bytes());
+    a.len() == b.len() && !b.is_empty() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
 async fn http_hook(State(d): State<Arc<Daemon>>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
     let port = d.cfg_port();
-    if !local_request(&headers, port) {
+    if !local_request(&headers, port) || !authorized(&headers, &d.hook_token) {
         return StatusCode::FORBIDDEN.into_response();
     }
     let Some(Json(input)) = body else {
@@ -154,15 +166,34 @@ pub(crate) fn take_inbox(d: &Daemon, session: &str) -> String {
     text
 }
 
-/// File path and repo-relative path for an edit-like tool input.
+/// Repo id and repo-relative path for an edit-like tool input, resolved through symlinks
+/// and `..`; `None` when the file is outside the repository.
 fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String)> {
     let ti = &input["tool_input"];
     let file = ti["file_path"].as_str().or_else(|| ti["notebook_path"].as_str())?;
-    let st = d.st.lock().unwrap();
-    let s = st.sessions.get(session)?;
-    let r = s.repo.as_ref()?;
-    let rel = repo::relative(&r.root, s.cwd.as_deref()?, file)?;
-    (rel.len() <= MAX_FIELD).then(|| (r.id.clone(), rel))
+    let (id, root, cwd) = {
+        let st = d.st.lock().unwrap();
+        let s = st.sessions.get(session)?;
+        let r = s.repo.as_ref()?;
+        (r.id.clone(), r.root.clone(), s.cwd.clone()?)
+    };
+    let rel = repo::canonical_relative(&root, &cwd, file)?;
+    (rel.len() <= MAX_FIELD).then_some((id, rel))
+}
+
+/// Protected-glob match; case-insensitive where the repository's filesystem is.
+fn is_protected(d: &Daemon, session: &str, rel: &str) -> bool {
+    let ci = d
+        .st
+        .lock()
+        .unwrap()
+        .sessions
+        .get(session)
+        .and_then(|s| s.repo.as_ref().map(|r| r.root.clone()))
+        .is_some_and(|root| repo::case_insensitive(&root));
+    d.cfg.protected.iter().any(|g| {
+        glob::matches(g, rel) || (ci && glob::matches(&g.to_lowercase(), &rel.to_lowercase()))
+    })
 }
 
 fn ago(ms: u64) -> String {
@@ -210,7 +241,7 @@ async fn pre_tool_use(d: &Daemon, session: &str, input: &Value, hub_ok: bool, de
         return output("PreToolUse", STALE_HUB);
     }
     let rel = text::plain(&rel, MAX_FIELD);
-    let protected = d.cfg.protected.iter().any(|g| glob::matches(g, &rel));
+    let protected = is_protected(d, session, &rel);
     let ttl_ms = d.cfg.lease_ttl.as_millis() as u64;
     let key = (repo_id.clone(), rel.clone());
     let token = d.st.lock().unwrap().sess(session).tokens.get(&key).copied();
