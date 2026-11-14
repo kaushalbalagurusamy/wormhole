@@ -33,6 +33,8 @@ pub enum LeaseError {
     StaleToken,
     /// The caller is not the holder.
     NotHolder,
+    /// A different session holds an overlapping scope.
+    Conflict(LeaseInfo),
 }
 
 const SCHEMA: &str = "
@@ -62,6 +64,10 @@ CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER NOT NU
 INSERT OR IGNORE INTO counters (name, value) VALUES ('token', 0);
 CREATE TABLE IF NOT EXISTS cursors (key TEXT PRIMARY KEY, seq INTEGER NOT NULL);
 ";
+
+/// Shortest and longest lease a client can ask for; requests outside are clamped.
+pub const MIN_TTL_MS: u64 = 100;
+pub const MAX_TTL_MS: u64 = 4 * 60 * 60 * 1000;
 
 const LEASE_COLS: &str = "repo, scope, session, user, machine, token, since, expires";
 
@@ -408,6 +414,42 @@ mod tests {
         s.release(600, "A", "r", "x", a.token).unwrap().unwrap();
         let a2 = granted(s.acquire(700, &h("A"), "r", "x", 1000).unwrap());
         assert!(a2.token > b.token);
+    }
+
+    #[test]
+    fn transfer_refuses_to_break_mutual_exclusion() {
+        let mut s = Store::open_memory().unwrap();
+        // Reach a state where A's glob and B's path coexist (as after a crash or older hub).
+        s.put(&LeaseInfo { repo: "r".into(), scope: "src/**".into(), session: "A".into(), user: "u".into(), machine: "m".into(), token: 1, since: 0, expires: 10_000 }).unwrap();
+        s.put(&LeaseInfo { repo: "r".into(), scope: "src/a.rs".into(), session: "B".into(), user: "u".into(), machine: "m".into(), token: 2, since: 0, expires: 10_000 }).unwrap();
+        match s.transfer(10, "A", "r", "src/**", &h("C"), 1000).unwrap() {
+            Err(LeaseError::Conflict(l)) => assert_eq!(l.session, "B"),
+            o => panic!("{o:?}"),
+        }
+        assert_eq!(s.lease(10, "r", "src/**").unwrap().unwrap().session, "A");
+        // Handing it to the session that holds the overlapping lease is fine.
+        let t = s.transfer(10, "A", "r", "src/**", &h("B"), 1000).unwrap().unwrap();
+        assert_eq!(t.session, "B");
+    }
+
+    #[test]
+    fn ttl_is_clamped_and_cannot_overflow() {
+        let mut s = Store::open_memory().unwrap();
+        let now = 1_000_000;
+        let a = granted(s.acquire(now, &h("A"), "r", "f", u64::MAX).unwrap());
+        assert_eq!(a.expires, now + MAX_TTL_MS);
+        let b = granted(s.acquire(now, &h("B"), "r", "g", 0).unwrap());
+        assert_eq!(b.expires, now + MIN_TTL_MS);
+        let c = granted(s.acquire(now, &h("C"), "r", "h", (-1i64) as u64).unwrap());
+        assert_eq!(c.expires, now + MAX_TTL_MS);
+        let r = s.renew(now, "A", "r", "f", a.token, u64::MAX - 5).unwrap().unwrap();
+        assert_eq!(r.expires, now + MAX_TTL_MS);
+        let t = s.transfer(now, "B", "r", "g", &h("D"), u64::MAX).unwrap().unwrap();
+        assert_eq!(t.expires, now + MAX_TTL_MS);
+        // A clock near the end of time saturates instead of wrapping or overflowing i64.
+        let late = granted(s.acquire(u64::MAX - 1, &h("E"), "r", "z", 1000).unwrap());
+        assert_eq!(late.expires, i64::MAX as u64);
+        assert_eq!(s.lease(u64::MAX - 1, "r", "z").unwrap().unwrap().expires, i64::MAX as u64);
     }
 
     #[test]
