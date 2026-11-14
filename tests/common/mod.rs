@@ -112,7 +112,10 @@ pub async fn net(opts: Opts) -> Net {
 pub async fn wait_connected(d: &DaemonHandle) {
     let t = Instant::now();
     while d.connects() == 0 {
-        assert!(t.elapsed() < Duration::from_secs(5), "daemon never connected");
+        assert!(
+            t.elapsed() < Duration::from_secs(5),
+            "daemon never connected"
+        );
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
@@ -126,7 +129,10 @@ pub async fn http(
     body: &str,
 ) -> (u16, String, String) {
     let mut s = TcpStream::connect(addr).await.unwrap();
-    let mut req = format!("{method} {path} HTTP/1.1\r\nConnection: close\r\nContent-Length: {}\r\n", body.len());
+    let mut req = format!(
+        "{method} {path} HTTP/1.1\r\nConnection: close\r\nContent-Length: {}\r\n",
+        body.len()
+    );
     if !headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("host")) {
         req.push_str(&format!("Host: {addr}\r\n"));
     }
@@ -152,7 +158,10 @@ pub async fn hook(d: &DaemonHandle, input: Value) -> Value {
         d.http_addr,
         "POST",
         "/hook",
-        &[("Content-Type", "application/json"), ("Authorization", &auth)],
+        &[
+            ("Content-Type", "application/json"),
+            ("Authorization", &auth),
+        ],
         &input.to_string(),
     )
     .await;
@@ -198,7 +207,12 @@ pub fn post(session: &str, cwd: &Path, tool: &str, input: Value) -> Value {
 }
 
 pub fn post_edit(session: &str, cwd: &Path, file: &str) -> Value {
-    post(session, cwd, "Edit", json!({"file_path": cwd.join(file), "old_string": "a", "new_string": "b"}))
+    post(
+        session,
+        cwd,
+        "Edit",
+        json!({"file_path": cwd.join(file), "old_string": "a", "new_string": "b"}),
+    )
 }
 
 pub fn post_read(session: &str, cwd: &Path, file: &str) -> Value {
@@ -227,11 +241,19 @@ pub async fn client(d: &DaemonHandle) -> LocalClient {
     LocalClient::connect(&d.socket_path).await.unwrap()
 }
 
-pub async fn tool(d: &DaemonHandle, session: &str, name: &str, args: Value) -> Result<String, String> {
+pub async fn tool(
+    d: &DaemonHandle,
+    session: &str,
+    name: &str,
+    args: Value,
+) -> Result<String, String> {
     let mut c = client(d).await;
-    c.call("tool", json!({"session": session, "name": name, "args": args}))
-        .await
-        .map(|v| v["text"].as_str().unwrap_or("").to_string())
+    c.call(
+        "tool",
+        json!({"session": session, "name": name, "args": args}),
+    )
+    .await
+    .map(|v| v["text"].as_str().unwrap_or("").to_string())
 }
 
 /// Retry `f` until it returns Some or `secs` pass.
@@ -245,7 +267,10 @@ where
         if let Some(v) = f().await {
             return v;
         }
-        assert!(t.elapsed() < Duration::from_secs(secs), "condition not met in {secs}s");
+        assert!(
+            t.elapsed() < Duration::from_secs(secs),
+            "condition not met in {secs}s"
+        );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
 }

@@ -5,7 +5,11 @@ use std::time::Duration;
 use wormhole::{daemon, hookcmd, hub, install, mcp};
 
 #[derive(Parser)]
-#[command(name = "wormhole", version, about = "Live coordination between coding-agent sessions on different machines")]
+#[command(
+    name = "wormhole",
+    version,
+    about = "Live coordination between coding-agent sessions on different machines"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -68,7 +72,9 @@ enum Cmd {
 }
 
 fn default_socket() -> PathBuf {
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
     home.join(".wormhole").join("daemon.sock")
 }
 

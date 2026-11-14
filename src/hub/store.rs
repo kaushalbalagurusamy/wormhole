@@ -78,7 +78,8 @@ fn clamp_now(now: u64) -> u64 {
 }
 
 fn expiry(now: u64, ttl_ms: u64) -> u64 {
-    now.saturating_add(ttl_ms.clamp(MIN_TTL_MS, MAX_TTL_MS)).min(MAX_TIME)
+    now.saturating_add(ttl_ms.clamp(MIN_TTL_MS, MAX_TTL_MS))
+        .min(MAX_TIME)
 }
 
 const LEASE_COLS: &str = "repo, scope, session, user, machine, token, since, expires";
@@ -149,7 +150,9 @@ impl Store {
 
     pub fn head(&self) -> rusqlite::Result<u64> {
         self.conn
-            .query_row("SELECT COALESCE(MAX(seq), 0) FROM events", [], |r| r.get::<_, i64>(0))
+            .query_row("SELECT COALESCE(MAX(seq), 0) FROM events", [], |r| {
+                r.get::<_, i64>(0)
+            })
             .map(|v| v as u64)
     }
 
@@ -169,7 +172,9 @@ impl Store {
     pub fn cursor(&self, key: &str) -> rusqlite::Result<Option<u64>> {
         use rusqlite::OptionalExtension;
         self.conn
-            .query_row("SELECT seq FROM cursors WHERE key = ?1", [key], |r| r.get::<_, i64>(0))
+            .query_row("SELECT seq FROM cursors WHERE key = ?1", [key], |r| {
+                r.get::<_, i64>(0)
+            })
             .optional()
             .map(|v| v.map(|v| v as u64))
     }
@@ -184,12 +189,19 @@ impl Store {
 
     /// Bind `session` to its first owner for good. True if `user@machine` is that owner.
     /// shortcut: bindings are never pruned; add an age-based purge if ids pile up.
-    pub fn bind_session(&mut self, session: &str, user: &str, machine: &str) -> rusqlite::Result<bool> {
+    pub fn bind_session(
+        &mut self,
+        session: &str,
+        user: &str,
+        machine: &str,
+    ) -> rusqlite::Result<bool> {
         self.conn.execute(
             "INSERT OR IGNORE INTO session_owners (session, user, machine) VALUES (?1, ?2, ?3)",
             [session, user, machine],
         )?;
-        Ok(self.session_owner(session)?.is_some_and(|(u, m)| u == user && m == machine))
+        Ok(self
+            .session_owner(session)?
+            .is_some_and(|(u, m)| u == user && m == machine))
     }
 
     pub fn session_owner(&self, session: &str) -> rusqlite::Result<Option<(String, String)>> {
@@ -243,15 +255,21 @@ impl Store {
     }
 
     fn delete(&mut self, repo: &str, scope: &str) -> rusqlite::Result<()> {
-        self.conn
-            .execute("DELETE FROM leases WHERE repo = ?1 AND scope = ?2", [repo, scope])?;
+        self.conn.execute(
+            "DELETE FROM leases WHERE repo = ?1 AND scope = ?2",
+            [repo, scope],
+        )?;
         Ok(())
     }
 
-    fn query_leases(&self, sql_where: &str, params: impl rusqlite::Params) -> rusqlite::Result<Vec<LeaseInfo>> {
-        let mut st = self
-            .conn
-            .prepare(&format!("SELECT {LEASE_COLS} FROM leases WHERE {sql_where} ORDER BY since, scope"))?;
+    fn query_leases(
+        &self,
+        sql_where: &str,
+        params: impl rusqlite::Params,
+    ) -> rusqlite::Result<Vec<LeaseInfo>> {
+        let mut st = self.conn.prepare(&format!(
+            "SELECT {LEASE_COLS} FROM leases WHERE {sql_where} ORDER BY since, scope"
+        ))?;
         let rows = st.query_map(params, lease_row)?;
         rows.collect()
     }
@@ -266,7 +284,10 @@ impl Store {
         ttl_ms: u64,
     ) -> rusqlite::Result<Acquired> {
         let now = clamp_now(now);
-        let live = self.query_leases("repo = ?1 AND expires > ?2", rusqlite::params![repo, now as i64])?;
+        let live = self.query_leases(
+            "repo = ?1 AND expires > ?2",
+            rusqlite::params![repo, now as i64],
+        )?;
         if let Some(other) = live
             .iter()
             .find(|l| l.session != who.session && crate::glob::overlaps(&l.scope, scope))
@@ -276,7 +297,10 @@ impl Store {
         if let Some(mut own) = live.into_iter().find(|l| l.scope == scope) {
             own.expires = expiry(now, ttl_ms);
             self.put(&own)?;
-            return Ok(Acquired::Granted { lease: own, fresh: false });
+            return Ok(Acquired::Granted {
+                lease: own,
+                fresh: false,
+            });
         }
         let lease = LeaseInfo {
             repo: repo.into(),
@@ -293,7 +317,14 @@ impl Store {
     }
 
     /// Check `token` against the current lease on `scope`: the fencing rule.
-    fn fenced(&self, now: u64, session: &str, repo: &str, scope: &str, token: u64) -> rusqlite::Result<Result<LeaseInfo, LeaseError>> {
+    fn fenced(
+        &self,
+        now: u64,
+        session: &str,
+        repo: &str,
+        scope: &str,
+        token: u64,
+    ) -> rusqlite::Result<Result<LeaseInfo, LeaseError>> {
         Ok(match self.row(repo, scope)? {
             None => Err(LeaseError::NotHeld),
             Some(l) if l.token != token => Err(LeaseError::StaleToken),
@@ -358,9 +389,14 @@ impl Store {
             Some(l) => l,
         };
         // The recipient must not end up overlapping a third session's lease.
-        let live = self.query_leases("repo = ?1 AND expires > ?2", rusqlite::params![repo, now as i64])?;
+        let live = self.query_leases(
+            "repo = ?1 AND expires > ?2",
+            rusqlite::params![repo, now as i64],
+        )?;
         if let Some(other) = live.into_iter().find(|l| {
-            l.scope != current.scope && l.session != to.session && crate::glob::overlaps(&l.scope, scope)
+            l.scope != current.scope
+                && l.session != to.session
+                && crate::glob::overlaps(&l.scope, scope)
         }) {
             return Ok(Err(LeaseError::Conflict(other)));
         }
@@ -389,14 +425,16 @@ impl Store {
     pub fn expire(&mut self, now: u64) -> rusqlite::Result<Vec<LeaseInfo>> {
         let now = clamp_now(now);
         let gone = self.query_leases("expires <= ?1", [now as i64])?;
-        self.conn.execute("DELETE FROM leases WHERE expires <= ?1", [now as i64])?;
+        self.conn
+            .execute("DELETE FROM leases WHERE expires <= ?1", [now as i64])?;
         Ok(gone)
     }
 
     /// Remove every lease held by `session` and return them.
     pub fn release_session(&mut self, session: &str) -> rusqlite::Result<Vec<LeaseInfo>> {
         let gone = self.query_leases("session = ?1", [session])?;
-        self.conn.execute("DELETE FROM leases WHERE session = ?1", [session])?;
+        self.conn
+            .execute("DELETE FROM leases WHERE session = ?1", [session])?;
         Ok(gone)
     }
 
@@ -434,7 +472,12 @@ mod tests {
             assert_eq!(e.seq, i + 1);
         }
         assert_eq!(s.head().unwrap(), 5);
-        let after: Vec<u64> = s.events_after(2, 100).unwrap().iter().map(|e| e.seq).collect();
+        let after: Vec<u64> = s
+            .events_after(2, 100)
+            .unwrap()
+            .iter()
+            .map(|e| e.seq)
+            .collect();
         assert_eq!(after, vec![3, 4, 5]);
         assert_eq!(s.events_after(0, 2).unwrap().len(), 2);
         let recent: Vec<u64> = s.recent(2).unwrap().iter().map(|e| e.seq).collect();
@@ -468,15 +511,38 @@ mod tests {
     fn transfer_refuses_to_break_mutual_exclusion() {
         let mut s = Store::open_memory().unwrap();
         // Reach a state where A's glob and B's path coexist (as after a crash or older hub).
-        s.put(&LeaseInfo { repo: "r".into(), scope: "src/**".into(), session: "A".into(), user: "u".into(), machine: "m".into(), token: 1, since: 0, expires: 10_000 }).unwrap();
-        s.put(&LeaseInfo { repo: "r".into(), scope: "src/a.rs".into(), session: "B".into(), user: "u".into(), machine: "m".into(), token: 2, since: 0, expires: 10_000 }).unwrap();
+        s.put(&LeaseInfo {
+            repo: "r".into(),
+            scope: "src/**".into(),
+            session: "A".into(),
+            user: "u".into(),
+            machine: "m".into(),
+            token: 1,
+            since: 0,
+            expires: 10_000,
+        })
+        .unwrap();
+        s.put(&LeaseInfo {
+            repo: "r".into(),
+            scope: "src/a.rs".into(),
+            session: "B".into(),
+            user: "u".into(),
+            machine: "m".into(),
+            token: 2,
+            since: 0,
+            expires: 10_000,
+        })
+        .unwrap();
         match s.transfer(10, "A", "r", "src/**", &h("C"), 1000).unwrap() {
             Err(LeaseError::Conflict(l)) => assert_eq!(l.session, "B"),
             o => panic!("{o:?}"),
         }
         assert_eq!(s.lease(10, "r", "src/**").unwrap().unwrap().session, "A");
         // Handing it to the session that holds the overlapping lease is fine.
-        let t = s.transfer(10, "A", "r", "src/**", &h("B"), 1000).unwrap().unwrap();
+        let t = s
+            .transfer(10, "A", "r", "src/**", &h("B"), 1000)
+            .unwrap()
+            .unwrap();
         assert_eq!(t.session, "B");
     }
 
@@ -490,14 +556,23 @@ mod tests {
         assert_eq!(b.expires, now + MIN_TTL_MS);
         let c = granted(s.acquire(now, &h("C"), "r", "h", (-1i64) as u64).unwrap());
         assert_eq!(c.expires, now + MAX_TTL_MS);
-        let r = s.renew(now, "A", "r", "f", a.token, u64::MAX - 5).unwrap().unwrap();
+        let r = s
+            .renew(now, "A", "r", "f", a.token, u64::MAX - 5)
+            .unwrap()
+            .unwrap();
         assert_eq!(r.expires, now + MAX_TTL_MS);
-        let t = s.transfer(now, "B", "r", "g", &h("D"), u64::MAX).unwrap().unwrap();
+        let t = s
+            .transfer(now, "B", "r", "g", &h("D"), u64::MAX)
+            .unwrap()
+            .unwrap();
         assert_eq!(t.expires, now + MAX_TTL_MS);
         // A clock near the end of time saturates instead of wrapping or overflowing i64.
         let late = granted(s.acquire(u64::MAX - 1, &h("E"), "r", "z", 1000).unwrap());
         assert_eq!(late.expires, i64::MAX as u64);
-        assert_eq!(s.lease(u64::MAX - 1, "r", "z").unwrap().unwrap().expires, i64::MAX as u64);
+        assert_eq!(
+            s.lease(u64::MAX - 1, "r", "z").unwrap().unwrap().expires,
+            i64::MAX as u64
+        );
     }
 
     #[test]
@@ -561,7 +636,10 @@ mod tests {
             s.transfer(10, "B", "r", "f", &h("C"), 1000).unwrap(),
             Err(LeaseError::NotHolder)
         );
-        let b = s.transfer(10, "A", "r", "f", &h("B"), 1000).unwrap().unwrap();
+        let b = s
+            .transfer(10, "A", "r", "f", &h("B"), 1000)
+            .unwrap()
+            .unwrap();
         assert_eq!(b.session, "B");
         assert!(b.token > a.token);
         assert_eq!(

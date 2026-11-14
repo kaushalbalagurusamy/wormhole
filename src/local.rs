@@ -46,7 +46,10 @@ impl LocalClient {
         }
         let mut line = req.to_string();
         line.push('\n');
-        self.w.write_all(line.as_bytes()).await.map_err(|e| e.to_string())?;
+        self.w
+            .write_all(line.as_bytes())
+            .await
+            .map_err(|e| e.to_string())?;
         loop {
             let v = self.line().await.ok_or("daemon closed the connection")?;
             if v.get("id") == Some(&json!(id)) {

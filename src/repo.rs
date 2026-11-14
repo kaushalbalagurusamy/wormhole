@@ -25,14 +25,21 @@ pub fn find(dir: &Path) -> Option<RepoInfo> {
             let id = origin_url(&config)
                 .map(|u| normalize_remote(&u))
                 .unwrap_or_else(|| {
-                    format!("local:{}", d.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())
+                    format!(
+                        "local:{}",
+                        d.file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_default()
+                    )
                 });
             let head = std::fs::read_to_string(gitdir.join("HEAD")).unwrap_or_default();
             let head = head.trim();
             let branch = head
                 .strip_prefix("ref: refs/heads/")
                 .map(str::to_string)
-                .unwrap_or_else(|| format!("detached {}", head.chars().take(12).collect::<String>()));
+                .unwrap_or_else(|| {
+                    format!("detached {}", head.chars().take(12).collect::<String>())
+                });
             return Some(RepoInfo {
                 id,
                 root: d.to_path_buf(),
@@ -50,7 +57,11 @@ fn git_dir(dotgit: &Path) -> Option<PathBuf> {
     }
     let s = std::fs::read_to_string(dotgit).ok()?;
     let p = PathBuf::from(s.trim().strip_prefix("gitdir:")?.trim());
-    Some(if p.is_absolute() { p } else { dotgit.parent()?.join(p) })
+    Some(if p.is_absolute() {
+        p
+    } else {
+        dotgit.parent()?.join(p)
+    })
 }
 
 fn origin_url(config: &str) -> Option<String> {
@@ -92,7 +103,11 @@ pub fn normalize_remote(url: &str) -> String {
         u.replacen(':', "/", 1)
     };
     match s.split_once('/') {
-        Some((host, path)) => format!("{}/{}", host.to_lowercase().split(':').next().unwrap_or(""), path),
+        Some((host, path)) => format!(
+            "{}/{}",
+            host.to_lowercase().split(':').next().unwrap_or(""),
+            path
+        ),
         None => s,
     }
 }
@@ -147,23 +162,39 @@ pub fn canonical_relative(root: &Path, cwd: &Path, file: &str) -> Option<String>
         full.push(n);
     }
     let rel = full.strip_prefix(&root).ok()?;
-    let parts: Vec<String> = rel.components().map(|c| c.as_os_str().to_string_lossy().to_string()).collect();
+    let parts: Vec<String> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().to_string())
+        .collect();
     (!parts.is_empty()).then(|| parts.join("/"))
 }
 
 /// Does the filesystem holding `root` ignore case? (macOS and Windows defaults do.)
 pub fn case_insensitive(root: &Path) -> bool {
     use std::os::unix::fs::MetadataExt;
-    let Ok(root) = std::fs::canonicalize(root) else { return false };
-    let Some(name) = root.file_name().map(|n| n.to_string_lossy().to_string()) else { return false };
+    let Ok(root) = std::fs::canonicalize(root) else {
+        return false;
+    };
+    let Some(name) = root.file_name().map(|n| n.to_string_lossy().to_string()) else {
+        return false;
+    };
     let flipped: String = name
         .chars()
-        .map(|c| if c.is_lowercase() { c.to_ascii_uppercase() } else { c.to_ascii_lowercase() })
+        .map(|c| {
+            if c.is_lowercase() {
+                c.to_ascii_uppercase()
+            } else {
+                c.to_ascii_lowercase()
+            }
+        })
         .collect();
     if flipped == name {
         return false;
     }
-    match (std::fs::metadata(&root), std::fs::metadata(root.with_file_name(flipped))) {
+    match (
+        std::fs::metadata(&root),
+        std::fs::metadata(root.with_file_name(flipped)),
+    ) {
         (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
         _ => false,
     }
@@ -189,9 +220,15 @@ mod tests {
     fn relative_rejects_escapes() {
         let root = Path::new("/w/repo");
         let cwd = Path::new("/w/repo/src");
-        assert_eq!(relative(root, cwd, "/w/repo/src/a.rs").as_deref(), Some("src/a.rs"));
+        assert_eq!(
+            relative(root, cwd, "/w/repo/src/a.rs").as_deref(),
+            Some("src/a.rs")
+        );
         assert_eq!(relative(root, cwd, "b.rs").as_deref(), Some("src/b.rs"));
-        assert_eq!(relative(root, cwd, "../c/./d.rs").as_deref(), Some("c/d.rs"));
+        assert_eq!(
+            relative(root, cwd, "../c/./d.rs").as_deref(),
+            Some("c/d.rs")
+        );
         assert_eq!(relative(root, cwd, "../../etc/passwd"), None);
         assert_eq!(relative(root, cwd, "/w/repository/x"), None);
         assert_eq!(relative(root, cwd, "/w/repo"), None);

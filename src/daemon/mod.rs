@@ -152,7 +152,11 @@ impl Daemon {
             Request::Hello {
                 session: session.to_string(),
                 repo: s.repo.as_ref().map(|r| r.id.clone()).unwrap_or_default(),
-                branch: s.repo.as_ref().map(|r| r.branch.clone()).unwrap_or_default(),
+                branch: s
+                    .repo
+                    .as_ref()
+                    .map(|r| r.branch.clone())
+                    .unwrap_or_default(),
                 task: s.task.clone(),
             }
         };
@@ -175,7 +179,11 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         return Err("the hook HTTP endpoint must listen on loopback".into());
     }
     let unix = sock::bind(&cfg.socket_path)?;
-    let hook_token = sock::hook_token(cfg.socket_path.parent().ok_or("socket path has no directory")?)?;
+    let hook_token = sock::hook_token(
+        cfg.socket_path
+            .parent()
+            .ok_or("socket path has no directory")?,
+    )?;
     let d = Arc::new(Daemon {
         cfg: cfg.clone(),
         st: Mutex::new(State::default()),
@@ -213,19 +221,28 @@ async fn link_loop(d: Arc<Daemon>) {
             }
         }
         // Up to 25% jitter, without a random-number dependency.
-        let jitter = (Instant::now().elapsed().subsec_nanos() as u64 ^ now_ms()) % (delay.as_millis() as u64 / 4 + 1);
+        let jitter = (Instant::now().elapsed().subsec_nanos() as u64 ^ now_ms())
+            % (delay.as_millis() as u64 / 4 + 1);
         tokio::time::sleep(delay + Duration::from_millis(jitter)).await;
         delay = (delay * 2).min(max);
     }
 }
 
-type Ws = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+type Ws =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 async fn connect(d: &Daemon) -> Result<Ws, String> {
-    let mut req = d.cfg.hub_url.as_str().into_client_request().map_err(|e| e.to_string())?;
+    let mut req = d
+        .cfg
+        .hub_url
+        .as_str()
+        .into_client_request()
+        .map_err(|e| e.to_string())?;
     if let Some(id) = &d.cfg.static_identity {
-        req.headers_mut()
-            .insert(STATIC_ID_HEADER, id.parse().map_err(|_| "bad static identity")?);
+        req.headers_mut().insert(
+            STATIC_ID_HEADER,
+            id.parse().map_err(|_| "bad static identity")?,
+        );
     }
     let conf = tungstenite::protocol::WebSocketConfig::default()
         .max_message_size(Some(MAX_FRAME))
@@ -326,13 +343,17 @@ async fn heartbeat(d: Arc<Daemon>) {
                 .iter_mut()
                 .filter_map(|(id, s)| {
                     s.subs.retain(|x| !x.is_closed());
-                    (s.last_active.elapsed() < Duration::from_secs(1800) || !s.subs.is_empty()).then(|| id.clone())
+                    (s.last_active.elapsed() < Duration::from_secs(1800) || !s.subs.is_empty())
+                        .then(|| id.clone())
                 })
                 .collect()
         };
         for id in ids {
             let _ = d
-                .request(Request::Heartbeat { session: id }, Instant::now() + Duration::from_secs(5))
+                .request(
+                    Request::Heartbeat { session: id },
+                    Instant::now() + Duration::from_secs(5),
+                )
                 .await;
         }
     }

@@ -37,7 +37,10 @@ pub(crate) fn private_dir(dir: &Path) -> Result<(), String> {
     }
     let m = std::fs::symlink_metadata(dir).map_err(|e| e.to_string())?;
     if m.file_type().is_symlink() || !m.is_dir() {
-        return Err(format!("{} must be a directory, not a symlink", dir.display()));
+        return Err(format!(
+            "{} must be a directory, not a symlink",
+            dir.display()
+        ));
     }
     if m.uid() != euid() || m.mode() & 0o077 != 0 {
         return Err(format!(
@@ -55,18 +58,31 @@ pub(crate) fn bind(path: &Path) -> Result<Bound, String> {
     match std::fs::symlink_metadata(path) {
         Ok(m) if m.file_type().is_socket() => {
             if std::os::unix::net::UnixStream::connect(path).is_ok() {
-                return Err(format!("a daemon is already listening on {}", path.display()));
+                return Err(format!(
+                    "a daemon is already listening on {}",
+                    path.display()
+                ));
             }
-            std::fs::remove_file(path).map_err(|e| format!("remove stale {}: {e}", path.display()))?;
+            std::fs::remove_file(path)
+                .map_err(|e| format!("remove stale {}: {e}", path.display()))?;
         }
-        Ok(_) => return Err(format!("{} exists and is not a socket; refusing to replace it", path.display())),
+        Ok(_) => {
+            return Err(format!(
+                "{} exists and is not a socket; refusing to replace it",
+                path.display()
+            ))
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => return Err(format!("{}: {e}", path.display())),
     }
     let listener = UnixListener::bind(path).map_err(|e| format!("bind {}: {e}", path.display()))?;
     // The directory is ours and closed to others, so nothing can swap the path in between.
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
-    Ok(Bound { listener, uid: euid() })
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+        .map_err(|e| e.to_string())?;
+    Ok(Bound {
+        listener,
+        uid: euid(),
+    })
 }
 
 /// The secret HTTP hook requests must carry, kept in `dir/hook-token` (mode 0600) so it
@@ -102,11 +118,20 @@ pub(crate) fn read_hook_token(p: &Path) -> Result<Option<String>, String> {
         Err(e) => Err(format!("{}: {e}", p.display())),
         Ok(m) => {
             if !m.file_type().is_file() || m.uid() != euid() || m.mode() & 0o077 != 0 {
-                return Err(format!("{} must be a regular file owned by this user with mode 600", p.display()));
+                return Err(format!(
+                    "{} must be a regular file owned by this user with mode 600",
+                    p.display()
+                ));
             }
-            let t = std::fs::read_to_string(p).map_err(|e| e.to_string())?.trim().to_string();
+            let t = std::fs::read_to_string(p)
+                .map_err(|e| e.to_string())?
+                .trim()
+                .to_string();
             if t.len() < 32 {
-                return Err(format!("{} is too short; delete it to regenerate", p.display()));
+                return Err(format!(
+                    "{} is too short; delete it to regenerate",
+                    p.display()
+                ));
             }
             Ok(Some(t))
         }
@@ -151,7 +176,9 @@ async fn client(d: Arc<Daemon>, s: UnixStream) {
             Ok(_) if !line.ends_with('\n') => break,
             Ok(_) => {}
         }
-        let Ok(req) = serde_json::from_str::<Value>(&line) else { break };
+        let Ok(req) = serde_json::from_str::<Value>(&line) else {
+            break;
+        };
         let id = req["id"].clone();
         let res = op(&d, &req, &tx).await;
         let resp = match res {
@@ -212,7 +239,10 @@ fn scope(d: &Daemon, session: &str, args: &Value) -> Result<(String, String), St
     let raw = arg(args, "scope")?.trim();
     let st = d.st.lock().unwrap();
     let s = st.sessions.get(session).ok_or("unknown session")?;
-    let r = s.repo.as_ref().ok_or("this session is not in a git repository")?;
+    let r = s
+        .repo
+        .as_ref()
+        .ok_or("this session is not in a git repository")?;
     let sc = if raw.starts_with('/') {
         crate::repo::relative(&r.root, &r.root, raw).ok_or("path is outside the repository")?
     } else {
@@ -242,7 +272,14 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
             };
             let body = arg(args, "body")?.to_string();
             let reply_to = args["reply_to"].as_u64();
-            let v = req(Request::Send { session: s, to, body, reply_to }).await.map_err(hub_err)?;
+            let v = req(Request::Send {
+                session: s,
+                to,
+                body,
+                reply_to,
+            })
+            .await
+            .map_err(hub_err)?;
             Ok(format!("sent (seq {})", v["seq"]))
         }
         "lease" => {
@@ -251,13 +288,27 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
                 .as_u64()
                 .map(|t| t.saturating_mul(1000))
                 .unwrap_or(d.cfg.lease_ttl.as_millis() as u64);
-            let v = req(Request::LeaseAcquire { session: s, repo: repo.clone(), scope: scope.clone(), ttl_ms })
-                .await
-                .map_err(hub_err)?;
+            let v = req(Request::LeaseAcquire {
+                session: s,
+                repo: repo.clone(),
+                scope: scope.clone(),
+                ttl_ms,
+            })
+            .await
+            .map_err(hub_err)?;
             match serde_json::from_value::<LeaseResult>(v).map_err(|e| e.to_string())? {
                 LeaseResult::Granted { lease } => {
-                    d.st.lock().unwrap().sess(session).tokens.insert((repo, scope.clone()), lease.token);
-                    Ok(format!("lease granted on {} (token {}), expires in {} s", text::attr(&scope), lease.token, lease.expires.saturating_sub(now_ms()) / 1000))
+                    d.st.lock()
+                        .unwrap()
+                        .sess(session)
+                        .tokens
+                        .insert((repo, scope.clone()), lease.token);
+                    Ok(format!(
+                        "lease granted on {} (token {}), expires in {} s",
+                        text::attr(&scope),
+                        lease.token,
+                        lease.expires.saturating_sub(now_ms()) / 1000
+                    ))
                 }
                 LeaseResult::Held { lease } => Ok(format!(
                     "not granted: {} is held by session {} ({}@{}) on scope {}",
@@ -272,29 +323,69 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
         "release" => {
             let (repo, scope) = scope(d, session, args)?;
             let key = (repo.clone(), scope.clone());
-            let token = d.st.lock().unwrap().sess(session).tokens.get(&key).copied().ok_or("this session does not hold that lease")?;
-            req(Request::LeaseRelease { session: s, repo, scope, token }).await.map_err(hub_err)?;
+            let token =
+                d.st.lock()
+                    .unwrap()
+                    .sess(session)
+                    .tokens
+                    .get(&key)
+                    .copied()
+                    .ok_or("this session does not hold that lease")?;
+            req(Request::LeaseRelease {
+                session: s,
+                repo,
+                scope,
+                token,
+            })
+            .await
+            .map_err(hub_err)?;
             d.st.lock().unwrap().sess(session).tokens.remove(&key);
             Ok("released".into())
         }
         "request_transfer" => {
             let (repo, scope) = scope(d, session, args)?;
             let reason = args["reason"].as_str().unwrap_or("").to_string();
-            req(Request::LeaseRequestTransfer { session: s, repo, scope, reason }).await.map_err(hub_err)?;
+            req(Request::LeaseRequestTransfer {
+                session: s,
+                repo,
+                scope,
+                reason,
+            })
+            .await
+            .map_err(hub_err)?;
             Ok("request sent to the holder; the answer arrives as a notice".into())
         }
         "grant" => {
             let (repo, scope) = scope(d, session, args)?;
             let to = arg(args, "to")?.to_string();
-            req(Request::LeaseGrant { session: s, repo: repo.clone(), scope: scope.clone(), to }).await.map_err(hub_err)?;
-            d.st.lock().unwrap().sess(session).tokens.remove(&(repo, scope));
+            req(Request::LeaseGrant {
+                session: s,
+                repo: repo.clone(),
+                scope: scope.clone(),
+                to,
+            })
+            .await
+            .map_err(hub_err)?;
+            d.st.lock()
+                .unwrap()
+                .sess(session)
+                .tokens
+                .remove(&(repo, scope));
             Ok("granted".into())
         }
         "deny" => {
             let (repo, scope) = scope(d, session, args)?;
             let to = arg(args, "to")?.to_string();
             let reason = args["reason"].as_str().unwrap_or("").to_string();
-            req(Request::LeaseDeny { session: s, repo, scope, to, reason }).await.map_err(hub_err)?;
+            req(Request::LeaseDeny {
+                session: s,
+                repo,
+                scope,
+                to,
+                reason,
+            })
+            .await
+            .map_err(hub_err)?;
             Ok("denied".into())
         }
         "set_task" => {
@@ -328,7 +419,10 @@ mod tests {
         let d = base("ok");
         let p = d.join("run/d.sock");
         let _b = bind(&p).unwrap();
-        assert_eq!(std::fs::metadata(d.join("run")).unwrap().mode() & 0o777, 0o700);
+        assert_eq!(
+            std::fs::metadata(d.join("run")).unwrap().mode() & 0o777,
+            0o700
+        );
         assert_eq!(std::fs::metadata(&p).unwrap().mode() & 0o777, 0o600);
         std::fs::remove_dir_all(&d).unwrap();
     }

@@ -13,7 +13,9 @@ fn match_segments(p: &[&str], s: &[&str]) -> bool {
         None => s.is_empty(),
         Some((&"**", rest)) => (0..=s.len()).any(|i| match_segments(rest, &s[i..])),
         Some((first, rest)) => {
-            !s.is_empty() && match_segment(first.as_bytes(), s[0].as_bytes()) && match_segments(rest, &s[1..])
+            !s.is_empty()
+                && match_segment(first.as_bytes(), s[0].as_bytes())
+                && match_segments(rest, &s[1..])
         }
     }
 }

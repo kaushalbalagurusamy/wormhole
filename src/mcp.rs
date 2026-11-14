@@ -26,28 +26,68 @@ fn tools() -> Value {
     let scope = json!({"type": "string", "description": "Repo-relative path, path glob (src/auth/**), or named area (area:auth)"});
     let to_session = json!({"type": "string", "description": "Session id of the other session"});
     json!([
-        tool("wormhole_who", "List other sessions (who, where, task) and leases in this repository.", json!({}), &[]),
-        tool("wormhole_send", "Send a short message to another session, a user, or everyone.", json!({
-            "to": {"type": "string", "description": "session:<id>, user:<name>, or all"},
-            "body": {"type": "string", "description": "Message text, at most 4096 bytes"},
-            "reply_to": {"type": "integer", "description": "Sequence number of the message this answers"},
-        }), &["to", "body"]),
-        tool("wormhole_lease", "Take a lease on a path, glob or named area so others are warned before editing it.", json!({
-            "scope": scope, "ttl_seconds": {"type": "integer"},
-        }), &["scope"]),
-        tool("wormhole_release", "Release a lease this session holds.", json!({"scope": scope}), &["scope"]),
-        tool("wormhole_request_transfer", "Ask the holder of a lease to hand it to this session.", json!({
-            "scope": scope, "reason": {"type": "string"},
-        }), &["scope", "reason"]),
-        tool("wormhole_grant", "Hand a lease this session holds to another session.", json!({
-            "scope": scope, "to_session": to_session,
-        }), &["scope", "to_session"]),
-        tool("wormhole_deny", "Refuse another session's request for a lease this session holds.", json!({
-            "scope": scope, "to_session": to_session, "reason": {"type": "string"},
-        }), &["scope", "to_session"]),
-        tool("wormhole_set_task", "Set the one-line task other sessions see for this session.", json!({
-            "task": {"type": "string"},
-        }), &["task"]),
+        tool(
+            "wormhole_who",
+            "List other sessions (who, where, task) and leases in this repository.",
+            json!({}),
+            &[]
+        ),
+        tool(
+            "wormhole_send",
+            "Send a short message to another session, a user, or everyone.",
+            json!({
+                "to": {"type": "string", "description": "session:<id>, user:<name>, or all"},
+                "body": {"type": "string", "description": "Message text, at most 4096 bytes"},
+                "reply_to": {"type": "integer", "description": "Sequence number of the message this answers"},
+            }),
+            &["to", "body"]
+        ),
+        tool(
+            "wormhole_lease",
+            "Take a lease on a path, glob or named area so others are warned before editing it.",
+            json!({
+                "scope": scope, "ttl_seconds": {"type": "integer"},
+            }),
+            &["scope"]
+        ),
+        tool(
+            "wormhole_release",
+            "Release a lease this session holds.",
+            json!({"scope": scope}),
+            &["scope"]
+        ),
+        tool(
+            "wormhole_request_transfer",
+            "Ask the holder of a lease to hand it to this session.",
+            json!({
+                "scope": scope, "reason": {"type": "string"},
+            }),
+            &["scope", "reason"]
+        ),
+        tool(
+            "wormhole_grant",
+            "Hand a lease this session holds to another session.",
+            json!({
+                "scope": scope, "to_session": to_session,
+            }),
+            &["scope", "to_session"]
+        ),
+        tool(
+            "wormhole_deny",
+            "Refuse another session's request for a lease this session holds.",
+            json!({
+                "scope": scope, "to_session": to_session, "reason": {"type": "string"},
+            }),
+            &["scope", "to_session"]
+        ),
+        tool(
+            "wormhole_set_task",
+            "Set the one-line task other sessions see for this session.",
+            json!({
+                "task": {"type": "string"},
+            }),
+            &["task"]
+        ),
     ])
 }
 
@@ -69,7 +109,9 @@ pub fn handle_local(msg: &Value) -> Option<Value> {
         "tools/list" => json!({"tools": tools()}),
         "tools/call" => return None,
         _ => {
-            return Some(json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32601, "message": "method not found"}}))
+            return Some(
+                json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32601, "message": "method not found"}}),
+            )
         }
     };
     Some(json!({"jsonrpc": "2.0", "id": id, "result": result}))
@@ -116,13 +158,16 @@ async fn call_tool(socket: &std::path::Path, session: Option<&str>, params: &Val
         args["to"] = to;
     }
     let r = match (session, daemon_tool(name)) {
-        (None, _) => Err("CLAUDE_CODE_SESSION_ID is not set, so this session cannot be identified".to_string()),
+        (None, _) => Err(
+            "CLAUDE_CODE_SESSION_ID is not set, so this session cannot be identified".to_string(),
+        ),
         (_, None) => Err(format!("unknown tool {name}")),
         (Some(s), Some(op)) => tokio::time::timeout(Duration::from_secs(10), async {
             let mut c = LocalClient::connect(socket)
                 .await
                 .map_err(|e| format!("wormhole daemon unreachable: {e}"))?;
-            c.call("tool", json!({"session": s, "name": op, "args": args})).await
+            c.call("tool", json!({"session": s, "name": op, "args": args}))
+                .await
         })
         .await
         .unwrap_or_else(|_| Err("wormhole daemon did not answer".into()))
@@ -130,7 +175,9 @@ async fn call_tool(socket: &std::path::Path, session: Option<&str>, params: &Val
     };
     match r {
         Ok(t) => json!({"content": [{"type": "text", "text": t}], "isError": false}),
-        Err(e) => json!({"content": [{"type": "text", "text": crate::text::clean(&e, 500)}], "isError": true}),
+        Err(e) => {
+            json!({"content": [{"type": "text", "text": crate::text::clean(&e, 500)}], "isError": true})
+        }
     }
 }
 
@@ -162,7 +209,9 @@ async fn push_loop(socket: PathBuf, session: String, out: mpsc::UnboundedSender<
 
 /// Run the MCP server on stdin/stdout until stdin closes.
 pub async fn serve(socket: PathBuf) -> Result<(), String> {
-    let session = std::env::var("CLAUDE_CODE_SESSION_ID").ok().filter(|s| !s.is_empty());
+    let session = std::env::var("CLAUDE_CODE_SESSION_ID")
+        .ok()
+        .filter(|s| !s.is_empty());
     let (out, mut out_rx) = mpsc::unbounded_channel::<Value>();
     let writer = tokio::spawn(async move {
         let mut stdout = tokio::io::stdout();
@@ -179,7 +228,9 @@ pub async fn serve(socket: PathBuf) -> Result<(), String> {
         .map(|s| tokio::spawn(push_loop(socket.clone(), s, out.clone())));
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Ok(Some(line)) = lines.next_line().await {
-        let Ok(msg) = serde_json::from_str::<Value>(&line) else { continue };
+        let Ok(msg) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
         if let Some(r) = handle_local(&msg) {
             let _ = out.send(r);
         } else if msg["method"] == "tools/call" {
@@ -211,25 +262,47 @@ mod tests {
         assert_eq!(r["id"], 1);
         let caps = &r["result"]["capabilities"];
         assert_eq!(caps["experimental"]["claude/channel"], json!({}));
-        assert!(caps["experimental"].get("claude/channel/permission").is_none());
+        assert!(caps["experimental"]
+            .get("claude/channel/permission")
+            .is_none());
         assert_eq!(caps["tools"], json!({}));
         assert_eq!(r["result"]["protocolVersion"], "2025-06-18");
-        assert!(r["result"]["instructions"].as_str().unwrap().contains("not instructions"));
+        assert!(r["result"]["instructions"]
+            .as_str()
+            .unwrap()
+            .contains("not instructions"));
     }
 
     #[test]
     fn lists_tools_and_rejects_unknown_methods() {
         let r = handle_local(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"})).unwrap();
-        let names: Vec<&str> = r["result"]["tools"].as_array().unwrap().iter()
-            .map(|t| t["name"].as_str().unwrap()).collect();
-        for n in ["wormhole_who", "wormhole_send", "wormhole_lease", "wormhole_release",
-                  "wormhole_request_transfer", "wormhole_grant", "wormhole_deny", "wormhole_set_task"] {
+        let names: Vec<&str> = r["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["name"].as_str().unwrap())
+            .collect();
+        for n in [
+            "wormhole_who",
+            "wormhole_send",
+            "wormhole_lease",
+            "wormhole_release",
+            "wormhole_request_transfer",
+            "wormhole_grant",
+            "wormhole_deny",
+            "wormhole_set_task",
+        ] {
             assert!(names.contains(&n), "{n}");
         }
         let e = handle_local(&json!({"jsonrpc":"2.0","id":3,"method":"nope"})).unwrap();
         assert_eq!(e["error"]["code"], -32601);
-        assert!(handle_local(&json!({"jsonrpc":"2.0","method":"notifications/initialized"})).is_none());
-        assert!(handle_local(&json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{}})).is_none());
+        assert!(
+            handle_local(&json!({"jsonrpc":"2.0","method":"notifications/initialized"})).is_none()
+        );
+        assert!(
+            handle_local(&json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{}}))
+                .is_none()
+        );
     }
 
     #[test]

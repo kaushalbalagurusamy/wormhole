@@ -34,10 +34,17 @@ pub enum Target {
 pub enum Up {
     /// First frame on a connection. `from` is the last sequence number the daemon has
     /// processed; `None` asks the hub to use its stored cursor for this machine.
-    Resume { from: Option<u64> },
+    Resume {
+        from: Option<u64>,
+    },
     /// Everything up to and including `seq` has been processed.
-    Ack { seq: u64 },
-    Req { id: u64, req: Request },
+    Ack {
+        seq: u64,
+    },
+    Req {
+        id: u64,
+        req: Request,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

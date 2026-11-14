@@ -23,8 +23,11 @@ pub(crate) struct Notice {
 
 impl Notice {
     pub fn push_value(&self) -> Value {
-        let meta: serde_json::Map<String, Value> =
-            self.meta.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
+        let meta: serde_json::Map<String, Value> = self
+            .meta
+            .iter()
+            .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+            .collect();
         json!({
             "seq": self.seq,
             "text": format!("{}\n\n{}", text::PREAMBLE, self.block),
@@ -82,7 +85,12 @@ pub(crate) struct State {
 
 pub(crate) fn hms(ms: u64) -> String {
     let s = ms / 1000;
-    format!("{:02}:{:02}:{:02} UTC", (s / 3600) % 24, (s / 60) % 60, s % 60)
+    format!(
+        "{:02}:{:02}:{:02} UTC",
+        (s / 3600) % 24,
+        (s / 60) % 60,
+        s % 60
+    )
 }
 
 fn from_attrs(e: &Event) -> Vec<(String, String)> {
@@ -97,18 +105,26 @@ fn from_attrs(e: &Event) -> Vec<(String, String)> {
 fn notice(e: &Event, tag: &str, kind: &str, body: &str, msg: bool) -> Notice {
     let mut meta = vec![("kind".to_string(), kind.to_string())];
     meta.extend(from_attrs(e));
-    let attrs: Vec<(&str, &str)> = meta[1..].iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let attrs: Vec<(&str, &str)> = meta[1..]
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
     Notice {
         seq: e.seq,
         block: text::block(tag, &attrs, body),
-        meta: meta.iter().map(|(k, v)| (k.clone(), text::attr(v))).collect(),
+        meta: meta
+            .iter()
+            .map(|(k, v)| (k.clone(), text::attr(v)))
+            .collect(),
         msg_seq: msg.then_some(e.seq),
     }
 }
 
 impl State {
     pub fn sess(&mut self, id: &str) -> &mut Sess {
-        self.sessions.entry(id.to_string()).or_insert_with(Sess::new)
+        self.sessions
+            .entry(id.to_string())
+            .or_insert_with(Sess::new)
     }
 
     /// Apply one hub event. Returns false if it was already seen.
@@ -124,7 +140,9 @@ impl State {
                 let to: Option<Target> = serde_json::from_value(d["to"].clone()).ok();
                 let recipients: Vec<String> = match &to {
                     Some(Target::Session(id)) => vec![id.clone()],
-                    Some(Target::User(_)) | Some(Target::Broadcast) => self.sessions.keys().cloned().collect(),
+                    Some(Target::User(_)) | Some(Target::Broadcast) => {
+                        self.sessions.keys().cloned().collect()
+                    }
                     None => vec![],
                 };
                 let to_desc = match &to {
@@ -141,14 +159,19 @@ impl State {
                     s("body")
                 );
                 for r in recipients.into_iter().filter(|r| *r != e.session) {
-                    self.sess(&r).notify(notice(e, "wormhole-message", "message", &body, true));
+                    self.sess(&r)
+                        .notify(notice(e, "wormhole-message", "message", &body, true));
                 }
             }
             "activity" if s("kind") == "edit" => {
                 let repo = s("repo");
                 let paths: Vec<String> = d["paths"]
                     .as_array()
-                    .map(|a| a.iter().filter_map(|p| p.as_str().map(str::to_string)).collect())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|p| p.as_str().map(str::to_string))
+                            .collect()
+                    })
                     .unwrap_or_default();
                 for (id, sess) in self.sessions.iter_mut() {
                     if *id == e.session {

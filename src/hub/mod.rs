@@ -12,7 +12,7 @@ use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use futures_util::{SinkExt, StreamExt};
-use identity::{IdentityConfig, Identifier, Peer};
+use identity::{Identifier, IdentityConfig, Peer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -96,7 +96,11 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
         .merge(page::routes())
         .with_state(hub.clone());
     let server = tokio::spawn(async move {
-        let _ = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await;
+        let _ = axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await;
     });
     let sweeper = tokio::spawn(sweep(hub.clone()));
     Ok(HubHandle {
@@ -109,15 +113,25 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
 
 /// Identify an HTTP or WebSocket peer. Requests from browsers (with an `Origin`) are
 /// refused on the WebSocket; the page routes allow same-origin reads.
-pub(crate) async fn who(hub: &Hub, addr: SocketAddr, headers: &HeaderMap) -> Result<Peer, StatusCode> {
+pub(crate) async fn who(
+    hub: &Hub,
+    addr: SocketAddr,
+    headers: &HeaderMap,
+) -> Result<Peer, StatusCode> {
     if let Some((listen, names)) = hub.endpoint.get() {
-        let host = headers.get(header::HOST).and_then(|h| h.to_str().ok()).unwrap_or("");
+        let host = headers
+            .get(header::HOST)
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("");
         if !host_allowed(host, *listen, names) {
             return Err(StatusCode::FORBIDDEN);
         }
     }
     let claim = headers.get(STATIC_ID_HEADER).and_then(|v| v.to_str().ok());
-    hub.ident.identify(addr, claim).await.ok_or(StatusCode::FORBIDDEN)
+    hub.ident
+        .identify(addr, claim)
+        .await
+        .ok_or(StatusCode::FORBIDDEN)
 }
 
 async fn ws(
@@ -176,7 +190,10 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
     let mut rx = hub.tx.subscribe();
     let (head, cursor) = {
         let st = hub.store.lock().unwrap();
-        (st.head().unwrap_or(0), st.cursor(&peer.key()).ok().flatten())
+        (
+            st.head().unwrap_or(0),
+            st.cursor(&peer.key()).ok().flatten(),
+        )
     };
     try_down(
         &out,
@@ -258,9 +275,10 @@ pub(crate) fn host_allowed(host: &str, listen: SocketAddr, names: &[String]) -> 
     if listen.ip().is_loopback() {
         ok_names.push("localhost");
     }
-    ok_names
-        .iter()
-        .any(|n| !n.is_empty() && (host.eq_ignore_ascii_case(n) || host.eq_ignore_ascii_case(&format!("{n}:{port}"))))
+    ok_names.iter().any(|n| {
+        !n.is_empty()
+            && (host.eq_ignore_ascii_case(n) || host.eq_ignore_ascii_case(&format!("{n}:{port}")))
+    })
 }
 
 fn now() -> u64 {
@@ -279,7 +297,10 @@ fn lease_err(e: LeaseError) -> String {
         LeaseError::NotHeld => "not_held: no live lease on that scope".into(),
         LeaseError::StaleToken => "stale_token: that token is no longer the current one".into(),
         LeaseError::NotHolder => "not_holder: another session holds that lease".into(),
-        LeaseError::Conflict(l) => format!("conflict: session {} holds overlapping scope {}", l.session, l.scope),
+        LeaseError::Conflict(l) => format!(
+            "conflict: session {} holds overlapping scope {}",
+            l.session, l.scope
+        ),
     }
 }
 
@@ -322,9 +343,15 @@ impl Hub {
                 .collect()
         };
         for (session, owner) in gone {
-            let released = self.store.lock().unwrap().release_session(&session).unwrap_or_default();
+            let released = self
+                .store
+                .lock()
+                .unwrap()
+                .release_session(&session)
+                .unwrap_or_default();
             for l in released {
-                let _ = self.emit_lease("lease.released", &l, json!({"reason": "session timed out"}));
+                let _ =
+                    self.emit_lease("lease.released", &l, json!({"reason": "session timed out"}));
             }
             let _ = self.emit("bye", &owner, &session, json!({"reason": "timeout"}));
         }
@@ -343,8 +370,14 @@ impl Hub {
             }
             for e in batch {
                 if self.visible(&e, peer) {
-                    let Ok(s) = serde_json::to_string(&Down::Event { event: e.clone() }) else { continue };
-                    if out.send_timeout(Message::Text(s.into()), SEND_TIMEOUT).await.is_err() {
+                    let Ok(s) = serde_json::to_string(&Down::Event { event: e.clone() }) else {
+                        continue;
+                    };
+                    if out
+                        .send_timeout(Message::Text(s.into()), SEND_TIMEOUT)
+                        .await
+                        .is_err()
+                    {
                         return false;
                     }
                 }
@@ -383,7 +416,8 @@ impl Hub {
             user: l.user.clone(),
             machine: l.machine.clone(),
         };
-        let mut data = json!({"repo": l.repo, "scope": l.scope, "token": l.token, "expires": l.expires});
+        let mut data =
+            json!({"repo": l.repo, "scope": l.scope, "token": l.token, "expires": l.expires});
         if let (Some(d), Value::Object(x)) = (data.as_object_mut(), extra) {
             d.extend(x);
         }
@@ -399,7 +433,11 @@ impl Hub {
     }
 
     fn owner_of(&self, session: &str) -> Option<Peer> {
-        self.sessions.lock().unwrap().get(session).map(|s| s.owner.clone())
+        self.sessions
+            .lock()
+            .unwrap()
+            .get(session)
+            .map(|s| s.owner.clone())
     }
 
     fn handle(&self, peer: &Peer, req: Request) -> Result<Value, String> {
@@ -416,16 +454,24 @@ impl Hub {
                 let branch = text::plain(&branch, MAX_FIELD);
                 let task = text::plain(&task, MAX_TASK);
                 // A session id belongs to the first peer that registers it, permanently.
-                if !db(self.store.lock().unwrap().bind_session(&session, &peer.user, &peer.machine))? {
+                if !db(self.store.lock().unwrap().bind_session(
+                    &session,
+                    &peer.user,
+                    &peer.machine,
+                ))? {
                     return Err("session belongs to another machine".into());
                 }
                 let changed = {
                     let mut ss = self.sessions.lock().unwrap();
                     match ss.get_mut(&session) {
-                        Some(s) if &s.owner != peer => return Err("session belongs to another machine".into()),
+                        Some(s) if &s.owner != peer => {
+                            return Err("session belongs to another machine".into())
+                        }
                         Some(s) => {
                             s.info.last_seen = t;
-                            let changed = s.info.repo != repo || s.info.branch != branch || s.info.task != task;
+                            let changed = s.info.repo != repo
+                                || s.info.branch != branch
+                                || s.info.task != task;
                             s.info.repo = repo.clone();
                             s.info.branch = branch.clone();
                             s.info.task = task.clone();
@@ -453,7 +499,12 @@ impl Hub {
                     }
                 };
                 if changed {
-                    self.emit("hello", peer, &session, json!({"repo": repo, "branch": branch, "task": task}))?;
+                    self.emit(
+                        "hello",
+                        peer,
+                        &session,
+                        json!({"repo": repo, "branch": branch, "task": task}),
+                    )?;
                 }
                 Ok(json!({}))
             }
@@ -517,7 +568,8 @@ impl Hub {
                 let mut data = json!({"to": to, "body": body, "reply_to": reply_to});
                 match &to {
                     Target::Session(s) => {
-                        let (u, m) = db(self.store.lock().unwrap().session_owner(s))?.ok_or("no such session")?;
+                        let (u, m) = db(self.store.lock().unwrap().session_owner(s))?
+                            .ok_or("no such session")?;
                         data["to_user"] = json!(u);
                         data["to_machine"] = json!(m);
                     }
@@ -549,7 +601,11 @@ impl Hub {
                     user: &peer.user,
                     machine: &peer.machine,
                 };
-                let r = db(self.store.lock().unwrap().acquire(t, &who, &repo, &scope, ttl_ms))?;
+                let r = db(self
+                    .store
+                    .lock()
+                    .unwrap()
+                    .acquire(t, &who, &repo, &scope, ttl_ms))?;
                 let res = match r {
                     Acquired::Granted { lease, fresh } => {
                         if fresh {
@@ -569,7 +625,11 @@ impl Hub {
                 ttl_ms,
             } => {
                 self.own(peer, &session)?;
-                let r = db(self.store.lock().unwrap().renew(t, &session, &repo, &scope, token, ttl_ms))?;
+                let r = db(self
+                    .store
+                    .lock()
+                    .unwrap()
+                    .renew(t, &session, &repo, &scope, token, ttl_ms))?;
                 let lease = r.map_err(lease_err)?;
                 Ok(serde_json::to_value(LeaseResult::Granted { lease }).unwrap_or(Value::Null))
             }
@@ -580,7 +640,11 @@ impl Hub {
                 token,
             } => {
                 self.own(peer, &session)?;
-                let r = db(self.store.lock().unwrap().release(t, &session, &repo, &scope, token))?;
+                let r = db(self
+                    .store
+                    .lock()
+                    .unwrap()
+                    .release(t, &session, &repo, &scope, token))?;
                 let l = r.map_err(lease_err)?;
                 self.emit_lease("lease.released", &l, json!({}))?;
                 Ok(json!({}))
@@ -618,13 +682,20 @@ impl Hub {
                     user: &owner.user,
                     machine: &owner.machine,
                 };
-                let r = db(self
-                    .store
-                    .lock()
-                    .unwrap()
-                    .transfer(t, &session, &repo, &scope, &who, TRANSFER_TTL_MS))?;
+                let r = db(self.store.lock().unwrap().transfer(
+                    t,
+                    &session,
+                    &repo,
+                    &scope,
+                    &who,
+                    TRANSFER_TTL_MS,
+                ))?;
                 let l = r.map_err(lease_err)?;
-                self.emit_lease("lease.granted", &l, json!({"via": "transfer", "from": session}))?;
+                self.emit_lease(
+                    "lease.granted",
+                    &l,
+                    json!({"via": "transfer", "from": session}),
+                )?;
                 Ok(json!({}))
             }
             Request::LeaseDeny {
@@ -655,7 +726,13 @@ impl Hub {
     }
 
     pub(crate) fn snapshot(&self) -> Result<Snapshot, String> {
-        let mut sessions: Vec<SessionInfo> = self.sessions.lock().unwrap().values().map(|s| s.info.clone()).collect();
+        let mut sessions: Vec<SessionInfo> = self
+            .sessions
+            .lock()
+            .unwrap()
+            .values()
+            .map(|s| s.info.clone())
+            .collect();
         sessions.sort_by_key(|s| s.since);
         let leases = db(self.store.lock().unwrap().leases(now()))?;
         Ok(Snapshot { sessions, leases })
@@ -730,7 +807,13 @@ mod tests {
         // The owner can come back.
         h.handle(&a, hello("s1")).unwrap();
         // Ending a session does not free its id for others either.
-        h.handle(&a, Request::Bye { session: "s1".into() }).unwrap();
+        h.handle(
+            &a,
+            Request::Bye {
+                session: "s1".into(),
+            },
+        )
+        .unwrap();
         assert!(h.handle(&b, hello("s1")).is_err());
     }
 
@@ -801,14 +884,21 @@ mod tests {
             let url = url.clone();
             async move {
                 let mut req = url.into_client_request().unwrap();
-                req.headers_mut().insert(STATIC_ID_HEADER, "alice@ma".parse().unwrap());
+                req.headers_mut()
+                    .insert(STATIC_ID_HEADER, "alice@ma".parse().unwrap());
                 let (mut ws, _) = tokio_tungstenite::connect_async(req).await.unwrap();
-                ws.send(M::text(serde_json::to_string(&Up::Resume { from }).unwrap())).await.unwrap();
+                ws.send(M::text(
+                    serde_json::to_string(&Up::Resume { from }).unwrap(),
+                ))
+                .await
+                .unwrap();
                 ws
             }
         };
         async fn read_seqs(
-            ws: &mut tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+            ws: &mut tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
             until: u64,
             seqs: &mut Vec<u64>,
         ) -> bool {
@@ -835,7 +925,9 @@ mod tests {
         let pad = "x".repeat(8000);
         let total = 4000;
         for i in 0..total {
-            hh.hub.emit("activity", &peer, "s", json!({"pad": pad, "i": i})).unwrap();
+            hh.hub
+                .emit("activity", &peer, "s", json!({"pad": pad, "i": i}))
+                .unwrap();
         }
         let end = head + total;
         // Stay stalled past the hub's send timeout.

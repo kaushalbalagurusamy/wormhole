@@ -34,10 +34,17 @@ fn local_request(headers: &HeaderMap, port: u16) -> bool {
     if headers.contains_key(header::ORIGIN) {
         return false;
     }
-    let host = headers.get(header::HOST).and_then(|h| h.to_str().ok()).unwrap_or("");
-    [format!("127.0.0.1:{port}"), format!("localhost:{port}"), format!("[::1]:{port}")]
-        .iter()
-        .any(|h| h == host)
+    let host = headers
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
+    [
+        format!("127.0.0.1:{port}"),
+        format!("localhost:{port}"),
+        format!("[::1]:{port}"),
+    ]
+    .iter()
+    .any(|h| h == host)
 }
 
 /// Constant-time comparison of the Authorization header with the daemon's hook token, so
@@ -49,10 +56,16 @@ fn authorized(headers: &HeaderMap, token: &str) -> bool {
         .and_then(|h| h.strip_prefix("Bearer "))
         .unwrap_or("");
     let (a, b) = (got.as_bytes(), token.as_bytes());
-    a.len() == b.len() && !b.is_empty() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+    a.len() == b.len()
+        && !b.is_empty()
+        && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-async fn http_hook(State(d): State<Arc<Daemon>>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
+async fn http_hook(
+    State(d): State<Arc<Daemon>>,
+    headers: HeaderMap,
+    body: Option<Json<Value>>,
+) -> Response {
     let port = d.cfg_port();
     if !local_request(&headers, port) || !authorized(&headers, &d.hook_token) {
         return StatusCode::FORBIDDEN.into_response();
@@ -77,21 +90,33 @@ fn output(event: &str, context: &str) -> Value {
 }
 
 fn join(parts: &[&str]) -> String {
-    parts.iter().filter(|p| !p.is_empty()).copied().collect::<Vec<_>>().join("\n\n")
+    parts
+        .iter()
+        .filter(|p| !p.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 /// Handle one hook input. Always returns a valid hook output.
 pub(crate) async fn handle(d: &Daemon, input: Value) -> Value {
     let deadline = Instant::now() + d.cfg.hub_deadline;
     let event = input["hook_event_name"].as_str().unwrap_or("").to_string();
-    let Some(session) = input["session_id"].as_str().filter(|s| !s.is_empty() && s.len() <= MAX_FIELD) else {
+    let Some(session) = input["session_id"]
+        .as_str()
+        .filter(|s| !s.is_empty() && s.len() <= MAX_FIELD)
+    else {
         return json!({});
     };
     let cwd = input["cwd"].as_str().map(PathBuf::from);
     let hub_ok = ensure_session(d, session, cwd.as_deref(), deadline).await;
     match event.as_str() {
         "SessionStart" => {
-            let state = if hub_ok { who_text(d, session, deadline).await.ok() } else { None };
+            let state = if hub_ok {
+                who_text(d, session, deadline).await.ok()
+            } else {
+                None
+            };
             let inbox = take_inbox(d, session);
             let ctx = match state {
                 Some(s) => join(&[&s, &inbox]),
@@ -110,7 +135,14 @@ pub(crate) async fn handle(d: &Daemon, input: Value) -> Value {
             output("UserPromptSubmit", &join(&[stale, &take_inbox(d, session)]))
         }
         "SessionEnd" => {
-            let _ = d.request(Request::Bye { session: session.into() }, deadline).await;
+            let _ = d
+                .request(
+                    Request::Bye {
+                        session: session.into(),
+                    },
+                    deadline,
+                )
+                .await;
             d.st.lock().unwrap().sessions.remove(session);
             json!({})
         }
@@ -145,22 +177,36 @@ pub(crate) fn take_inbox(d: &Daemon, session: &str) -> String {
         let s = st.sess(session);
         let mut blocks: Vec<String> = Vec::new();
         if s.dropped > 0 {
-            blocks.push(format!("[wormhole] {} older notices were dropped because the inbox was full.", s.dropped));
+            blocks.push(format!(
+                "[wormhole] {} older notices were dropped because the inbox was full.",
+                s.dropped
+            ));
         }
         blocks.extend(s.inbox.iter().map(|n| n.block.clone()));
         let (text, n) = text::assemble(&blocks);
-        let n_notices = if s.dropped > 0 { n.saturating_sub(1) } else { n };
+        let n_notices = if s.dropped > 0 {
+            n.saturating_sub(1)
+        } else {
+            n
+        };
         if n > 0 {
             s.dropped = 0;
         }
-        let read: Vec<u64> = s.inbox.drain(..n_notices).filter_map(|n| n.msg_seq).collect();
+        let read: Vec<u64> = s
+            .inbox
+            .drain(..n_notices)
+            .filter_map(|n| n.msg_seq)
+            .collect();
         (text, read)
     };
     // Fire-and-forget read receipts; the hub's reply (to id u64::MAX) is ignored.
     for seq in read {
         d.send_up(Up::Req {
             id: u64::MAX,
-            req: Request::MsgRead { session: session.into(), seq },
+            req: Request::MsgRead {
+                session: session.into(),
+                seq,
+            },
         });
     }
     text
@@ -170,7 +216,9 @@ pub(crate) fn take_inbox(d: &Daemon, session: &str) -> String {
 /// and `..`; `None` when the file is outside the repository.
 fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String)> {
     let ti = &input["tool_input"];
-    let file = ti["file_path"].as_str().or_else(|| ti["notebook_path"].as_str())?;
+    let file = ti["file_path"]
+        .as_str()
+        .or_else(|| ti["notebook_path"].as_str())?;
     let (id, root, cwd) = {
         let st = d.st.lock().unwrap();
         let s = st.sessions.get(session)?;
@@ -183,14 +231,13 @@ fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String
 
 /// Protected-glob match; case-insensitive where the repository's filesystem is.
 fn is_protected(d: &Daemon, session: &str, rel: &str) -> bool {
-    let ci = d
-        .st
-        .lock()
-        .unwrap()
-        .sessions
-        .get(session)
-        .and_then(|s| s.repo.as_ref().map(|r| r.root.clone()))
-        .is_some_and(|root| repo::case_insensitive(&root));
+    let ci =
+        d.st.lock()
+            .unwrap()
+            .sessions
+            .get(session)
+            .and_then(|s| s.repo.as_ref().map(|r| r.root.clone()))
+            .is_some_and(|root| repo::case_insensitive(&root));
     d.cfg.protected.iter().any(|g| {
         glob::matches(g, rel) || (ci && glob::matches(&g.to_lowercase(), &rel.to_lowercase()))
     })
@@ -219,7 +266,9 @@ fn held_text(l: &LeaseInfo, rel: &str, repo: &str, protected: bool, lost: Option
         l.expires.saturating_sub(now_ms()) / 1000
     );
     if let Some(tok) = lost {
-        t.push_str(&format!(" This session's earlier lease on it (token {tok}) is no longer valid."));
+        t.push_str(&format!(
+            " This session's earlier lease on it (token {tok}) is no longer valid."
+        ));
     }
     if protected {
         t.push_str(" The path is protected, so the edit was refused. Ask the holder with wormhole_request_transfer or message them with wormhole_send.");
@@ -229,7 +278,13 @@ fn held_text(l: &LeaseInfo, rel: &str, repo: &str, protected: bool, lost: Option
     t
 }
 
-async fn pre_tool_use(d: &Daemon, session: &str, input: &Value, hub_ok: bool, deadline: Instant) -> Value {
+async fn pre_tool_use(
+    d: &Daemon,
+    session: &str,
+    input: &Value,
+    hub_ok: bool,
+    deadline: Instant,
+) -> Value {
     let tool = input["tool_name"].as_str().unwrap_or("");
     if !EDIT_TOOLS.contains(&tool) {
         return json!({});
@@ -271,10 +326,17 @@ async fn pre_tool_use(d: &Daemon, session: &str, input: &Value, hub_ok: bool, de
     };
     match d.request(acquire, deadline).await {
         Err(HubError::Unavailable) => output("PreToolUse", STALE_HUB),
-        Err(HubError::Rejected(e)) => output("PreToolUse", &format!("[wormhole] Lease check failed: {}", text::one_line(&e, 200))),
+        Err(HubError::Rejected(e)) => output(
+            "PreToolUse",
+            &format!("[wormhole] Lease check failed: {}", text::one_line(&e, 200)),
+        ),
         Ok(v) => match serde_json::from_value::<LeaseResult>(v) {
             Ok(LeaseResult::Granted { lease }) => {
-                d.st.lock().unwrap().sess(session).tokens.insert(key, lease.token);
+                d.st.lock()
+                    .unwrap()
+                    .sess(session)
+                    .tokens
+                    .insert(key, lease.token);
                 json!({})
             }
             Ok(LeaseResult::Held { lease }) => {
@@ -297,7 +359,13 @@ async fn pre_tool_use(d: &Daemon, session: &str, input: &Value, hub_ok: bool, de
 /// Record what the tool did: edits as activity, reads for change notices, git commit and
 /// push by name only. Never sends file contents, command text or tool output. False if
 /// the hub was needed and did not answer.
-async fn record_activity(d: &Daemon, session: &str, input: &Value, hub_ok: bool, deadline: Instant) -> bool {
+async fn record_activity(
+    d: &Daemon,
+    session: &str,
+    input: &Value,
+    hub_ok: bool,
+    deadline: Instant,
+) -> bool {
     let tool = input["tool_name"].as_str().unwrap_or("");
     let path = tool_path(d, session, input);
     let last = d.st.lock().unwrap().last_seq.unwrap_or(0);
@@ -308,12 +376,21 @@ async fn record_activity(d: &Daemon, session: &str, input: &Value, hub_ok: bool,
         return true;
     }
     let (kind, repo_id, paths, summary) = if EDIT_TOOLS.contains(&tool) {
-        let Some((repo_id, rel)) = path else { return true };
+        let Some((repo_id, rel)) = path else {
+            return true;
+        };
         // Your own edit counts as having read the result.
-        d.st.lock().unwrap().sess(session).reads.insert((repo_id.clone(), rel.clone()), last);
+        d.st.lock()
+            .unwrap()
+            .sess(session)
+            .reads
+            .insert((repo_id.clone(), rel.clone()), last);
         ("edit", repo_id, vec![rel.clone()], format!("edited {rel}"))
     } else if tool == "Bash" {
-        let cmd = input["tool_input"]["command"].as_str().unwrap_or("").trim_start();
+        let cmd = input["tool_input"]["command"]
+            .as_str()
+            .unwrap_or("")
+            .trim_start();
         let kind = if cmd.starts_with("git commit") {
             "commit"
         } else if cmd.starts_with("git push") {
@@ -322,7 +399,9 @@ async fn record_activity(d: &Daemon, session: &str, input: &Value, hub_ok: bool,
             return true;
         };
         let st = d.st.lock().unwrap();
-        let Some(r) = st.sessions.get(session).and_then(|s| s.repo.clone()) else { return true };
+        let Some(r) = st.sessions.get(session).and_then(|s| s.repo.clone()) else {
+            return true;
+        };
         (kind, r.id, vec![], format!("git {kind}"))
     } else {
         return true;
@@ -341,18 +420,25 @@ async fn record_activity(d: &Daemon, session: &str, input: &Value, hub_ok: bool,
 }
 
 /// "Who is working on what", for SessionStart and the wormhole_who tool.
-pub(crate) async fn who_text(d: &Daemon, session: &str, deadline: Instant) -> Result<String, HubError> {
+pub(crate) async fn who_text(
+    d: &Daemon,
+    session: &str,
+    deadline: Instant,
+) -> Result<String, HubError> {
     let v = d.request(Request::Snapshot, deadline).await?;
     let snap: Snapshot = serde_json::from_value(v).unwrap_or_default();
-    let my_repo = d
-        .st
-        .lock()
-        .unwrap()
-        .sessions
-        .get(session)
-        .and_then(|s| s.repo.as_ref().map(|r| r.id.clone()));
+    let my_repo =
+        d.st.lock()
+            .unwrap()
+            .sessions
+            .get(session)
+            .and_then(|s| s.repo.as_ref().map(|r| r.id.clone()));
     let mut body = String::new();
-    let others: Vec<&SessionInfo> = snap.sessions.iter().filter(|s| s.session != session).collect();
+    let others: Vec<&SessionInfo> = snap
+        .sessions
+        .iter()
+        .filter(|s| s.session != session)
+        .collect();
     if others.is_empty() {
         body.push_str("No other sessions are connected.\n");
     } else {
@@ -365,7 +451,11 @@ pub(crate) async fn who_text(d: &Daemon, session: &str, deadline: Instant) -> Re
                 s.machine,
                 s.repo,
                 s.branch,
-                if s.task.is_empty() { "not set" } else { &s.task },
+                if s.task.is_empty() {
+                    "not set"
+                } else {
+                    &s.task
+                },
                 super::state::hms(s.last_seen)
             ));
         }
@@ -389,6 +479,10 @@ pub(crate) async fn who_text(d: &Daemon, session: &str, deadline: Instant) -> Re
         }
     }
     body.push_str("Edits to a leased path get a warning naming the holder. The wormhole_* tools (send, lease, request_transfer) are available if the wormhole MCP server is configured.");
-    let block = text::block("wormhole-state", &[("as_of", &super::state::hms(now_ms()))], &body);
+    let block = text::block(
+        "wormhole-state",
+        &[("as_of", &super::state::hms(now_ms()))],
+        &body,
+    );
     Ok(text::assemble(&[block]).0)
 }

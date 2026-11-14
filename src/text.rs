@@ -112,7 +112,13 @@ pub fn one_line(s: &str, max: usize) -> String {
 pub fn attr(s: &str) -> String {
     s.chars()
         .take(128)
-        .map(|c| if c.is_ascii_alphanumeric() || "._@:/+-*".contains(c) { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || "._@:/+-*".contains(c) {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -205,8 +211,19 @@ mod tests {
         let input = format!("ok\u{E0001}{hidden}\u{E007F}");
         assert_eq!(clean(&input, 1000), "ok");
         for c in [
-            '\u{00AD}', '\u{034F}', '\u{061C}', '\u{180E}', '\u{200B}', '\u{2064}', '\u{206F}',
-            '\u{FE0F}', '\u{FEFF}', '\u{FFF9}', '\u{E0100}', '\u{E01EF}', '\u{1D173}',
+            '\u{00AD}',
+            '\u{034F}',
+            '\u{061C}',
+            '\u{180E}',
+            '\u{200B}',
+            '\u{2064}',
+            '\u{206F}',
+            '\u{FE0F}',
+            '\u{FEFF}',
+            '\u{FFF9}',
+            '\u{E0100}',
+            '\u{E01EF}',
+            '\u{1D173}',
         ] {
             assert_eq!(clean(&format!("a{c}b"), 10), "ab", "U+{:04X}", c as u32);
         }
@@ -218,7 +235,11 @@ mod tests {
     fn oversized_single_block_is_truncated_not_starved() {
         let (text, n) = assemble(&["y".repeat(20_000)]);
         assert_eq!(n, 1);
-        assert!(text.chars().count() <= MAX_CONTEXT, "{}", text.chars().count());
+        assert!(
+            text.chars().count() <= MAX_CONTEXT,
+            "{}",
+            text.chars().count()
+        );
         assert!(text.ends_with(TRUNCATED));
     }
 

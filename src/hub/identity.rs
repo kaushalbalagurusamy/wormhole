@@ -142,8 +142,14 @@ mod tests {
     fn whois_rejects_garbage_and_missing_fields() {
         assert_eq!(parse_whois("peer not found"), None);
         assert_eq!(parse_whois("{}"), None);
-        assert_eq!(parse_whois(r#"{"Node":{"ComputedName":"a"},"UserProfile":{"LoginName":""}}"#), None);
-        assert_eq!(parse_whois(r#"{"Node":{"ComputedName":""},"UserProfile":{"LoginName":"a@b"}}"#), None);
+        assert_eq!(
+            parse_whois(r#"{"Node":{"ComputedName":"a"},"UserProfile":{"LoginName":""}}"#),
+            None
+        );
+        assert_eq!(
+            parse_whois(r#"{"Node":{"ComputedName":""},"UserProfile":{"LoginName":"a@b"}}"#),
+            None
+        );
     }
 
     #[test]
@@ -166,7 +172,11 @@ mod tests {
         std::fs::create_dir_all(dir).unwrap();
         let bin = dir.join("tailscale");
         // Prints whatever is in `answer`, or fails if the file is missing.
-        std::fs::write(&bin, format!("#!/bin/sh\nexec cat '{}'\n", dir.join("answer").display())).unwrap();
+        std::fs::write(
+            &bin,
+            format!("#!/bin/sh\nexec cat '{}'\n", dir.join("answer").display()),
+        )
+        .unwrap();
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
         bin
     }
@@ -175,7 +185,9 @@ mod tests {
     async fn whois_is_asked_on_every_connection() {
         let dir = std::env::temp_dir().join(format!("wh-ts-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        let id = Identifier::new(IdentityConfig::Tailscale { bin: fake_tailscale(&dir) });
+        let id = Identifier::new(IdentityConfig::Tailscale {
+            bin: fake_tailscale(&dir),
+        });
         let peer: SocketAddr = "100.64.0.5:4000".parse().unwrap();
 
         std::fs::write(dir.join("answer"), WHOIS).unwrap();
@@ -184,11 +196,16 @@ mod tests {
         // The same IP now belongs to a different node: the new identity is used at once.
         std::fs::write(
             dir.join("answer"),
-            WHOIS.replace("laptop-a", "laptop-b").replace("alice@", "bob@"),
+            WHOIS
+                .replace("laptop-a", "laptop-b")
+                .replace("alice@", "bob@"),
         )
         .unwrap();
         let p = id.identify(peer, None).await.unwrap();
-        assert_eq!((p.user.as_str(), p.machine.as_str()), ("bob@example.com", "laptop-b"));
+        assert_eq!(
+            (p.user.as_str(), p.machine.as_str()),
+            ("bob@example.com", "laptop-b")
+        );
 
         // whois fails: the connection is refused (identity fails closed).
         std::fs::remove_file(dir.join("answer")).unwrap();

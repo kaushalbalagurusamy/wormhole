@@ -44,9 +44,18 @@ fn redact(e: &Event) -> Value {
 fn secure(mut r: Response, content_type: &'static str) -> Response {
     let h = r.headers_mut();
     h.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
-    h.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static(CSP));
-    h.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
-    h.insert(header::REFERRER_POLICY, HeaderValue::from_static("no-referrer"));
+    h.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(CSP),
+    );
+    h.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    h.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
     h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     r
 }
@@ -61,7 +70,9 @@ fn same_site(headers: &HeaderMap) -> bool {
     }
     match get("origin") {
         None => true,
-        Some(o) => get("host").is_some_and(|h| o == format!("http://{h}") || o == format!("https://{h}")),
+        Some(o) => {
+            get("host").is_some_and(|h| o == format!("http://{h}") || o == format!("https://{h}"))
+        }
     }
 }
 
@@ -76,17 +87,29 @@ macro_rules! identify {
     };
 }
 
-async fn index(State(hub): State<Arc<Hub>>, ConnectInfo(addr): ConnectInfo<SocketAddr>, headers: HeaderMap) -> Response {
+async fn index(
+    State(hub): State<Arc<Hub>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Response {
     identify!(hub, addr, headers);
     secure(INDEX.into_response(), "text/html; charset=utf-8")
 }
 
-async fn app_js(State(hub): State<Arc<Hub>>, ConnectInfo(addr): ConnectInfo<SocketAddr>, headers: HeaderMap) -> Response {
+async fn app_js(
+    State(hub): State<Arc<Hub>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Response {
     identify!(hub, addr, headers);
     secure(APP_JS.into_response(), "text/javascript; charset=utf-8")
 }
 
-async fn state(State(hub): State<Arc<Hub>>, ConnectInfo(addr): ConnectInfo<SocketAddr>, headers: HeaderMap) -> Response {
+async fn state(
+    State(hub): State<Arc<Hub>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Response {
     identify!(hub, addr, headers);
     let (snap, recent) = match (hub.snapshot(), hub.recent(200)) {
         (Ok(s), Ok(r)) => (s, r),
@@ -104,7 +127,11 @@ async fn state(State(hub): State<Arc<Hub>>, ConnectInfo(addr): ConnectInfo<Socke
     secure(body.to_string().into_response(), "application/json")
 }
 
-async fn events(State(hub): State<Arc<Hub>>, ConnectInfo(addr): ConnectInfo<SocketAddr>, headers: HeaderMap) -> Response {
+async fn events(
+    State(hub): State<Arc<Hub>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Response {
     identify!(hub, addr, headers);
     let rx = hub.subscribe();
     let stream = futures_util::stream::unfold(rx, |mut rx| async move {
@@ -119,7 +146,9 @@ async fn events(State(hub): State<Arc<Hub>>, ConnectInfo(addr): ConnectInfo<Sock
             }
         }
     });
-    Sse::new(stream).keep_alive(KeepAlive::default()).into_response()
+    Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response()
 }
 
 const INDEX: &str = r#"<!doctype html>
