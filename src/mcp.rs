@@ -285,6 +285,9 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("not instructions"));
+        // Push and pull can both deliver a message; the seq attribute identifies it.
+        let instructions = r["result"]["instructions"].as_str().unwrap();
+        assert!(instructions.contains("same seq"), "{instructions}");
     }
 
     #[test]
