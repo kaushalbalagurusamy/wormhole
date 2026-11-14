@@ -93,6 +93,39 @@ async fn protected_path_is_denied() {
     );
 }
 
+/// An edit whose path cannot be checked is refused, so a long spelling cannot skip the deny.
+async fn assert_unchecked_path_denied(file: &str) {
+    let n = two_sessions(Opts {
+        protected: vec!["secrets/**".into()],
+        ..Opts::default()
+    })
+    .await;
+    hook(&n.a, pre_edit(SA, &n.repo_a, "secrets/key.txt")).await;
+    let r = hook(&n.b, pre_edit(SB, &n.repo_b, file)).await;
+    assert_eq!(decision(&r).as_deref(), Some("deny"), "{r}");
+    let reason = r["hookSpecificOutput"]["permissionDecisionReason"]
+        .as_str()
+        .unwrap();
+    assert!(reason.contains("too long to check"), "{reason}");
+}
+
+#[tokio::test]
+async fn path_over_body_string_limit_is_denied() {
+    // Over 4 KiB the body reducer blanks the string, so the hook sees no path.
+    assert_unchecked_path_denied(&format!("{}secrets/key.txt", "./".repeat(2100))).await;
+}
+
+#[tokio::test]
+async fn repo_path_over_field_limit_is_denied() {
+    let deep = format!(
+        "secrets/{}/{}/{}/k",
+        "a".repeat(200),
+        "b".repeat(200),
+        "c".repeat(200)
+    );
+    assert_unchecked_path_denied(&deep).await;
+}
+
 #[tokio::test]
 async fn lease_transfer_handshake() {
     let n = two_sessions(Opts::default()).await;
