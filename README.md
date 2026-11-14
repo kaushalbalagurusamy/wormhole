@@ -21,9 +21,19 @@ On the hub machine, listen on its Tailscale address only. Every connection is id
     wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite \
         --allow alice@example.com --allow bob@example.com
 
+WireGuard already encrypts tailnet traffic. To also encrypt the daemon-to-hub link end to end (for example when a subnet router or exit node is on the path), serve TLS with a certificate from Tailscale (HTTPS certificates must be enabled for the tailnet):
+
+    tailscale cert --cert-file ~/.wormhole/hub.crt --key-file ~/.wormhole/hub.key hub.your-tailnet.ts.net
+    wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite \
+        --tls-cert ~/.wormhole/hub.crt --tls-key ~/.wormhole/hub.key --allow alice@example.com
+
+Tailscale certificates last 90 days: run the same `tailscale cert` command before they expire (from cron or a timer) and send the hub `SIGHUP` to load the new files without a restart. The hub refuses plaintext on any address other than loopback or a Tailscale address.
+
 On each developer machine, run one daemon. It serves hooks on 127.0.0.1:7421 and a socket in `~/.wormhole/` (mode 0700).
 
     wormhole daemon --hub ws://hub.your-tailnet.ts.net:7420/ws --protected 'secrets/**'
+
+With TLS on the hub, use `wss://hub.your-tailnet.ts.net:7420/ws`; the certificate is checked against the system roots. The daemon refuses `ws://` to anything other than loopback, a Tailscale address or a `*.ts.net` name.
 
 In each project, print the Claude Code configuration and merge it by hand; nothing is written for you:
 
@@ -37,19 +47,20 @@ Then start Claude Code as usual. Every session gets "who is working on what" at 
 
 Channels need a claude.ai account or a Console API key, are not available on Bedrock, Google Cloud or Foundry, and on Team and Enterprise plans an admin must enable them.
 
-The activity page is at `http://hub.your-tailnet.ts.net:7420/` from any machine on the tailnet.
+The activity page is at `http://hub.your-tailnet.ts.net:7420/` (or `https://` with TLS) from any machine on the tailnet.
 
 For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address, and a browser cannot open the activity page in this mode because it cannot send the identity header.
 
 ## Scope
 
-- Machines that fully trust each other, connected over a private network (Tailscale or similar), each used by one person or by accounts that all trust each other. Identity is per tailnet node: every account on an allowed machine has that machine's full access to the hub, including its sessions' messages.
+- Honest, enrolled devices on one private network (Tailscale), and their Claude Code sessions. Crashes, restarts and partitions are tolerated; dishonest participants are not. See [the fault model](docs/design.md#fault-model).
+- Each machine is used by one person, or by accounts that all trust each other. Identity is per tailnet node: every account on an allowed machine has that machine's full access to the hub, including its sessions' messages.
 - One hub process on one machine; one small daemon per developer machine.
 - Delivery into Claude Code through hooks (generally available) and, optionally, channels (research preview).
 
 ## Not in scope
 
-- Untrusted participants or public networks.
+- Untrusted or dishonest participants (Byzantine fault tolerance), and public networks.
 - Machines shared with accounts you do not trust.
 - Replacing git, pull requests or code review.
 - Routing between different users' Claude accounts through Anthropic's services; wormhole runs its own relay.

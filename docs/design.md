@@ -57,7 +57,7 @@ Leases expire unless renewed, so a crashed session cannot hold one indefinitely;
 | Path | Mechanism | Latency to the receiving session | Status |
 |---|---|---|---|
 | Pull at next action | `UserPromptSubmit` and `PostToolUse` hooks return unread messages and change notices | at the receiver's next tool call or prompt | generally available |
-| Lease check before an edit | `PreToolUse` HTTP hook asks the daemon | roughly 50–200 ms on a private network (estimate; cross-machine not yet measured); 0.19 ms p50 on localhost (measured). The warning text reaches the model after the edit (see the open problem below); a deny reaches it before | generally available |
+| Lease check before an edit | `PreToolUse` HTTP hook asks the daemon | roughly 50–200 ms on a private network (estimate; cross-machine not yet measured); 0.20 ms p50 on localhost over ws://, 0.21 ms over wss:// (measured). The warning text reaches the model after the edit (see the open problem below); a deny reaches it before | generally available |
 | Push | channel notification | about 1 s while the session is open (estimate; not yet measured into a live session); send to a client on the receiving daemon's socket 0.09 ms p50 on localhost (measured) | research preview |
 | Wake an idle session | channel event, or an `asyncRewake` hook | seconds (estimate) | channel: preview; `asyncRewake` support per event to be verified |
 
@@ -67,11 +67,23 @@ Leases expire unless renewed, so a crashed session cannot hold one indefinitely;
 - **Tell an agent when something it read has changed.** The daemon tracks files a session has read; a later edit by another session produces a change notice at the reader's next action.
 - **Server-tracked claims, not negotiation in chat.** AgentRoom (related-work.md) found claims tracked by a server beat agents negotiating ownership in messages.
 
+## Fault model
+
+Decided 2026-11-14. Every other trust or safety statement in this repo follows from this section.
+
+- **Participants are honest.** Every machine is an enrolled device on the team's tailnet, identified by its node key through `tailscale whois`, and every user on it is a teammate. Nobody lies to the hub on purpose. Byzantine fault tolerance (replicas that outvote liars, signed events, lying-peer detection) is a non-goal, and work aimed only at a dishonest participant is not done.
+- **Participants are fallible.** Honest machines still crash, lose power, get partitioned, run buggy builds, loop, and relay text their agent read from an untrusted source. The design tolerates these faults. Guards against them stay: ownership and fencing checks, session binding, text cleaning and wrapping, bounded queues, and receiver-side caps. They exist to catch bugs and accidents, not adversaries.
+- **Crash faults are tolerated for work, not for coordination.** Any component can crash or be cut off without corrupting shared state or blocking an edit: hooks let the action through and say the state is stale. There is one hub and no replica, so while it is down there is no coordination. Recovery restores it: daemons resume from their cursors and leases expire on their own.
+- **Participants trust each other; the network path is not trusted:** traffic is encrypted by WireGuard on the tailnet and by TLS when enabled.
+- **Device enrolment is the trust boundary.** Admitting a node to the tailnet admits it to wormhole. Narrow that with tailnet ACLs and `wormhole hub --allow`. Tailscale's Tailnet Lock makes enrolment require a signature from a trusted node, which matches the "signed devices" assumption; wormhole does not check whether it is on.
+- **Consequences.** A peer that claims every lease, sends inaccurate activity, or floods messages is treated as a bug: rate limits and pruning are for loops, not abuse. The hub is trusted to keep the log honestly. Work toward tolerating more crash faults is in scope: keeping daemon state across restarts, watching the working tree, and possibly a replicated hub.
+
 ## Trust and safety
 
-- Participants are trusted, but messages from other agents are still data to the receiving model. Every inbound message is wrapped as coming from a named session and cleaned, so it is not mistaken for the local user's instruction. Wrapping does not stop a model from following it, and a trusted agent can relay text it read from an untrusted source; the user's own permission prompts stay in force because wormhole never answers `allow`.
+- Participants are trusted (see "Fault model"), but messages from other agents are still data to the receiving model. Every inbound message is wrapped as coming from a named session and cleaned, so it is not mistaken for the local user's instruction. Wrapping does not stop a model from following it, and a trusted agent can relay text it read from an untrusted source; the user's own permission prompts stay in force because wormhole never answers `allow`.
 - Remote approval of another session's tool calls (channel permission relay) is never declared by wormhole's channel server, so it cannot be enabled through wormhole. It would let another person approve command execution on your machine.
 - The hub listens only on the private network. No path is exposed to the public internet.
+- The hub refuses to serve plaintext on any address other than loopback or a Tailscale address (100.64.0.0/10, fd7a:115c:a1e0::/48), and the daemon refuses a `ws://` hub URL whose host is not loopback, a Tailscale address or a `*.ts.net` name. With `--tls-cert` and `--tls-key` (from `tailscale cert`) the hub serves `wss://` and `https://`; the daemon verifies the certificate against the system roots, with no option to skip verification. TLS covers the daemon-to-hub link end to end, including where WireGuard stops short of the hub (a subnet router or exit node on the path). Identity still comes from `tailscale whois`, so the hub must run Tailscale; a non-Tailscale private network is not supported for identity yet. The hook and channel paths stay on the local machine (loopback HTTP and a Unix socket).
 - By default events carry paths and one-line summaries, not file contents or prompts. Full supervision detail is opt-in per session.
 
 ## Failure behaviour
@@ -82,9 +94,9 @@ Leases expire unless renewed, so a crashed session cannot hold one indefinitely;
 
 ## Resource use per developer machine
 
-- daemon: one process; 6.0 MB resident and no measurable CPU when idle on localhost (measured, see below). Earlier estimate: 10–20 MB, near 0%.
-- channel server: one per session; 4.0 MB resident (measured). Earlier estimate: 10–20 MB.
-- hooks: HTTP hooks run inside Claude Code; no extra process. `SessionStart` runs `wormhole hook` once per session start (about 2 ms).
+- daemon: one process; 10.2 MB resident and no measurable CPU when idle on localhost (measured, see below). Earlier estimate: 10–20 MB, near 0%.
+- channel server: one per session; 7.9 MB resident (measured). Earlier estimate: 10–20 MB.
+- hooks: HTTP hooks run inside Claude Code; no extra process. `SessionStart` runs `wormhole hook` once per session start (about 3 ms).
 
 ## First slice
 
@@ -123,25 +135,27 @@ Not built yet: the working-tree watcher and git pre-commit check for edits made 
 
 ## Measured
 
-Localhost only: one Apple M5 Pro (macOS, arm64), hub and two daemons on 127.0.0.1 with static identity, release build of commit 073bfc9, rustc 1.100.0, 2026-11-14. Produced by `scripts/bench.sh 300`. The code has changed since; the numbers have not been rerun. p95 and p99 come from 300 sequential requests by one client, not from load. Cross-machine numbers (the point of the project) are not yet measured.
+Localhost only: one Apple M5 Pro (macOS, arm64), hub and two daemons on 127.0.0.1 with static identity, release build of commit 8a852b0, rustc 1.100.0, 2026-11-14. Produced by `scripts/bench.sh 300`, which runs the same requests over `ws://` and over `wss://` (TLS on the daemon-to-hub link, with a throwaway CA). p95 and p99 come from 300 sequential requests by one client, not from load. Cross-machine numbers (the point of the project) are not yet measured.
 
-| Measurement | p50 | p95 | p99 |
-|---|---|---|---|
-| `PreToolUse` hook round trip, lease renew through the hub | 0.19 ms | 0.40 ms | 0.42 ms |
-| `PreToolUse` hook round trip, conflict warning | 0.18 ms | 0.20 ms | 0.22 ms |
-| `PostToolUse` hook round trip, nothing to deliver | 0.10 ms | 0.11 ms | 0.12 ms |
-| `SessionStart` through `wormhole hook` (process start included) | 2.03 ms | 2.38 ms | 2.57 ms |
-| Message from session A to a client attached to B's daemon socket, as the channel server attaches (send, hub, fan-out, push; the `mcp-channel` process and Claude Code are not in this path) | 0.09 ms | 0.13 ms | 0.22 ms |
+| Measurement | ws:// p50 | p95 | p99 | wss:// p50 | p95 | p99 |
+|---|---|---|---|---|---|---|
+| `PreToolUse` hook round trip, lease renew through the hub | 0.20 ms | 0.47 ms | 0.56 ms | 0.21 ms | 0.48 ms | 0.52 ms |
+| `PreToolUse` hook round trip, conflict warning | 0.18 ms | 0.21 ms | 0.25 ms | 0.18 ms | 0.20 ms | 0.22 ms |
+| `PostToolUse` hook round trip, nothing to deliver (no hub call) | 0.10 ms | 0.11 ms | 0.12 ms | 0.10 ms | 0.11 ms | 0.11 ms |
+| `SessionStart` through `wormhole hook` (process start included) | 2.91 ms | 3.26 ms | 3.53 ms | 2.95 ms | 3.31 ms | 3.76 ms |
+| Message from session A to a client attached to B's daemon socket, as the channel server attaches (send, hub, fan-out, push; the `mcp-channel` process and Claude Code are not in this path) | 0.09 ms | 0.14 ms | 0.16 ms | 0.11 ms | 0.14 ms | 0.16 ms |
 
-These exclude Claude Code's own hook overhead and network latency. A `PostToolUse` delivering a backlog returns as many messages as fit in 8,000 characters (32 short ones in the run) and keeps the rest for the next call.
+TLS adds about 0.01–0.02 ms at p50 on paths that cross the hub link, within the run-to-run noise; the hook endpoints themselves are unchanged, since TLS sits only between daemon and hub. These numbers exclude Claude Code's own hook overhead and network latency. A `PostToolUse` delivering a backlog returns as many messages as fit in 8,000 characters (32 short ones in the run) and keeps the rest for the next call.
 
-| Idle resource use (60 s, after the run above) | |
+Compared with the first run (commit 073bfc9, before the review fixes and TLS): hook round trips are the same within noise; `SessionStart` through the command went from 2.0 ms to 2.9 ms p50 and resident memory grew, both from the larger binary (rustls, ring and the added code).
+
+| Idle resource use (60 s, after the ws:// run) | |
 |---|---|
-| daemon resident memory | 6.0 MB |
+| daemon resident memory | 10.2 MB (6.0 MB at 073bfc9) |
 | daemon CPU | below 0.02% (no CPU time recorded at the 10 ms resolution of `ps`) |
-| hub resident memory | 7.6 MB |
+| hub resident memory | 11.6 MB (7.6 MB at 073bfc9) |
 | hub CPU | 0.05% (lease and presence sweep every 500 ms) |
-| channel server resident memory | 4.0 MB |
+| channel server resident memory | 7.9 MB (4.0 MB at 073bfc9) |
 
 ## Security notes
 

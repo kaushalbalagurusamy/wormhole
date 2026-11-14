@@ -6,7 +6,7 @@ Report a vulnerability privately through GitHub's "Report a vulnerability" form 
 
 ## Scope
 
-wormhole assumes machines that trust each other on a private network (Tailscale or similar), each used by one person or by accounts that all trust each other. Identity is per tailnet node: the hub cannot tell operating-system accounts on one machine apart. In scope:
+wormhole assumes honest, enrolled devices on a private network (Tailscale); see the fault model in docs/design.md. Participants do not lie, but they crash, run buggy builds and relay untrusted text, so the checks below still matter. Identity is per tailnet node: the hub cannot tell operating-system accounts on one machine apart, so each machine must be used by one person or by accounts that all trust each other. In scope:
 
 - The hub accepting a connection it cannot identify, or letting one connection act for a session, user or machine it does not own.
 - Lease bypass: a stale fencing token accepted, a lease released or granted by a non-holder.
@@ -15,12 +15,13 @@ wormhole assumes machines that trust each other on a private network (Tailscale 
 - The daemon's loopback HTTP endpoint or Unix socket being usable from a browser or another local user.
 - Hooks blocking work when the hub or daemon is down. They must fail open; a protected path is denied only while the hub answers and reports another holder.
 
-Out of scope: participants who are already trusted acting maliciously within their own permissions, other accounts on an allowed machine (the hub treats them as that machine), denial of service from a trusted peer, and anything requiring the hub to be exposed to the public internet (unsupported).
+Out of scope: an enrolled participant lying on purpose (no Byzantine fault tolerance: false activity, hoarding leases, a dishonest hub), other accounts on an allowed machine (the hub treats them as that machine), denial of service from an enrolled peer, a compromised device that was admitted to the tailnet, and anything requiring the hub to be exposed to the public internet (unsupported). The same behaviour caused by a bug, such as an agent loop, is in scope.
 
 ## Threat model notes
 
 Covered:
 
+- Transport: participants trust each other, the network path is not trusted. The hub serves plaintext only on loopback or a Tailscale address, where WireGuard encrypts the path, and the daemon sends plaintext only to such an address or a `*.ts.net` name. Elsewhere TLS is required: the hub serves `wss://` and `https://` with rustls (no OpenSSL), and the daemon verifies the certificate against the system roots; there is no option to skip verification. A renewed certificate is loaded on SIGHUP. Tests cover a verified round trip and rejection of an untrusted, expired or misnamed certificate.
 - Identity comes from the network (`tailscale whois` on the peer address), never from the payload. It names the tailnet login and node, not the operating-system account. whois runs once for every new connection or HTTP request and is never cached, so a tailnet address reassigned to another node is identified afresh; if whois fails or returns no user and node, the connection is refused (identity fails closed, unlike hooks). Static identity is for tests; the hub refuses it unless bound to loopback and rejects non-loopback peers.
 - Relayed text is cleaned before it reaches a model: control characters and all Unicode format (Cf) characters are removed, including the tag block U+E0000 to U+E007F used to smuggle hidden instructions, variation selectors, U+00AD, U+034F and U+180E. U+2028, U+2029 and U+0085 are treated as line breaks. `<`, `>` and `&` are escaped so a body cannot close its wrapper.
 - A session id is bound in the hub database to the first peer that registers it, and stays bound after the session ends or times out; another peer cannot re-register it. A timed-out session's leases are released. A message to a session records the recipient's user and machine when it is sent, and only that peer can receive it, before or after the session expires.
@@ -37,7 +38,7 @@ Covered:
 Not covered (accepted for this slice; details in docs/design.md under "Security notes"):
 
 - Identity is per tailnet node, not per operating-system account. Any account on an allowed machine can connect to the hub directly (WebSocket, HTTP API, activity page), skipping the daemon and its uid and token checks, and the hub treats it as that machine: it can read messages addressed to the machine's sessions, register sessions, take and release their leases, and send as them. Use wormhole only on single-user machines or machines whose accounts all trust each other.
-- The hub accepts a second connection with the same identity alongside the first. Session ids are bound to the machine name, so renaming a machine orphans messages addressed to its earlier sessions.
+- The hub accepts a second connection with the same identity alongside the first. Session ids are bound to the machine name, so after a machine rename, new connections cannot receive messages addressed to its earlier sessions or reuse those session ids. Existing connections keep their original identity until they disconnect.
 - Processes running as the same user, including the agent's own shell, can read the hook token and use the daemon socket.
 - While the daemon is down, another local user could listen on the fixed hook port and receive hook requests.
 - Text relayed by a trusted agent may carry instructions it read elsewhere. It is wrapped, cleaned and labelled as data, and the user's permission prompts stay in force, but the receiving model can still follow it.
