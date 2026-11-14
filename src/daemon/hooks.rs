@@ -240,6 +240,7 @@ pub(crate) fn take_inbox(d: &Daemon, session: &str) -> String {
         (text, read)
     };
     // Fire-and-forget read receipts; the hub's reply (to id u64::MAX) is ignored.
+    let delivered = !read.is_empty();
     for seq in read {
         d.send_up(Up::Req {
             id: u64::MAX,
@@ -248,6 +249,13 @@ pub(crate) fn take_inbox(d: &Daemon, session: &str) -> String {
                 seq,
             },
         });
+    }
+    // Delivered messages no longer hold the hub cursor back.
+    if delivered {
+        let ack = d.st.lock().unwrap().ack_point();
+        if let Some(seq) = ack {
+            d.send_up(Up::Ack { seq });
+        }
     }
     text
 }

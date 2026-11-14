@@ -148,7 +148,7 @@ impl Daemon {
         }
     }
 
-    fn send_up(&self, up: Up) {
+    pub(crate) fn send_up(&self, up: Up) {
         if let Some(o) = self.link.out.lock().unwrap().as_ref() {
             let _ = o.send(up);
         }
@@ -300,7 +300,14 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     }
     match tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
         Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Down>(&t) {
-            Ok(Down::Welcome { .. }) => {}
+            Ok(Down::Welcome { head, .. }) => {
+                // A hub log behind our cursor (database reset, or commits lost on power
+                // failure) would otherwise make us drop every new event as already seen.
+                let mut st = d.st.lock().unwrap();
+                if st.last_seq.is_some_and(|l| l > head) {
+                    st.last_seq = Some(head);
+                }
+            }
             _ => return false,
         },
         _ => return false,
@@ -337,9 +344,14 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
                 match frame {
                     Some(Ok(Message::Text(t))) => match serde_json::from_str::<Down>(&t) {
                         Ok(Down::Event { event }) => {
-                            let seq = event.seq;
-                            d.st.lock().unwrap().apply(&event);
-                            d.send_up(Up::Ack { seq });
+                            let ack = {
+                                let mut st = d.st.lock().unwrap();
+                                st.apply(&event);
+                                st.ack_point()
+                            };
+                            if let Some(seq) = ack {
+                                d.send_up(Up::Ack { seq });
+                            }
                         }
                         Ok(Down::Resp { id, ok, data, error }) => {
                             if let Some(tx) = d.link.pending.lock().unwrap().remove(&id) {

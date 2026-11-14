@@ -12,9 +12,14 @@ use tokio::sync::mpsc;
 
 /// Most notices kept per session; older ones are dropped and counted.
 const INBOX_MAX: usize = 100;
+/// An undelivered message older than this stops holding back the hub cursor, so a session
+/// that vanished without ending cannot pin replay forever.
+const HOLD_CURSOR_MS: u64 = 24 * 3600 * 1000;
 
 pub(crate) struct Notice {
     pub seq: u64,
+    /// Hub time of the event, for the undelivered-message age limit.
+    pub ts: u64,
     pub block: String,
     pub meta: Vec<(String, String)>,
     /// Set for messages, so delivery can be acknowledged to the hub.
@@ -111,6 +116,7 @@ fn notice(e: &Event, tag: &str, kind: &str, body: &str, msg: bool) -> Notice {
         .collect();
     Notice {
         seq: e.seq,
+        ts: e.ts,
         block: text::block(tag, &attrs, body),
         meta: meta
             .iter()
@@ -121,6 +127,22 @@ fn notice(e: &Event, tag: &str, kind: &str, body: &str, msg: bool) -> Notice {
 }
 
 impl State {
+    /// What to acknowledge to the hub: everything processed, except that the cursor stays
+    /// before the oldest message not yet delivered to its session, so a daemon restart
+    /// replays it.
+    pub fn ack_point(&self) -> Option<u64> {
+        let last = self.last_seq?;
+        let now = crate::proto::now_ms();
+        let oldest = self
+            .sessions
+            .values()
+            .flat_map(|s| s.inbox.iter())
+            .filter(|n| n.msg_seq.is_some() && now.saturating_sub(n.ts) < HOLD_CURSOR_MS)
+            .map(|n| n.seq.saturating_sub(1))
+            .min();
+        Some(oldest.map_or(last, |o| o.min(last)))
+    }
+
     pub fn sess(&mut self, id: &str) -> &mut Sess {
         self.sessions
             .entry(id.to_string())
@@ -226,6 +248,14 @@ impl State {
                         e.session, e.user, e.machine, s("scope"), s("repo"), s("reason")
                     );
                     sess.notify(notice(e, "wormhole-lease", "lease_denied", &body, false));
+                }
+            }
+            // A read receipt (ours, replayed after a restart) means the message was delivered.
+            "msg.read" => {
+                if let (Some(sess), Some(seq)) =
+                    (self.sessions.get_mut(&e.session), d["seq"].as_u64())
+                {
+                    sess.inbox.retain(|n| n.msg_seq != Some(seq));
                 }
             }
             // Tokens are kept through expiry on purpose: the next edit presents the old token,
