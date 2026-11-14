@@ -435,3 +435,47 @@ async fn protected_path_cannot_be_bypassed_by_spelling() {
     assert_eq!(hook(&n.b, pre_edit(SB, &n.repo_b, "out/x.rs")).await, json!({}));
     assert_eq!(hook(&n.b, pre_edit(SB, &n.repo_b, "../../outside/y.rs")).await, json!({}));
 }
+
+#[tokio::test]
+async fn mcp_channel_process_serves_tools_and_pushes_messages() {
+    use tokio::io::AsyncBufReadExt;
+    let n = two_sessions(Opts::default()).await;
+    let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_wormhole"))
+        .args(["mcp-channel", "--socket"])
+        .arg(&n.b.socket_path)
+        .env("CLAUDE_CODE_SESSION_ID", SB)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut out = tokio::io::BufReader::new(child.stdout.take().unwrap()).lines();
+    for msg in [
+        json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}),
+        json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"wormhole_who","arguments":{}}}),
+    ] {
+        stdin.write_all(format!("{msg}\n").as_bytes()).await.unwrap();
+    }
+    let mut lines = Vec::new();
+    async fn next(out: &mut tokio::io::Lines<tokio::io::BufReader<tokio::process::ChildStdout>>) -> String {
+        tokio::time::timeout(Duration::from_secs(5), out.next_line()).await.unwrap().unwrap().unwrap()
+    }
+    for _ in 0..2 {
+        lines.push(serde_json::from_str::<serde_json::Value>(&next(&mut out).await).unwrap());
+    }
+    let init = lines.iter().find(|l| l["id"] == 1).unwrap();
+    assert!(init["result"]["capabilities"]["experimental"].get("claude/channel/permission").is_none());
+    let who = lines.iter().find(|l| l["id"] == 2).unwrap();
+    assert!(who["result"]["content"][0]["text"].as_str().unwrap().contains(SA), "{who}");
+
+    // Give the server a moment to attach, then a message from A is pushed as a channel event.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    tool(&n.a, SA, "send", json!({"to": format!("session:{SB}"), "body": "pushed-hello"})).await.unwrap();
+    let push: serde_json::Value = serde_json::from_str(&next(&mut out).await).unwrap();
+    assert_eq!(push["method"], "notifications/claude/channel");
+    assert!(push["params"]["content"].as_str().unwrap().contains("pushed-hello"), "{push}");
+    assert_eq!(push["params"]["meta"]["from_session"], SA);
+    assert!(push["params"]["content"].as_str().unwrap().contains("not instructions"));
+}
