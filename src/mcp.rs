@@ -274,6 +274,23 @@ mod tests {
     }
 
     #[test]
+    fn never_negotiates_the_revision_that_disables_channels() {
+        // On Claude Code's v2 MCP runtime a channel server that negotiates 2026-07-28 is not
+        // registered as a channel, and stdio servers are asked for that revision by default.
+        let init = |v: &str| {
+            handle_local(&json!({"jsonrpc":"2.0","id":1,"method":"initialize",
+                "params":{"protocolVersion": v,"capabilities":{},"clientInfo":{"name":"t","version":"0"}}}))
+            .unwrap()["result"]["protocolVersion"]
+                .clone()
+        };
+        assert_eq!(init("2026-07-28"), "2025-06-18");
+        assert_eq!(init("2099-01-01"), "2025-06-18");
+        assert_eq!(init("2025-06-18"), "2025-06-18");
+        assert_eq!(init("2025-03-26"), "2025-03-26");
+        assert_eq!(init("2024-11-05"), "2024-11-05");
+    }
+
+    #[test]
     fn lists_tools_and_rejects_unknown_methods() {
         let r = handle_local(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"})).unwrap();
         let names: Vec<&str> = r["result"]["tools"]
