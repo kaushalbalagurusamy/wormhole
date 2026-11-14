@@ -88,6 +88,19 @@ pub fn clean(s: &str, max: usize) -> String {
     out
 }
 
+/// One line of plain text for storage: control and invisible characters removed, line
+/// breaks folded, at most `max` characters. Not escaped; escape when rendering.
+pub fn plain(s: &str, max: usize) -> String {
+    s.split(line_break)
+        .filter(|p| !p.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .filter(|&c| !c.is_control() && !invisible(c))
+        .take(max)
+        .collect()
+}
+
 /// `clean`, with line breaks folded to spaces.
 pub fn one_line(s: &str, max: usize) -> String {
     let folded: Vec<&str> = s.split(line_break).filter(|p| !p.is_empty()).collect();
@@ -164,6 +177,12 @@ mod tests {
     fn one_line_folds_newlines() {
         assert_eq!(one_line("a\nb\r\nc", 50), "a b c");
         assert_eq!(one_line("a\u{2028}b\u{2029}c\u{0085}d", 50), "a b c d");
+    }
+
+    #[test]
+    fn plain_strips_and_folds_without_escaping() {
+        assert_eq!(plain("a<b>\u{E0041}\nc\u{0007}", 50), "a<b> c");
+        assert_eq!(plain(&"x".repeat(50), 10).len(), 10);
     }
 
     #[test]

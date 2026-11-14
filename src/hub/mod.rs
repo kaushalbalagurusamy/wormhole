@@ -1,11 +1,26 @@
 //! The hub: one process holding the ordered event log, presence, leases and inboxes.
 
 pub mod identity;
+mod page;
 pub mod store;
 
-use identity::IdentityConfig;
+use crate::proto::*;
+use crate::text;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{ConnectInfo, State};
+use axum::http::{header, HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use futures_util::{SinkExt, StreamExt};
+use identity::{IdentityConfig, Identifier, Peer};
+use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use store::{Acquired, Holder, LeaseError, Store};
+use tokio::sync::{broadcast, mpsc};
 
 #[derive(Clone, Debug)]
 pub struct HubConfig {
@@ -14,23 +29,583 @@ pub struct HubConfig {
     pub identity: IdentityConfig,
 }
 
+/// A session with no heartbeat for this long is reported gone.
+const PRESENCE_TIMEOUT_MS: u64 = 120_000;
+/// Lease length after a transfer; the recipient's daemon renews it on its next edit.
+const TRANSFER_TTL_MS: u64 = 600_000;
+const REPLAY_BATCH: usize = 500;
+const ACTIVITY_KINDS: &[&str] = &["edit", "command", "commit", "push", "pr"];
+
+struct Sess {
+    info: SessionInfo,
+    owner: Peer,
+}
+
+pub(crate) struct Hub {
+    store: Mutex<Store>,
+    tx: broadcast::Sender<Event>,
+    sessions: Mutex<HashMap<String, Sess>>,
+    ident: Identifier,
+    kick: broadcast::Sender<String>,
+}
+
 pub struct HubHandle {
     pub addr: SocketAddr,
+    hub: Arc<Hub>,
+    server: tokio::task::JoinHandle<()>,
+    sweeper: tokio::task::JoinHandle<()>,
 }
 
 impl HubHandle {
     /// Close every connection from `machine` (used by tests to simulate a network drop).
     pub fn kick(&self, machine: &str) {
-        let _ = machine;
-        todo!()
+        let _ = self.hub.kick.send(machine.to_string());
     }
 
     pub async fn shutdown(self) {
-        todo!()
+        let _ = self.hub.kick.send("*".into());
+        self.server.abort();
+        self.sweeper.abort();
+        let _ = self.server.await;
     }
 }
 
 pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
-    let _ = cfg;
-    todo!()
+    if matches!(cfg.identity, IdentityConfig::Static) && !cfg.listen.ip().is_loopback() {
+        return Err("static identity is only allowed when the hub listens on loopback".into());
+    }
+    let store = Store::open(&cfg.db).map_err(|e| format!("open {}: {e}", cfg.db.display()))?;
+    let (tx, _) = broadcast::channel(1024);
+    let (kick, _) = broadcast::channel(16);
+    let hub = Arc::new(Hub {
+        store: Mutex::new(store),
+        tx,
+        sessions: Mutex::new(HashMap::new()),
+        ident: Identifier::new(cfg.identity.clone()),
+        kick,
+    });
+    let listener = tokio::net::TcpListener::bind(cfg.listen)
+        .await
+        .map_err(|e| format!("bind {}: {e}", cfg.listen))?;
+    let addr = listener.local_addr().map_err(|e| e.to_string())?;
+    let app = axum::Router::new()
+        .route("/ws", get(ws))
+        .merge(page::routes())
+        .with_state(hub.clone());
+    let server = tokio::spawn(async move {
+        let _ = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await;
+    });
+    let sweeper = tokio::spawn(sweep(hub.clone()));
+    Ok(HubHandle {
+        addr,
+        hub,
+        server,
+        sweeper,
+    })
+}
+
+/// Identify an HTTP or WebSocket peer. Requests from browsers (with an `Origin`) are
+/// refused on the WebSocket; the page routes allow same-origin reads.
+pub(crate) async fn who(hub: &Hub, addr: SocketAddr, headers: &HeaderMap) -> Result<Peer, StatusCode> {
+    let claim = headers.get(STATIC_ID_HEADER).and_then(|v| v.to_str().ok());
+    hub.ident.identify(addr, claim).await.ok_or(StatusCode::FORBIDDEN)
+}
+
+async fn ws(
+    State(hub): State<Arc<Hub>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    up: WebSocketUpgrade,
+) -> Response {
+    if headers.contains_key(header::ORIGIN) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    let peer = match who(&hub, addr, &headers).await {
+        Ok(p) => p,
+        Err(s) => return s.into_response(),
+    };
+    up.max_message_size(MAX_FRAME)
+        .max_frame_size(MAX_FRAME)
+        .on_upgrade(move |sock| connection(hub, peer, sock))
+}
+
+fn send_down(out: &mpsc::UnboundedSender<Message>, d: &Down) {
+    if let Ok(s) = serde_json::to_string(d) {
+        let _ = out.send(Message::Text(s.into()));
+    }
+}
+
+async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
+    let (mut sink, mut stream) = sock.split();
+    let (out, mut out_rx) = mpsc::unbounded_channel::<Message>();
+    let writer = tokio::spawn(async move {
+        while let Some(m) = out_rx.recv().await {
+            if sink.send(m).await.is_err() {
+                break;
+            }
+        }
+    });
+    let mut kick = hub.kick.subscribe();
+
+    // First frame must be Resume.
+    let from = match tokio::time::timeout(Duration::from_secs(10), stream.next()).await {
+        Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Up>(&t) {
+            Ok(Up::Resume { from }) => from,
+            _ => {
+                writer.abort();
+                return;
+            }
+        },
+        _ => {
+            writer.abort();
+            return;
+        }
+    };
+    // Subscribe before reading the log so nothing falls between replay and live.
+    let mut rx = hub.tx.subscribe();
+    let (head, cursor) = {
+        let st = hub.store.lock().unwrap();
+        (st.head().unwrap_or(0), st.cursor(&peer.key()).ok().flatten())
+    };
+    send_down(
+        &out,
+        &Down::Welcome {
+            user: peer.user.clone(),
+            machine: peer.machine.clone(),
+            head,
+        },
+    );
+    let mut last = from.or(cursor).unwrap_or(head);
+    if !hub.replay(&peer, &out, &mut last) {
+        writer.abort();
+        return;
+    }
+
+    loop {
+        tokio::select! {
+            ev = rx.recv() => match ev {
+                Ok(e) => {
+                    if e.seq > last {
+                        if hub.visible(&e, &peer) {
+                            send_down(&out, &Down::Event { event: e.clone() });
+                        }
+                        last = e.seq;
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(_)) => {
+                    if !hub.replay(&peer, &out, &mut last) { break; }
+                }
+                Err(broadcast::error::RecvError::Closed) => break,
+            },
+            frame = stream.next() => match frame {
+                Some(Ok(Message::Text(t))) => match serde_json::from_str::<Up>(&t) {
+                    Ok(Up::Ack { seq }) => {
+                        let _ = hub.store.lock().unwrap().set_cursor(&peer.key(), seq.min(last));
+                    }
+                    Ok(Up::Req { id, req }) => {
+                        let d = match hub.handle(&peer, req) {
+                            Ok(data) => Down::Resp { id, ok: true, data, error: None },
+                            Err(e) => Down::Resp { id, ok: false, data: Value::Null, error: Some(e) },
+                        };
+                        send_down(&out, &d);
+                    }
+                    Ok(Up::Resume { .. }) | Err(_) => break,
+                },
+                Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
+                Some(Ok(_)) => {}
+            },
+            k = kick.recv() => {
+                if let Ok(m) = k {
+                    if m == "*" || m == peer.machine { break; }
+                }
+            }
+        }
+    }
+    writer.abort();
+}
+
+fn now() -> u64 {
+    now_ms()
+}
+
+fn field(name: &str, s: &str) -> Result<(), String> {
+    if s.is_empty() || s.len() > MAX_FIELD || s.chars().any(|c| c.is_control()) {
+        return Err(format!("invalid {name}"));
+    }
+    Ok(())
+}
+
+fn lease_err(e: LeaseError) -> String {
+    match e {
+        LeaseError::NotHeld => "not_held: no live lease on that scope".into(),
+        LeaseError::StaleToken => "stale_token: that token is no longer the current one".into(),
+        LeaseError::NotHolder => "not_holder: another session holds that lease".into(),
+        LeaseError::Conflict(l) => format!("conflict: session {} holds overlapping scope {}", l.session, l.scope),
+    }
+}
+
+fn db<T>(r: rusqlite::Result<T>) -> Result<T, String> {
+    r.map_err(|e| {
+        eprintln!("wormhole hub: database error: {e}");
+        "internal error".to_string()
+    })
+}
+
+impl Hub {
+    /// Send everything after `last` that `peer` may see. False if the database failed.
+    fn replay(&self, peer: &Peer, out: &mpsc::UnboundedSender<Message>, last: &mut u64) -> bool {
+        loop {
+            let batch = match self.store.lock().unwrap().events_after(*last, REPLAY_BATCH) {
+                Ok(b) => b,
+                Err(_) => return false,
+            };
+            if batch.is_empty() {
+                return true;
+            }
+            for e in batch {
+                *last = e.seq;
+                if self.visible(&e, peer) {
+                    send_down(out, &Down::Event { event: e });
+                }
+            }
+        }
+    }
+
+    /// Messages go only to the machines they are addressed to; everything else to all.
+    fn visible(&self, e: &Event, peer: &Peer) -> bool {
+        if e.kind != "msg" {
+            return true;
+        }
+        match serde_json::from_value::<Target>(e.data["to"].clone()) {
+            Ok(Target::Broadcast) => true,
+            Ok(Target::User(u)) => u == peer.user,
+            Ok(Target::Session(s)) => self
+                .sessions
+                .lock()
+                .unwrap()
+                .get(&s)
+                .is_some_and(|x| &x.owner == peer),
+            Err(_) => false,
+        }
+    }
+
+    /// Append to the log and fan out, in sequence order.
+    fn emit(&self, kind: &str, peer: &Peer, session: &str, data: Value) -> Result<Event, String> {
+        let mut st = self.store.lock().unwrap();
+        let e = db(st.append(now(), kind, &peer.user, &peer.machine, session, data))?;
+        let _ = self.tx.send(e.clone());
+        Ok(e)
+    }
+
+    fn emit_lease(&self, kind: &str, l: &LeaseInfo, extra: Value) -> Result<Event, String> {
+        let peer = Peer {
+            user: l.user.clone(),
+            machine: l.machine.clone(),
+        };
+        let mut data = json!({"repo": l.repo, "scope": l.scope, "token": l.token, "expires": l.expires});
+        if let (Some(d), Value::Object(x)) = (data.as_object_mut(), extra) {
+            d.extend(x);
+        }
+        self.emit(kind, &peer, &l.session, data)
+    }
+
+    fn own(&self, peer: &Peer, session: &str) -> Result<(), String> {
+        match self.sessions.lock().unwrap().get(session) {
+            Some(s) if &s.owner == peer => Ok(()),
+            Some(_) => Err("session belongs to another machine".into()),
+            None => Err("unknown session; send hello first".into()),
+        }
+    }
+
+    fn owner_of(&self, session: &str) -> Option<Peer> {
+        self.sessions.lock().unwrap().get(session).map(|s| s.owner.clone())
+    }
+
+    fn handle(&self, peer: &Peer, req: Request) -> Result<Value, String> {
+        let t = now();
+        match req {
+            Request::Hello {
+                session,
+                repo,
+                branch,
+                task,
+            } => {
+                field("session", &session)?;
+                let repo = text::plain(&repo, MAX_FIELD);
+                let branch = text::plain(&branch, MAX_FIELD);
+                let task = text::plain(&task, MAX_TASK);
+                let changed = {
+                    let mut ss = self.sessions.lock().unwrap();
+                    match ss.get_mut(&session) {
+                        Some(s) if &s.owner != peer => return Err("session belongs to another machine".into()),
+                        Some(s) => {
+                            s.info.last_seen = t;
+                            let changed = s.info.repo != repo || s.info.branch != branch || s.info.task != task;
+                            s.info.repo = repo.clone();
+                            s.info.branch = branch.clone();
+                            s.info.task = task.clone();
+                            changed
+                        }
+                        None => {
+                            ss.insert(
+                                session.clone(),
+                                Sess {
+                                    info: SessionInfo {
+                                        session: session.clone(),
+                                        user: peer.user.clone(),
+                                        machine: peer.machine.clone(),
+                                        repo: repo.clone(),
+                                        branch: branch.clone(),
+                                        task: task.clone(),
+                                        since: t,
+                                        last_seen: t,
+                                    },
+                                    owner: peer.clone(),
+                                },
+                            );
+                            true
+                        }
+                    }
+                };
+                if changed {
+                    self.emit("hello", peer, &session, json!({"repo": repo, "branch": branch, "task": task}))?;
+                }
+                Ok(json!({}))
+            }
+            Request::Heartbeat { session } => {
+                self.own(peer, &session)?;
+                if let Some(s) = self.sessions.lock().unwrap().get_mut(&session) {
+                    s.info.last_seen = t;
+                }
+                Ok(json!({}))
+            }
+            Request::Bye { session } => {
+                self.own(peer, &session)?;
+                self.sessions.lock().unwrap().remove(&session);
+                let gone = db(self.store.lock().unwrap().release_session(&session))?;
+                for l in gone {
+                    self.emit_lease("lease.released", &l, json!({}))?;
+                }
+                self.emit("bye", peer, &session, json!({"reason": "ended"}))?;
+                Ok(json!({}))
+            }
+            Request::Activity {
+                session,
+                kind,
+                repo,
+                paths,
+                summary,
+            } => {
+                self.own(peer, &session)?;
+                if !ACTIVITY_KINDS.contains(&kind.as_str()) {
+                    return Err("invalid activity kind".into());
+                }
+                field("repo", &repo)?;
+                if paths.len() > MAX_PATHS {
+                    return Err("too many paths".into());
+                }
+                for p in &paths {
+                    field("path", p)?;
+                }
+                let summary = text::plain(&summary, MAX_SUMMARY);
+                let e = self.emit(
+                    "activity",
+                    peer,
+                    &session,
+                    json!({"kind": kind, "repo": repo, "paths": paths, "summary": summary}),
+                )?;
+                Ok(json!({"seq": e.seq}))
+            }
+            Request::Send {
+                session,
+                to,
+                body,
+                reply_to,
+            } => {
+                self.own(peer, &session)?;
+                if body.len() > MAX_BODY {
+                    return Err(format!("message body too large (max {MAX_BODY} bytes)"));
+                }
+                if body.trim().is_empty() {
+                    return Err("empty message".into());
+                }
+                match &to {
+                    Target::Session(s) => {
+                        if self.owner_of(s).is_none() {
+                            return Err("no such session".into());
+                        }
+                    }
+                    Target::User(u) => field("user", u)?,
+                    Target::Broadcast => {}
+                }
+                let e = self.emit("msg", peer, &session, json!({"to": to, "body": body, "reply_to": reply_to}))?;
+                Ok(json!({"seq": e.seq}))
+            }
+            Request::MsgRead { session, seq } => {
+                self.own(peer, &session)?;
+                self.emit("msg.read", peer, &session, json!({"seq": seq}))?;
+                Ok(json!({}))
+            }
+            Request::LeaseAcquire {
+                session,
+                repo,
+                scope,
+                ttl_ms,
+            } => {
+                self.own(peer, &session)?;
+                field("repo", &repo)?;
+                field("scope", &scope)?;
+                if !crate::glob::valid(&scope) {
+                    return Err("scope has too many ** segments".into());
+                }
+                let who = Holder {
+                    session: &session,
+                    user: &peer.user,
+                    machine: &peer.machine,
+                };
+                let r = db(self.store.lock().unwrap().acquire(t, &who, &repo, &scope, ttl_ms))?;
+                let res = match r {
+                    Acquired::Granted { lease, fresh } => {
+                        if fresh {
+                            self.emit_lease("lease.granted", &lease, json!({"via": "acquire"}))?;
+                        }
+                        LeaseResult::Granted { lease }
+                    }
+                    Acquired::Held(lease) => LeaseResult::Held { lease },
+                };
+                Ok(serde_json::to_value(res).unwrap_or(Value::Null))
+            }
+            Request::LeaseRenew {
+                session,
+                repo,
+                scope,
+                token,
+                ttl_ms,
+            } => {
+                self.own(peer, &session)?;
+                let r = db(self.store.lock().unwrap().renew(t, &session, &repo, &scope, token, ttl_ms))?;
+                let lease = r.map_err(lease_err)?;
+                Ok(serde_json::to_value(LeaseResult::Granted { lease }).unwrap_or(Value::Null))
+            }
+            Request::LeaseRelease {
+                session,
+                repo,
+                scope,
+                token,
+            } => {
+                self.own(peer, &session)?;
+                let r = db(self.store.lock().unwrap().release(t, &session, &repo, &scope, token))?;
+                let l = r.map_err(lease_err)?;
+                self.emit_lease("lease.released", &l, json!({}))?;
+                Ok(json!({}))
+            }
+            Request::LeaseRequestTransfer {
+                session,
+                repo,
+                scope,
+                reason,
+            } => {
+                self.own(peer, &session)?;
+                let l = db(self.store.lock().unwrap().lease(t, &repo, &scope))?
+                    .ok_or("not_held: no live lease on that scope")?;
+                if l.session == session {
+                    return Err("you already hold that lease".into());
+                }
+                self.emit(
+                    "lease.transfer_requested",
+                    peer,
+                    &session,
+                    json!({"repo": repo, "scope": scope, "holder": l.session, "reason": text::plain(&reason, MAX_SUMMARY)}),
+                )?;
+                Ok(json!({}))
+            }
+            Request::LeaseGrant {
+                session,
+                repo,
+                scope,
+                to,
+            } => {
+                self.own(peer, &session)?;
+                let owner = self.owner_of(&to).ok_or("no such session")?;
+                let who = Holder {
+                    session: &to,
+                    user: &owner.user,
+                    machine: &owner.machine,
+                };
+                let r = db(self
+                    .store
+                    .lock()
+                    .unwrap()
+                    .transfer(t, &session, &repo, &scope, &who, TRANSFER_TTL_MS))?;
+                let l = r.map_err(lease_err)?;
+                self.emit_lease("lease.granted", &l, json!({"via": "transfer", "from": session}))?;
+                Ok(json!({}))
+            }
+            Request::LeaseDeny {
+                session,
+                repo,
+                scope,
+                to,
+                reason,
+            } => {
+                self.own(peer, &session)?;
+                if self.owner_of(&to).is_none() {
+                    return Err("no such session".into());
+                }
+                let l = db(self.store.lock().unwrap().lease(t, &repo, &scope))?;
+                if l.map(|l| l.session) != Some(session.clone()) {
+                    return Err("not_holder: you do not hold that lease".into());
+                }
+                self.emit(
+                    "lease.denied",
+                    peer,
+                    &session,
+                    json!({"repo": repo, "scope": scope, "to": to, "reason": text::plain(&reason, MAX_SUMMARY)}),
+                )?;
+                Ok(json!({}))
+            }
+            Request::Snapshot => Ok(serde_json::to_value(self.snapshot()?).unwrap_or(Value::Null)),
+        }
+    }
+
+    pub(crate) fn snapshot(&self) -> Result<Snapshot, String> {
+        let mut sessions: Vec<SessionInfo> = self.sessions.lock().unwrap().values().map(|s| s.info.clone()).collect();
+        sessions.sort_by_key(|s| s.since);
+        let leases = db(self.store.lock().unwrap().leases(now()))?;
+        Ok(Snapshot { sessions, leases })
+    }
+
+    pub(crate) fn recent(&self, n: usize) -> Result<Vec<Event>, String> {
+        db(self.store.lock().unwrap().recent(n))
+    }
+
+    pub(crate) fn subscribe(&self) -> broadcast::Receiver<Event> {
+        self.tx.subscribe()
+    }
+}
+
+async fn sweep(hub: Arc<Hub>) {
+    let mut tick = tokio::time::interval(Duration::from_millis(500));
+    loop {
+        tick.tick().await;
+        let t = now();
+        let expired = hub.store.lock().unwrap().expire(t).unwrap_or_default();
+        for l in expired {
+            let _ = hub.emit_lease("lease.expired", &l, json!({}));
+        }
+        let gone: Vec<(String, Peer)> = {
+            let mut ss = hub.sessions.lock().unwrap();
+            let ids: Vec<String> = ss
+                .iter()
+                .filter(|(_, s)| t.saturating_sub(s.info.last_seen) > PRESENCE_TIMEOUT_MS)
+                .map(|(k, _)| k.clone())
+                .collect();
+            ids.into_iter()
+                .filter_map(|k| ss.remove(&k).map(|s| (k, s.owner)))
+                .collect()
+        };
+        for (session, owner) in gone {
+            let _ = hub.emit("bye", &owner, &session, json!({"reason": "timeout"}));
+        }
+    }
 }
