@@ -916,3 +916,35 @@ async fn daemons_follow_a_hub_whose_log_was_reset() {
     next_ctx(&b, SB, &repo_b, |c| c.contains("after-reset")).await;
     let _ = hub2;
 }
+
+#[tokio::test]
+async fn explicit_lease_expiry_and_lapsed_tokens_are_reported() {
+    let n = two_sessions(Opts {
+        lease_ttl: Duration::from_millis(300),
+        ..Opts::default()
+    })
+    .await;
+    // An explicit lease that expires is reported to its holder.
+    tool(
+        &n.a,
+        SA,
+        "lease",
+        json!({"scope": "area:auth", "ttl_seconds": 1}),
+    )
+    .await
+    .unwrap();
+    let c = next_ctx(&n.a, SA, &n.repo_a, |c| c.contains("area:auth")).await;
+    assert!(c.contains("expired"), "{c}");
+    // A lapsed auto-lease that is granted again says so.
+    assert_eq!(
+        ctx(&hook(&n.a, pre_edit(SA, &n.repo_a, "src/lib.rs")).await),
+        ""
+    );
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    let c = ctx(&hook(&n.a, pre_edit(SA, &n.repo_a, "src/lib.rs")).await);
+    assert!(c.contains("lapsed") && c.contains("src/lib.rs"), "{c}");
+    // Auto-leases expiring do not produce expiry notices.
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    let c = ctx(&hook(&n.a, post_bash(SA, &n.repo_a)).await);
+    assert!(!c.contains("src/lib.rs"), "{c}");
+}

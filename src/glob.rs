@@ -116,6 +116,15 @@ mod tests {
     }
 
     #[test]
+    fn a_directory_scope_covers_what_is_under_it() {
+        assert!(overlaps("src/auth", "src/auth/login.rs"));
+        assert!(overlaps("src/auth/login.rs", "src/auth"));
+        assert!(overlaps("src/auth", "src/auth/**"));
+        assert!(!overlaps("src/auth", "src/authz/x.rs"));
+        assert!(!overlaps("src/a.rs", "src/a.rs.bak"));
+    }
+
+    #[test]
     fn globs_overlap_conservatively() {
         assert!(overlaps("src/**", "src/hub/*"));
         assert!(overlaps("src/hub/*", "src/**"));

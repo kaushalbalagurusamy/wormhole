@@ -593,6 +593,18 @@ mod tests {
     }
 
     #[test]
+    fn grantors_own_sub_lease_does_not_block_its_transfer() {
+        let mut s = Store::open_memory().unwrap();
+        granted(s.acquire(0, &h("A"), "r", "src/**", 1000).unwrap());
+        granted(s.acquire(0, &h("A"), "r", "src/a.rs", 1000).unwrap());
+        let t = s
+            .transfer(10, "A", "r", "src/**", &h("B"), 1000)
+            .unwrap()
+            .unwrap();
+        assert_eq!(t.session, "B");
+    }
+
+    #[test]
     fn ttl_is_clamped_and_cannot_overflow() {
         let mut s = Store::open_memory().unwrap();
         let now = 1_000_000;
