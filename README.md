@@ -6,7 +6,34 @@ Several developers, each with their own agent sessions (Claude Code first), work
 
 ## Status
 
-Design only. Nothing is built yet. See [docs/design.md](docs/design.md) for the protocol and the first slice, and [docs/related-work.md](docs/related-work.md) for what exists and why it was not adopted.
+First slice built: hub, daemon, Claude Code hooks, channel MCP server, activity page. Tested on one machine over localhost; not yet run across machines. See [docs/design.md](docs/design.md) for the protocol, the measured numbers and what is left, [docs/related-work.md](docs/related-work.md) for what exists, and [SECURITY.md](SECURITY.md) for reporting and the threat model.
+
+## Use
+
+Build with a current stable Rust toolchain:
+
+    cargo build --release
+    export PATH="$PWD/target/release:$PATH"
+
+On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused.
+
+    wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite
+
+On each developer machine, run one daemon. It serves hooks on 127.0.0.1:7421 and a socket in `~/.wormhole/` (mode 0700).
+
+    wormhole daemon --hub ws://hub.your-tailnet.ts.net:7420/ws --protected 'secrets/**'
+
+In each project, print the Claude Code configuration and merge it by hand; nothing is written for you:
+
+    wormhole install --project .
+
+Then start Claude Code as usual. Every session gets "who is working on what" at start, a warning before editing a file another session holds, and messages and "changed since you read it" notices after each tool call. To also receive messages pushed between tool calls (channels, a research preview):
+
+    claude --dangerously-load-development-channels server:wormhole
+
+The activity page is at `http://hub.your-tailnet.ts.net:7420/` from any machine on the tailnet.
+
+For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address.
 
 ## Scope
 
