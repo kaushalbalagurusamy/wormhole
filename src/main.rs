@@ -60,6 +60,10 @@ enum Cmd {
         protected: Vec<String>,
         #[arg(long, default_value_t = 600)]
         lease_ttl_secs: u64,
+        /// Extra CA certificate (PEM) to trust for a wss:// hub, for a private CA. The
+        /// certificate is always verified. Repeatable.
+        #[arg(long)]
+        tls_ca: Vec<PathBuf>,
     },
     /// Stdio MCP server for one Claude Code session (tools and channel push).
     McpChannel {
@@ -139,12 +143,14 @@ async fn main() {
             static_identity,
             protected,
             lease_ttl_secs,
+            tls_ca,
         } => {
             let mut c = daemon::DaemonConfig::new(hub, socket.unwrap_or_else(default_socket));
             c.http_listen = http;
             c.static_identity = static_identity;
             c.protected = protected;
             c.lease_ttl = Duration::from_secs(lease_ttl_secs);
+            c.extra_roots = tls_ca;
             match daemon::start(c).await {
                 Ok(d) => {
                     eprintln!(
