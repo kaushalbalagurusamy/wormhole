@@ -818,3 +818,98 @@ async fn oversized_edit_requests_are_still_checked() {
         "{reason}"
     );
 }
+
+#[tokio::test]
+async fn daemon_restart_does_not_lose_undelivered_messages() {
+    let Net {
+        hub,
+        a,
+        b,
+        repo_a,
+        repo_b,
+        dir,
+    } = two_sessions(Opts::default()).await;
+    tool(
+        &a,
+        SA,
+        "send",
+        json!({"to": format!("session:{SB}"), "body": "survives-restart"}),
+    )
+    .await
+    .unwrap();
+    // Delivered to B's daemon (and acknowledged to the hub) but not yet to the session.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    b.shutdown().await;
+    let url = format!("ws://{}/ws", hub.addr);
+    let b = daemon::start(daemon_config(&dir, url, "bob@machine-b", &Opts::default()))
+        .await
+        .unwrap();
+    wait_connected(&b).await;
+    hook(&b, session_start(SB, &repo_b)).await;
+    let c = next_ctx(&b, SB, &repo_b, |c| c.contains("survives-restart")).await;
+    assert_eq!(c.matches("survives-restart").count(), 1, "{c}");
+    // Already-read messages are not delivered again after another restart.
+    b.shutdown().await;
+    let url = format!("ws://{}/ws", hub.addr);
+    let b = daemon::start(daemon_config(&dir, url, "bob@machine-b", &Opts::default()))
+        .await
+        .unwrap();
+    wait_connected(&b).await;
+    hook(&b, session_start(SB, &repo_b)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!ctx(&hook(&b, post_bash(SB, &repo_b)).await).contains("survives-restart"));
+    let _ = (a, repo_a);
+}
+
+#[tokio::test]
+async fn daemons_follow_a_hub_whose_log_was_reset() {
+    let Net {
+        hub,
+        a,
+        b,
+        repo_a,
+        repo_b,
+        dir,
+    } = two_sessions(Opts::default()).await;
+    for i in 0..5 {
+        tool(
+            &a,
+            SA,
+            "send",
+            json!({"to": format!("session:{SB}"), "body": format!("old-{i}")}),
+        )
+        .await
+        .unwrap();
+    }
+    next_ctx(&b, SB, &repo_b, |c| c.contains("old-4")).await;
+    // The hub comes back on the same address with an empty log (database deleted, or rolled back).
+    let addr = hub.addr;
+    hub.shutdown().await;
+    std::fs::remove_file(dir.join("hub.sqlite")).unwrap();
+    let _ = std::fs::remove_file(dir.join("hub.sqlite-wal"));
+    let _ = std::fs::remove_file(dir.join("hub.sqlite-shm"));
+    let hub2 = wormhole::hub::start(wormhole::hub::HubConfig {
+        listen: addr,
+        db: dir.join("hub.sqlite"),
+        identity: wormhole::hub::identity::IdentityConfig::Static,
+        hostnames: vec![],
+    })
+    .await
+    .unwrap();
+    eventually(10, || async {
+        (a.connects() >= 2 && b.connects() >= 2).then_some(())
+    })
+    .await;
+    hook(&a, session_start(SA, &repo_a)).await;
+    hook(&b, session_start(SB, &repo_b)).await;
+    tool(
+        &a,
+        SA,
+        "send",
+        json!({"to": format!("session:{SB}"), "body": "after-reset"}),
+    )
+    .await
+    .unwrap();
+    next_ctx(&b, SB, &repo_b, |c| c.contains("after-reset")).await;
+    let _ = hub2;
+}
