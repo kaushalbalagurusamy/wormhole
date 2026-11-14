@@ -13,32 +13,84 @@ pub const MAX_BLOCK: usize = 2000;
 
 const TRUNCATED: &str = "…[truncated]";
 
+/// Unicode general category Cf (format) as of Unicode 15.1, plus other characters that
+/// render as nothing: variation selectors, the combining grapheme joiner, Hangul fillers.
+const INVISIBLE: &[(u32, u32)] = &[
+    (0x00AD, 0x00AD),
+    (0x034F, 0x034F),
+    (0x0600, 0x0605),
+    (0x061C, 0x061C),
+    (0x06DD, 0x06DD),
+    (0x070F, 0x070F),
+    (0x0890, 0x0891),
+    (0x08E2, 0x08E2),
+    (0x115F, 0x1160),
+    (0x17B4, 0x17B5),
+    (0x180B, 0x180F),
+    (0x200B, 0x200F),
+    (0x202A, 0x202E),
+    (0x2060, 0x206F),
+    (0x3164, 0x3164),
+    (0xFE00, 0xFE0F),
+    (0xFEFF, 0xFEFF),
+    (0xFFA0, 0xFFA0),
+    (0xFFF9, 0xFFFB),
+    (0x110BD, 0x110BD),
+    (0x110CD, 0x110CD),
+    (0x13430, 0x1343F),
+    (0x1BCA0, 0x1BCA3),
+    (0x1D173, 0x1D17A),
+    (0xE0000, 0xE007F),
+    (0xE0100, 0xE01EF),
+];
+
 fn invisible(c: char) -> bool {
-    matches!(c, '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{2069}' | '\u{FEFF}')
+    let c = c as u32;
+    INVISIBLE.iter().any(|&(lo, hi)| (lo..=hi).contains(&c))
+}
+
+fn line_break(c: char) -> bool {
+    matches!(c, '\n' | '\r' | '\u{0085}' | '\u{2028}' | '\u{2029}')
 }
 
 /// Remove control and invisible characters, escape angle brackets and ampersands, and
-/// truncate to `max` characters.
+/// truncate so the escaped text is at most `max` characters (plus a truncation marker).
 pub fn clean(s: &str, max: usize) -> String {
     let mut out = String::new();
-    for (n, c) in s.chars().filter(|&c| !invisible(c) && (!c.is_control() || c == '\n' || c == '\t')).enumerate() {
-        if n == max {
+    let mut len = 0;
+    for c in s.chars() {
+        let piece = match c {
+            '<' => "&lt;",
+            '>' => "&gt;",
+            '&' => "&amp;",
+            '\r' => continue,
+            c if line_break(c) => "\n",
+            '\t' => "\t",
+            c if c.is_control() || invisible(c) => continue,
+            _ => {
+                if len + 1 > max {
+                    out.push_str(TRUNCATED);
+                    return out;
+                }
+                out.push(c);
+                len += 1;
+                continue;
+            }
+        };
+        let n = piece.chars().count();
+        if len + n > max {
             out.push_str(TRUNCATED);
-            break;
+            return out;
         }
-        match c {
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '&' => out.push_str("&amp;"),
-            c => out.push(c),
-        }
+        out.push_str(piece);
+        len += n;
     }
     out
 }
 
 /// `clean`, with line breaks folded to spaces.
 pub fn one_line(s: &str, max: usize) -> String {
-    let folded: Vec<&str> = s.split(['\n', '\r']).filter(|p| !p.is_empty()).collect();
+    let folded: Vec<&str> = s.split(line_break).filter(|p| !p.is_empty()).collect();
     clean(&folded.join(" "), max)
 }
 
@@ -73,6 +125,14 @@ pub fn assemble(blocks: &[String]) -> (String, usize) {
     for b in blocks {
         let l = b.chars().count() + 2;
         if len + l > MAX_CONTEXT {
+            if n == 0 {
+                // A block larger than the whole budget is cut rather than held back forever.
+                let room = MAX_CONTEXT - len - 2 - TRUNCATED.chars().count();
+                out.push_str("\n\n");
+                out.extend(b.chars().take(room));
+                out.push_str(TRUNCATED);
+                n = 1;
+            }
             break;
         }
         out.push_str("\n\n");
@@ -113,7 +173,7 @@ mod tests {
         let s = clean(&"&".repeat(1000), 7);
         assert!(s.chars().count() <= 7 + TRUNCATED.chars().count(), "{s}");
         // An entity is never split.
-        assert_eq!(clean("a<b", 5), format!("a{TRUNCATED}"));
+        assert_eq!(clean("a<b", 4), format!("a{TRUNCATED}"));
     }
 
     #[test]
