@@ -8,16 +8,27 @@ pub fn matches(pattern: &str, path: &str) -> bool {
     match_segments(&p, &s)
 }
 
+// `match_segment` one level up, with `**` as the star: O(len(p) * len(s)) segment steps,
+// where recursing into every `**` cost O(len(s) ^ count(**)).
 fn match_segments(p: &[&str], s: &[&str]) -> bool {
-    match p.split_first() {
-        None => s.is_empty(),
-        Some((&"**", rest)) => (0..=s.len()).any(|i| match_segments(rest, &s[i..])),
-        Some((first, rest)) => {
-            !s.is_empty()
-                && match_segment(first.as_bytes(), s[0].as_bytes())
-                && match_segments(rest, &s[1..])
+    let (mut pi, mut si) = (0, 0);
+    let mut star: Option<(usize, usize)> = None;
+    while si < s.len() {
+        if pi < p.len() && p[pi] == "**" {
+            star = Some((pi, si));
+            pi += 1;
+        } else if pi < p.len() && match_segment(p[pi].as_bytes(), s[si].as_bytes()) {
+            pi += 1;
+            si += 1;
+        } else if let Some((sp, ss)) = star {
+            pi = sp + 1;
+            si = ss + 1;
+            star = Some((sp, ss + 1));
+        } else {
+            return false;
         }
     }
+    p[pi..].iter().all(|&x| x == "**")
 }
 
 // Greedy wildcard match with one backtrack point: O(len(p) * len(s)), no recursion.
@@ -42,7 +53,7 @@ fn match_segment(p: &[u8], s: &[u8]) -> bool {
     p[pi..].iter().all(|&c| c == b'*')
 }
 
-/// Patterns the hub accepts: bounded `**` count, so matching stays cheap.
+/// Patterns the hub accepts: at most four `**` segments.
 pub fn valid(pattern: &str) -> bool {
     pattern.split('/').filter(|s| *s == "**").count() <= 4
 }
