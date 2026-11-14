@@ -2,6 +2,7 @@
 //! over a Unix socket and HTTP hooks on loopback.
 
 mod hooks;
+mod shrink;
 pub use hooks::{STALE_DAEMON, STALE_HUB};
 mod sock;
 mod state;

@@ -23,7 +23,6 @@ const EDIT_TOOLS: &[&str] = &["Edit", "Write", "MultiEdit", "NotebookEdit"];
 pub(crate) async fn serve_http(d: Arc<Daemon>, l: tokio::net::TcpListener) {
     let app = axum::Router::new()
         .route("/hook", axum::routing::post(http_hook))
-        .layer(axum::extract::DefaultBodyLimit::max(MAX_HOOK_BODY))
         .with_state(d);
     let _ = axum::serve(l, app).await;
 }
@@ -61,15 +60,23 @@ fn authorized(headers: &HeaderMap, token: &str) -> bool {
         && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-/// Largest hook body accepted, after the token check. Bodies carry file contents (a
-/// `Write` input holds the whole file), so the cap is generous. A larger body gets 413,
-/// which Claude Code treats as a non-blocking error: that edit goes ahead without a lease
-/// check or warning. No warning can be built instead, because the event name and path are
-/// inside the body.
-const MAX_HOOK_BODY: usize = 32 * 1024 * 1024;
+/// Most bytes read from one hook body. Bodies carry file contents and are reduced while
+/// they stream in (see `shrink`), so this only bounds time spent, not memory.
+const MAX_HOOK_STREAM: u64 = 1024 * 1024 * 1024;
 
-/// Headers are checked before any of the body is read.
+fn refuse(reason: &str) -> Response {
+    Json(json!({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": format!("[wormhole] {reason} The edit was refused so a protected path cannot be bypassed; retry with a smaller change."),
+    }}))
+    .into_response()
+}
+
+/// Headers and token are checked before any of the body is read. No body size gets a 413:
+/// Claude Code would treat that as a non-blocking error and the edit would skip the check.
 async fn http_hook(State(d): State<Arc<Daemon>>, req: axum::extract::Request) -> Response {
+    use futures_util::StreamExt;
     let headers = req.headers();
     if !local_request(headers, d.cfg_port()) || !authorized(headers, &d.hook_token) {
         return StatusCode::FORBIDDEN.into_response();
@@ -87,11 +94,24 @@ async fn http_hook(State(d): State<Arc<Daemon>>, req: axum::extract::Request) ->
     if !json_body {
         return StatusCode::UNSUPPORTED_MEDIA_TYPE.into_response();
     }
-    let Ok(bytes) = axum::body::to_bytes(req.into_body(), MAX_HOOK_BODY).await else {
-        return StatusCode::PAYLOAD_TOO_LARGE.into_response();
+    let mut stream = req.into_body().into_data_stream();
+    let mut sh = super::shrink::Shrinker::default();
+    let mut total: u64 = 0;
+    while let Some(chunk) = stream.next().await {
+        let Ok(chunk) = chunk else {
+            return refuse("The hook request could not be read in full.");
+        };
+        total += chunk.len() as u64;
+        if total > MAX_HOOK_STREAM {
+            return refuse("The hook request was too large to check.");
+        }
+        sh.feed(&chunk);
+    }
+    let Some(reduced) = sh.finish() else {
+        return refuse("The hook request was too large to check.");
     };
-    let Ok(input) = serde_json::from_slice::<Value>(&bytes) else {
-        return StatusCode::BAD_REQUEST.into_response();
+    let Ok(input) = serde_json::from_slice::<Value>(&reduced) else {
+        return refuse("The hook request could not be read as JSON.");
     };
     Json(handle(&d, input).await).into_response()
 }
