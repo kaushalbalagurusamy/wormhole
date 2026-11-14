@@ -339,6 +339,16 @@ async fn pre_tool_use(
     if !EDIT_TOOLS.contains(&tool) {
         return json!({});
     }
+    // The repository comes from the session's cwd only; outside one no path is ever checked.
+    let in_repo =
+        d.st.lock()
+            .unwrap()
+            .sessions
+            .get(session)
+            .is_some_and(|s| s.repo.is_some());
+    if !in_repo {
+        return json!({});
+    }
     let ti = &input["tool_input"];
     // A path over 4 KiB reaches here blanked by `shrink`.
     let blank = ti["file_path"]
@@ -358,7 +368,14 @@ async fn pre_tool_use(
         return output("PreToolUse", STALE_HUB);
     }
     let Some((repo_id, rel)) = path.filter(|(_, rel)| rel.len() <= MAX_FIELD) else {
-        return refusal("The file path was too long to check.");
+        // Deny only if the hub answers now: `hub_ok` can be a cached registration.
+        let beat = Request::Heartbeat {
+            session: session.into(),
+        };
+        return match d.request(beat, deadline).await {
+            Err(HubError::Unavailable) => output("PreToolUse", STALE_HUB),
+            _ => refusal("The file path was too long to check."),
+        };
     };
     let rel = text::plain(&rel, MAX_FIELD);
     let protected = is_protected(d, session, &rel);
