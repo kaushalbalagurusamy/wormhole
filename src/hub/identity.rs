@@ -1,8 +1,11 @@
 //! Who is on the other end of a connection. The hub never takes identity from a token or
 //! from the payload: it asks the private network (Tailscale) about the peer address.
 
+use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Peer {
@@ -26,20 +29,98 @@ pub enum IdentityConfig {
     Static,
 }
 
+fn plausible(s: &str) -> bool {
+    !s.is_empty() && s.len() <= 128 && !s.chars().any(|c| c.is_control() || c.is_whitespace())
+}
+
 /// Parse `tailscale whois --json` output. Requires a node name and a login name.
 pub fn parse_whois(json: &str) -> Option<Peer> {
-    let _ = json;
-    todo!()
+    let v: serde_json::Value = serde_json::from_str(json).ok()?;
+    let node = v.get("Node")?;
+    let machine = node
+        .get("ComputedName")
+        .and_then(|n| n.as_str())
+        .filter(|n| !n.is_empty())
+        .or_else(|| node.get("Name")?.as_str()?.split('.').next())?;
+    let login = v.get("UserProfile")?.get("LoginName")?.as_str()?;
+    // Tagged nodes have no user; the tag is the identity.
+    let user = if login == "tagged-devices" {
+        node.get("Tags")?.as_array()?.first()?.as_str()?
+    } else {
+        login
+    };
+    (plausible(user) && plausible(machine)).then(|| Peer {
+        user: user.into(),
+        machine: machine.into(),
+    })
 }
 
 /// Parse a static claim `user@machine` (split at the last `@`).
 pub fn parse_static(claim: &str) -> Option<Peer> {
-    let _ = claim;
-    todo!()
+    let (user, machine) = claim.rsplit_once('@')?;
+    (plausible(user) && plausible(machine)).then(|| Peer {
+        user: user.into(),
+        machine: machine.into(),
+    })
 }
 
 pub(crate) fn canonical_ip(addr: SocketAddr) -> IpAddr {
     addr.ip().to_canonical()
+}
+
+/// Resolves peers for the hub. Tailscale answers are cached for a minute.
+pub struct Identifier {
+    cfg: IdentityConfig,
+    cache: Mutex<HashMap<IpAddr, (Instant, Peer)>>,
+}
+
+const CACHE_FOR: Duration = Duration::from_secs(60);
+
+impl Identifier {
+    pub fn new(cfg: IdentityConfig) -> Identifier {
+        Identifier {
+            cfg,
+            cache: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// `None` means reject the connection.
+    pub async fn identify(&self, peer: SocketAddr, static_claim: Option<&str>) -> Option<Peer> {
+        let ip = canonical_ip(peer);
+        match &self.cfg {
+            IdentityConfig::Static => {
+                if !ip.is_loopback() {
+                    return None;
+                }
+                parse_static(static_claim?)
+            }
+            IdentityConfig::Tailscale { bin } => {
+                if let Some((at, p)) = self.cache.lock().unwrap().get(&ip) {
+                    if at.elapsed() < CACHE_FOR {
+                        return Some(p.clone());
+                    }
+                }
+                let out = tokio::time::timeout(
+                    Duration::from_secs(3),
+                    tokio::process::Command::new(bin)
+                        .arg("whois")
+                        .arg("--json")
+                        .arg(ip.to_string())
+                        .kill_on_drop(true)
+                        .output(),
+                )
+                .await
+                .ok()?
+                .ok()?;
+                if !out.status.success() {
+                    return None;
+                }
+                let p = parse_whois(&String::from_utf8_lossy(&out.stdout))?;
+                self.cache.lock().unwrap().insert(ip, (Instant::now(), p.clone()));
+                Some(p)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
