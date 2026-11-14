@@ -77,6 +77,11 @@ impl Identifier {
         Identifier { cfg }
     }
 
+    pub fn with_allowlist(cfg: IdentityConfig, allow: Vec<String>) -> Identifier {
+        let _ = allow;
+        todo!()
+    }
+
     /// `None` means reject the connection.
     pub async fn identify(&self, peer: SocketAddr, static_claim: Option<&str>) -> Option<Peer> {
         let ip = canonical_ip(peer);
@@ -179,6 +184,30 @@ mod tests {
         .unwrap();
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
         bin
+    }
+
+    #[tokio::test]
+    async fn allowlist_limits_who_is_accepted() {
+        let peer: SocketAddr = "127.0.0.1:4000".parse().unwrap();
+        let id = Identifier::with_allowlist(
+            IdentityConfig::Static,
+            vec!["alice@example.com".into(), "tag:ci".into()],
+        );
+        assert!(id
+            .identify(peer, Some("alice@example.com@laptop"))
+            .await
+            .is_some());
+        assert!(id.identify(peer, Some("tag:ci@runner")).await.is_some());
+        assert_eq!(
+            id.identify(peer, Some("mallory@example.com@laptop")).await,
+            None
+        );
+        // No allowlist: every identified peer is accepted.
+        let open = Identifier::new(IdentityConfig::Static);
+        assert!(open
+            .identify(peer, Some("mallory@example.com@laptop"))
+            .await
+            .is_some());
     }
 
     #[tokio::test]

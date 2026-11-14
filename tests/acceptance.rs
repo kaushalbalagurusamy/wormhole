@@ -948,3 +948,32 @@ async fn explicit_lease_expiry_and_lapsed_tokens_are_reported() {
     let c = ctx(&hook(&n.a, post_bash(SA, &n.repo_a)).await);
     assert!(!c.contains("src/lib.rs"), "{c}");
 }
+
+#[tokio::test]
+async fn session_start_lists_this_repos_leases_first() {
+    let n = two_sessions(Opts::default()).await;
+    // Many other sessions, each with a long task, in another repository.
+    let other = make_repo(&n.dir.join("a/other"));
+    std::fs::write(
+        other.join(".git/config"),
+        "[remote \"origin\"]\n\turl = git@example.com:team/other.git\n",
+    )
+    .unwrap();
+    for i in 0..25 {
+        let s = format!("eeeeeeee-0000-4000-8000-{i:012}");
+        hook(&n.a, session_start(&s, &other)).await;
+        tool(&n.a, &s, "set_task", json!({"task": "x".repeat(150)}))
+            .await
+            .unwrap();
+    }
+    hook(&n.a, pre_edit(SA, &n.repo_a, "src/lib.rs")).await;
+    let c = ctx(&hook(
+        &n.b,
+        session_start("ffffffff-0000-4000-8000-000000000006", &n.repo_b),
+    )
+    .await);
+    assert!(
+        c.contains("src/lib.rs"),
+        "lease missing from SessionStart: {c}"
+    );
+}

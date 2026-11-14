@@ -212,7 +212,7 @@ mod tests {
             "https://user@github.com/Owner/Repo.git/",
             "ssh://git@github.com/Owner/Repo.git",
         ] {
-            assert_eq!(normalize_remote(u), "github.com/Owner/Repo", "{u}");
+            assert_eq!(normalize_remote(u), "github.com/owner/repo", "{u}");
         }
     }
 
@@ -248,6 +248,13 @@ mod tests {
         std::fs::write(base.join(".git/HEAD"), "ref: refs/heads/feature/x\n").unwrap();
         let r = find(&base.join("src/deep")).unwrap();
         assert_eq!(r.id, "example.com/team/proj");
+        // A per-repository override, for ssh host aliases: git config wormhole.repoId <id>
+        std::fs::write(
+            base.join(".git/config"),
+            "[remote \"origin\"]\n\turl = git@github-work:Team/Proj.git\n[wormhole]\n\trepoid = github.com/Team/Proj\n",
+        )
+        .unwrap();
+        assert_eq!(find(&base).unwrap().id, "github.com/team/proj");
         assert_eq!(r.branch, "feature/x");
         assert_eq!(r.root, base);
         std::fs::remove_dir_all(&base).unwrap();

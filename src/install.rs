@@ -89,5 +89,6 @@ mod tests {
         assert!(out.contains("--dangerously-load-development-channels server:wormhole"));
         // The token is a secret: the snippet goes in the git-ignored local settings file.
         assert!(out.contains("settings.local.json"));
+        assert!(out.contains("chmod 600"), "{out}");
     }
 }
