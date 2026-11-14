@@ -37,6 +37,9 @@ pub struct DaemonConfig {
     pub hub_deadline: Duration,
     /// First reconnect delay; doubles up to 10 s.
     pub reconnect_min: Duration,
+    /// PEM CA certificates trusted for a wss:// hub in addition to the system roots, for a
+    /// private CA or tests. Certificates are always verified.
+    pub extra_roots: Vec<PathBuf>,
 }
 
 impl DaemonConfig {
@@ -50,6 +53,7 @@ impl DaemonConfig {
             lease_ttl: Duration::from_secs(600),
             hub_deadline: Duration::from_millis(800),
             reconnect_min: Duration::from_millis(250),
+            extra_roots: Vec::new(),
         }
     }
 }

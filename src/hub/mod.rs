@@ -33,6 +33,9 @@ pub struct HubConfig {
     /// Users (login names, or `tag:...` for tagged nodes) the hub accepts. Empty accepts any
     /// peer the identity source can identify.
     pub allow_users: Vec<String>,
+    /// Serve wss:// and https:// with this certificate. Without it, the hub serves plaintext
+    /// only on loopback or a Tailscale address.
+    pub tls: Option<crate::tls::TlsFiles>,
 }
 
 /// A session with no heartbeat for this long is reported gone.
@@ -73,6 +76,11 @@ impl HubHandle {
     /// Close every connection from `machine` (used by tests to simulate a network drop).
     pub fn kick(&self, machine: &str) {
         let _ = self.hub.kick.send(machine.to_string());
+    }
+
+    /// Re-read the TLS certificate and key (also done on SIGHUP).
+    pub fn reload_tls(&self) -> Result<(), String> {
+        todo!()
     }
 
     /// Run the lease and presence sweep as if the clock read `t` (milliseconds since the
@@ -944,6 +952,7 @@ mod tests {
             identity: IdentityConfig::Static,
             hostnames: vec![],
             allow_users: vec![],
+            tls: None,
         })
         .await
         .unwrap();
