@@ -49,6 +49,8 @@ pub(crate) struct Sess {
     pub hello_gen: u64,
     pub last_active: Instant,
     pub tokens: HashMap<(String, String), u64>,
+    /// Leases taken with the lease tool (not by an edit); their expiry is reported.
+    pub explicit: std::collections::HashSet<(String, String)>,
     pub reads: HashMap<(String, String), u64>,
     pub inbox: VecDeque<Notice>,
     pub dropped: usize,
@@ -64,6 +66,7 @@ impl Sess {
             hello_gen: 0,
             last_active: Instant::now(),
             tokens: HashMap::new(),
+            explicit: std::collections::HashSet::new(),
             reads: HashMap::new(),
             inbox: VecDeque::new(),
             dropped: 0,
@@ -217,7 +220,7 @@ impl State {
                 if let Some(sess) = self.sessions.get_mut(&holder) {
                     let body = format!(
                         "Session {} ({}@{}) asks for this session's lease on {} in {}. Their reason: {}\nTo hand it over, call wormhole_grant with scope \"{}\" and to_session \"{}\"; to refuse, call wormhole_deny.",
-                        e.session, e.user, e.machine, s("scope"), s("repo"), s("reason"), s("scope"), e.session
+                        e.session, e.user, e.machine, text::attr(&s("scope")), text::attr(&s("repo")), s("reason"), text::attr(&s("scope")), text::attr(&e.session)
                     );
                     sess.notify(notice(e, "wormhole-lease", "lease_request", &body, false));
                 }
@@ -256,6 +259,22 @@ impl State {
                     (self.sessions.get_mut(&e.session), d["seq"].as_u64())
                 {
                     sess.inbox.retain(|n| n.msg_seq != Some(seq));
+                }
+            }
+            "lease.expired" => {
+                let key = (s("repo"), s("scope"));
+                if let Some(sess) = self.sessions.get_mut(&e.session) {
+                    if sess.tokens.get(&key).copied() == d["token"].as_u64()
+                        && sess.explicit.remove(&key)
+                    {
+                        let body = format!(
+                            "This session's lease on {} in {} expired at {}; other sessions are no longer warned about it.",
+                            text::attr(&key.1),
+                            text::attr(&key.0),
+                            hms(e.ts)
+                        );
+                        sess.notify(notice(e, "wormhole-lease", "lease_expired", &body, false));
+                    }
                 }
             }
             // Tokens are kept through expiry on purpose: the next edit presents the old token,

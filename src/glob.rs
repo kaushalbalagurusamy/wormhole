@@ -58,6 +58,12 @@ fn literal_prefix(glob: &str) -> Vec<&str> {
         .collect()
 }
 
+/// A directory scope (`src/auth`) overlaps a glob under it (`src/auth/**`).
+fn overlaps_glob_prefix(glob: &str, path: &str) -> bool {
+    let (g, p): (Vec<&str>, Vec<&str>) = (literal_prefix(glob), path.split('/').collect());
+    p.len() <= g.len() && g[..p.len()] == p[..]
+}
+
 /// Do two lease scopes overlap? Equal scopes overlap; a glob overlaps a path it matches.
 /// Named areas overlap only when equal. Two globs overlap when one's literal prefix is a
 /// segment-prefix of the other's: conservative, so `src/a*` and `src/b*` count as
@@ -70,14 +76,19 @@ pub fn overlaps(a: &str, b: &str) -> bool {
         return false;
     }
     match (is_glob(a), is_glob(b)) {
-        (true, false) => matches(a, b),
-        (false, true) => matches(b, a),
+        (true, false) => matches(a, b) || overlaps_glob_prefix(a, b),
+        (false, true) => matches(b, a) || overlaps_glob_prefix(b, a),
         (true, true) => {
             let (pa, pb) = (literal_prefix(a), literal_prefix(b));
             let n = pa.len().min(pb.len());
             pa[..n] == pb[..n]
         }
-        (false, false) => false,
+        // A path scope covers what is under it: `src/auth` overlaps `src/auth/login.rs`.
+        (false, false) => {
+            let (pa, pb): (Vec<&str>, Vec<&str>) = (a.split('/').collect(), b.split('/').collect());
+            let n = pa.len().min(pb.len());
+            pa[..n] == pb[..n]
+        }
     }
 }
 

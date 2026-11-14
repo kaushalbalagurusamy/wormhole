@@ -298,11 +298,12 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
             .map_err(hub_err)?;
             match serde_json::from_value::<LeaseResult>(v).map_err(|e| e.to_string())? {
                 LeaseResult::Granted { lease } => {
-                    d.st.lock()
-                        .unwrap()
-                        .sess(session)
-                        .tokens
-                        .insert((repo, scope.clone()), lease.token);
+                    {
+                        let mut st = d.st.lock().unwrap();
+                        let x = st.sess(session);
+                        x.tokens.insert((repo.clone(), scope.clone()), lease.token);
+                        x.explicit.insert((repo, scope.clone()));
+                    }
                     Ok(format!(
                         "lease granted on {} (token {}), expires in {} s",
                         text::attr(&scope),
@@ -339,7 +340,12 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
             })
             .await
             .map_err(hub_err)?;
-            d.st.lock().unwrap().sess(session).tokens.remove(&key);
+            {
+                let mut st = d.st.lock().unwrap();
+                let x = st.sess(session);
+                x.tokens.remove(&key);
+                x.explicit.remove(&key);
+            }
             Ok("released".into())
         }
         "request_transfer" => {

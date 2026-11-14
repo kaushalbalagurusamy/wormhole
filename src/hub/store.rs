@@ -300,7 +300,7 @@ impl Store {
         Ok(())
     }
 
-    fn delete(&mut self, repo: &str, scope: &str) -> rusqlite::Result<()> {
+    fn delete(&self, repo: &str, scope: &str) -> rusqlite::Result<()> {
         self.conn.execute(
             "DELETE FROM leases WHERE repo = ?1 AND scope = ?2",
             [repo, scope],
@@ -439,12 +439,22 @@ impl Store {
             "repo = ?1 AND expires > ?2",
             rusqlite::params![repo, now as i64],
         )?;
-        if let Some(other) = live.into_iter().find(|l| {
-            l.scope != current.scope
-                && l.session != to.session
-                && crate::glob::overlaps(&l.scope, scope)
-        }) {
-            return Ok(Err(LeaseError::Conflict(other)));
+        let overlapping =
+            |l: &&LeaseInfo| l.scope != current.scope && crate::glob::overlaps(&l.scope, scope);
+        if let Some(other) = live
+            .iter()
+            .filter(overlapping)
+            .find(|l| l.session != to.session && l.session != holder_session)
+        {
+            return Ok(Err(LeaseError::Conflict(other.clone())));
+        }
+        // The grantor's own leases inside the scope go with it.
+        for l in live
+            .iter()
+            .filter(overlapping)
+            .filter(|l| l.session == holder_session)
+        {
+            self.delete(&l.repo, &l.scope)?;
         }
         let lease = LeaseInfo {
             repo: repo.into(),

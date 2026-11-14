@@ -385,7 +385,17 @@ async fn pre_tool_use(
                     .sess(session)
                     .tokens
                     .insert(key, lease.token);
-                json!({})
+                match lost {
+                    // Fencing: the old token was rejected; say so even though the path was free.
+                    Some(old) => output(
+                        "PreToolUse",
+                        &format!(
+                            "[wormhole] This session's lease on {rel} (token {old}) lapsed and was granted again (token {}). Another session may have edited the file in between; re-read it if that matters.",
+                            lease.token
+                        ),
+                    ),
+                    None => json!({}),
+                }
             }
             Ok(LeaseResult::Held { lease }) => {
                 let t = held_text(&lease, &rel, &repo_id, protected, lost);
