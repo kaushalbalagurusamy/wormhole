@@ -63,7 +63,7 @@ pub fn parse_static(claim: &str) -> Option<Peer> {
 }
 
 /// Most `tailscale whois` processes the hub runs at once; further lookups wait.
-const WHOIS_LIMIT: usize = 4;
+pub const WHOIS_LIMIT: usize = 4;
 
 pub(crate) fn canonical_ip(addr: SocketAddr) -> IpAddr {
     addr.ip().to_canonical()
