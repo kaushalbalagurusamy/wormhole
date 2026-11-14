@@ -38,7 +38,7 @@ fn tool(name: &str, description: &str, props: Value, required: &[&str]) -> Value
 }
 
 fn tools() -> Value {
-    let scope = json!({"type": "string", "description": "Repo-relative file or directory (a directory covers everything under it), path glob (src/auth/**), or named area (area:auth, which conflicts only with the same area name, not with file edits)"});
+    let scope = json!({"type": "string", "description": "Repo-relative file, or directory (an existing directory, or a path ending in /, covers everything under it), path glob (src/auth/**), or named area (area:auth, which conflicts only with the same area name, not with file edits)"});
     let to_session = json!({"type": "string", "description": "Session id of the other session"});
     json!([
         tool(

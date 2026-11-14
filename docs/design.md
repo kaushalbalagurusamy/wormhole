@@ -50,7 +50,7 @@ All messages are JSON and carry a hub-assigned sequence number. Each daemon rece
 
 Built in the first slice: presence, `event`, `msg` and the `lease.*` kinds. Blobs, patches, supervision and delegation are later.
 
-Leases expire unless renewed, so a crashed session cannot hold one indefinitely; a session whose presence times out (120 s without a heartbeat) loses its leases at once. The fencing token increases on every grant, and the hub rejects a renew or release that carries a stale token. The check runs in the edit hook, not on the file: after a rejection the hook acquires again, warning if another session now holds the path (deny for a protected path) and, if the path was free, saying that the earlier lease lapsed. A directory scope covers everything under it; `area:` names conflict only with the same name.
+Leases expire unless renewed, so a crashed session cannot hold one indefinitely; a session whose presence times out (120 s without a heartbeat) loses its leases at once. The fencing token increases on every grant, and the hub rejects a renew or release that carries a stale token. The check runs in the edit hook, not on the file: after a rejection the hook acquires again, warning if another session now holds the path (deny for a protected path) and, if the path was free, saying that the earlier lease lapsed. A plain scope is a file; a directory scope ends with `/` (the lease tool adds it when the path is an existing directory) and covers everything under it; `area:` names conflict only with the same name.
 
 ## Delivery and latency
 

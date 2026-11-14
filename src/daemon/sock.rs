@@ -251,6 +251,13 @@ fn scope(d: &Daemon, session: &str, args: &Value) -> Result<(String, String), St
     if sc.is_empty() || sc.len() > MAX_FIELD || sc.split('/').any(|p| p == "..") {
         return Err("invalid scope".into());
     }
+    // A directory scope ends with `/` so it covers what is under it; plain scopes are files.
+    let plain = !sc.contains('*') && !sc.starts_with("area:");
+    let sc = if plain && !sc.ends_with('/') && r.root.join(&sc).is_dir() {
+        format!("{sc}/")
+    } else {
+        sc
+    };
     Ok((r.id.clone(), sc))
 }
 
