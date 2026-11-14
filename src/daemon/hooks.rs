@@ -61,9 +61,12 @@ fn authorized(headers: &HeaderMap, token: &str) -> bool {
         && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-/// Largest hook body accepted. A `Write` of a larger file gets 413, which Claude Code
-/// treats as a non-blocking error: the edit goes ahead without a lease check.
-const MAX_HOOK_BODY: usize = 1024 * 1024;
+/// Largest hook body accepted, after the token check. Bodies carry file contents (a
+/// `Write` input holds the whole file), so the cap is generous. A larger body gets 413,
+/// which Claude Code treats as a non-blocking error: that edit goes ahead without a lease
+/// check or warning. No warning can be built instead, because the event name and path are
+/// inside the body.
+const MAX_HOOK_BODY: usize = 32 * 1024 * 1024;
 
 /// Headers are checked before any of the body is read.
 async fn http_hook(State(d): State<Arc<Daemon>>, req: axum::extract::Request) -> Response {
