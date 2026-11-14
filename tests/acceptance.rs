@@ -423,6 +423,7 @@ async fn hub_rejects_unidentified_and_browser_connections() {
         identity: wormhole::hub::identity::IdentityConfig::Static,
         hostnames: vec![],
         allow_users: vec![],
+        secret: None,
     })
     .await;
     assert!(r.is_err());
@@ -898,6 +899,7 @@ async fn daemons_follow_a_hub_whose_log_was_reset() {
         identity: wormhole::hub::identity::IdentityConfig::Static,
         hostnames: vec![],
         allow_users: vec![],
+        secret: None,
     })
     .await
     .unwrap();
@@ -989,4 +991,257 @@ async fn leasing_a_directory_covers_edits_inside_it() {
     assert!(r.contains("src/"), "{r}");
     let c = ctx(&hook(&n.b, pre_edit(SB, &n.repo_b, "src/lib.rs")).await);
     assert!(c.contains("WARNING") && c.contains(SA), "{c}");
+}
+
+const SECRET: &str = "0123456789abcdef0123456789abcdef-shared";
+const WRONG: &str = "fedcba9876543210fedcba9876543210-wrong!";
+
+type Ws =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+
+/// Open a raw hub connection as alice@m. With `nonce`, send it as the daemon's challenge.
+/// Returns the hub's nonce and proof from the upgrade response ("" when absent).
+async fn raw_connect(url: &str, nonce: Option<&str>) -> Result<(Ws, String, String), String> {
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    let mut req = url.into_client_request().unwrap();
+    req.headers_mut()
+        .insert("x-wormhole-static-identity", "alice@m".parse().unwrap());
+    if let Some(n) = nonce {
+        req.headers_mut()
+            .insert(wormhole::auth::NONCE_HEADER, n.parse().unwrap());
+    }
+    let (ws, resp) = tokio_tungstenite::connect_async(req)
+        .await
+        .map_err(|e| e.to_string())?;
+    let h = |k: &str| {
+        resp.headers()
+            .get(k)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string()
+    };
+    Ok((
+        ws,
+        h(wormhole::auth::NONCE_HEADER),
+        h(wormhole::auth::PROOF_HEADER),
+    ))
+}
+
+/// Send the first frame with `proof`; true if the hub answers with its welcome.
+async fn welcomed(mut ws: Ws, proof: Option<String>) -> bool {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::Message;
+    let resume = json!({"op": "resume", "from": null, "proof": proof}).to_string();
+    if ws.send(Message::text(resume)).await.is_err() {
+        return false;
+    }
+    matches!(
+        tokio::time::timeout(Duration::from_secs(2), ws.next()).await,
+        Ok(Some(Ok(Message::Text(t)))) if t.contains("\"welcome\"")
+    )
+}
+
+type Answer = std::sync::Arc<dyn Fn(&str) -> Vec<(&'static str, String)> + Send + Sync>;
+type Seen = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
+
+/// A WebSocket server posing as the hub. `answer(daemon_nonce)` gives the headers it adds
+/// to the upgrade response. Returns its address, how many upgrades it completed, and every
+/// data frame it received.
+async fn fake_hub(
+    answer: Answer,
+) -> (
+    std::net::SocketAddr,
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    Seen,
+) {
+    use futures_util::{SinkExt, StreamExt};
+    use std::sync::atomic::Ordering::SeqCst;
+    use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
+    use tokio_tungstenite::tungstenite::Message;
+    let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = l.local_addr().unwrap();
+    let upgrades = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen: Seen = Default::default();
+    let (u, s) = (upgrades.clone(), seen.clone());
+    tokio::spawn(async move {
+        while let Ok((tcp, _)) = l.accept().await {
+            let (answer, u, s) = (answer.clone(), u.clone(), s.clone());
+            tokio::spawn(async move {
+                let cb = |req: &Request, mut resp: Response| {
+                    let n = req
+                        .headers()
+                        .get(wormhole::auth::NONCE_HEADER)
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("");
+                    for (k, v) in answer(n) {
+                        resp.headers_mut().insert(k, v.parse().unwrap());
+                    }
+                    Ok::<_, ErrorResponse>(resp)
+                };
+                let Ok(mut ws) = tokio_tungstenite::accept_hdr_async(tcp, cb).await else {
+                    return;
+                };
+                u.fetch_add(1, SeqCst);
+                // Welcome the daemon as a real hub would, then record whatever it sends.
+                let welcome =
+                    json!({"op": "welcome", "user": "alice", "machine": "machine-a", "head": 0});
+                let _ = ws.send(Message::text(welcome.to_string())).await;
+                while let Some(Ok(m)) = ws.next().await {
+                    if m.is_text() || m.is_binary() {
+                        s.lock().unwrap().push(m.to_string());
+                    }
+                }
+            });
+        }
+    });
+    (addr, upgrades, seen)
+}
+
+#[tokio::test]
+async fn shared_secret_on_both_sides_connects_and_works() {
+    let dir = tmpdir();
+    let hub = start_hub_with_secret(&dir, Some(SECRET)).await;
+    let url = format!("ws://{}/ws", hub.addr);
+    let start = |who: &str| {
+        let mut c = daemon_config(&dir, url.clone(), who, &Opts::default());
+        c.secret = Some(SECRET.into());
+        daemon::start(c)
+    };
+    let a = start("alice@machine-a").await.unwrap();
+    let b = start("bob@machine-b").await.unwrap();
+    wait_connected(&a).await;
+    wait_connected(&b).await;
+    let repo_a = make_repo(&dir.join("a/proj"));
+    let repo_b = make_repo(&dir.join("b/proj"));
+    hook(&a, session_start(SA, &repo_a)).await;
+    hook(&b, session_start(SB, &repo_b)).await;
+    hook(&a, pre_edit(SA, &repo_a, "src/lib.rs")).await;
+    let c = ctx(&hook(&b, pre_edit(SB, &repo_b, "src/lib.rs")).await);
+    assert!(c.contains("WARNING") && c.contains(SA), "{c}");
+    tool(
+        &a,
+        SA,
+        "send",
+        json!({"to": format!("session:{SB}"), "body": "through-the-secret"}),
+    )
+    .await
+    .unwrap();
+    next_ctx(&b, SB, &repo_b, |c| c.contains("through-the-secret")).await;
+}
+
+#[tokio::test]
+async fn daemon_with_a_secret_sends_nothing_to_a_hub_that_cannot_prove_it() {
+    use std::sync::atomic::Ordering::SeqCst;
+    use std::sync::Arc;
+    use wormhole::auth::{proof, NONCE_HEADER, PROOF_HEADER};
+    let dir = tmpdir();
+    // The real hub, used to capture one genuine reply to another daemon's challenge.
+    let real = start_hub_with_secret(&dir, Some(SECRET)).await;
+    let (_held, hub_nonce, hub_proof) =
+        raw_connect(&format!("ws://{}/ws", real.addr), Some(&"ab".repeat(32)))
+            .await
+            .unwrap();
+    assert!(!hub_proof.is_empty(), "the real hub answers the challenge");
+    let cases: Vec<(&str, Answer)> = vec![
+        ("hub without a secret", Arc::new(|_: &str| vec![])),
+        (
+            "hub with the wrong secret",
+            Arc::new(|n: &str| {
+                let h = "cd".repeat(32);
+                vec![
+                    (NONCE_HEADER, h.clone()),
+                    (PROOF_HEADER, proof(WRONG, "hub", n, &h)),
+                ]
+            }),
+        ),
+        (
+            "replayed hub reply",
+            Arc::new(move |_: &str| {
+                vec![
+                    (NONCE_HEADER, hub_nonce.clone()),
+                    (PROOF_HEADER, hub_proof.clone()),
+                ]
+            }),
+        ),
+    ];
+    for (i, (name, answer)) in cases.into_iter().enumerate() {
+        let (addr, upgrades, seen) = fake_hub(answer).await;
+        let sub = dir.join(i.to_string());
+        let mut c = daemon_config(
+            &sub,
+            format!("ws://{addr}/ws"),
+            "alice@machine-a",
+            &Opts::default(),
+        );
+        c.secret = Some(SECRET.into());
+        let d = daemon::start(c).await.unwrap();
+        // A session with a repo and a task the fake hub must never learn.
+        let repo = make_repo(&sub.join("proj"));
+        hook(&d, session_start(SA, &repo)).await;
+        eventually(5, || async { (upgrades.load(SeqCst) >= 3).then_some(()) }).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_eq!(d.connects(), 0, "{name}: the daemon accepted the hub");
+        assert!(
+            seen.lock().unwrap().is_empty(),
+            "{name}: the hub received {:?}",
+            seen.lock().unwrap()
+        );
+        d.shutdown().await;
+    }
+
+    // A real hub without a secret is refused too.
+    let plain = start_hub(&dir.join("plain")).await;
+    let mut c = daemon_config(
+        &dir.join("plain"),
+        format!("ws://{}/ws", plain.addr),
+        "alice@machine-a",
+        &Opts::default(),
+    );
+    c.secret = Some(SECRET.into());
+    let d = daemon::start(c).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert_eq!(d.connects(), 0, "connected to a hub without a secret");
+}
+
+#[tokio::test]
+async fn hub_with_a_secret_refuses_daemons_that_cannot_prove_it() {
+    use wormhole::auth::proof;
+    let dir = tmpdir();
+    let hub = start_hub_with_secret(&dir, Some(SECRET)).await;
+    let url = format!("ws://{}/ws", hub.addr);
+
+    // A daemon without a secret sends no challenge and is refused at the upgrade.
+    assert!(raw_connect(&url, None).await.is_err(), "no challenge");
+    let d = daemon::start(daemon_config(
+        &dir,
+        url.clone(),
+        "bob@machine-b",
+        &Opts::default(),
+    ))
+    .await
+    .unwrap();
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert_eq!(d.connects(), 0, "daemon without a secret connected");
+
+    let dn = "ef".repeat(32);
+    // No proof, or a proof under the wrong secret: no welcome.
+    let (ws, _, _) = raw_connect(&url, Some(&dn)).await.unwrap();
+    assert!(!welcomed(ws, None).await, "no proof");
+    let (ws, hn, _) = raw_connect(&url, Some(&dn)).await.unwrap();
+    assert!(
+        !welcomed(ws, Some(proof(WRONG, "daemon", &dn, &hn))).await,
+        "wrong secret"
+    );
+
+    // The right proof is welcomed once; captured, it fails against the next hub nonce.
+    let (ws, hn, _) = raw_connect(&url, Some(&dn)).await.unwrap();
+    let captured = proof(SECRET, "daemon", &dn, &hn);
+    assert!(welcomed(ws, Some(captured.clone())).await, "right secret");
+    let (ws, hn2, _) = raw_connect(&url, Some(&dn)).await.unwrap();
+    assert_ne!(hn, hn2, "hub nonces are fresh");
+    assert!(!welcomed(ws, Some(captured)).await, "replayed daemon proof");
+
+    // The hub's own reply cannot be reflected back as the daemon's.
+    let (ws, _, hub_proof) = raw_connect(&url, Some(&dn)).await.unwrap();
+    assert!(!welcomed(ws, Some(hub_proof)).await, "reflected hub proof");
 }

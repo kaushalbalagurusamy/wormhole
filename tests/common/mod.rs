@@ -65,12 +65,17 @@ pub struct Net {
 }
 
 pub async fn start_hub(dir: &Path) -> HubHandle {
+    start_hub_with_secret(dir, None).await
+}
+
+pub async fn start_hub_with_secret(dir: &Path, secret: Option<&str>) -> HubHandle {
     hub::start(HubConfig {
         listen: "127.0.0.1:0".parse().unwrap(),
         db: dir.join("hub.sqlite"),
         identity: IdentityConfig::Static,
         hostnames: vec![],
         allow_users: vec![],
+        secret: secret.map(str::to_string),
     })
     .await
     .unwrap()

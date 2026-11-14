@@ -944,6 +944,7 @@ mod tests {
             identity: IdentityConfig::Static,
             hostnames: vec![],
             allow_users: vec![],
+            secret: None,
         })
         .await
         .unwrap();
