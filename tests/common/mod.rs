@@ -4,7 +4,7 @@
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -120,6 +120,47 @@ pub async fn wait_connected(d: &DaemonHandle) {
         );
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
+}
+
+/// A TCP proxy to `upstream`. While the flag is set it holds what upstream sends without
+/// closing anything, so the hub looks alive but stops answering.
+pub async fn stall_proxy(upstream: SocketAddr) -> (SocketAddr, std::sync::Arc<AtomicBool>) {
+    let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = l.local_addr().unwrap();
+    let stall = std::sync::Arc::new(AtomicBool::new(false));
+    let flag = stall.clone();
+    tokio::spawn(async move {
+        while let Ok((down, _)) = l.accept().await {
+            let up = TcpStream::connect(upstream).await.unwrap();
+            let (mut dr, mut dw) = down.into_split();
+            let (mut ur, mut uw) = up.into_split();
+            tokio::spawn(async move {
+                // The hub checks the Host header, so the upgrade request names the hub.
+                let mut head = vec![0u8; 16 * 1024];
+                let n = dr.read(&mut head).await?;
+                let head = String::from_utf8_lossy(&head[..n]).replacen(
+                    &addr.to_string(),
+                    &upstream.to_string(),
+                    1,
+                );
+                uw.write_all(head.as_bytes()).await?;
+                tokio::io::copy(&mut dr, &mut uw).await
+            });
+            let flag = flag.clone();
+            tokio::spawn(async move {
+                let mut buf = vec![0u8; 16 * 1024];
+                while let Ok(n) = ur.read(&mut buf).await {
+                    while flag.load(Ordering::SeqCst) {
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                    if n == 0 || dw.write_all(&buf[..n]).await.is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+    });
+    (addr, stall)
 }
 
 /// Minimal HTTP/1.1 request; returns (status, headers, body).

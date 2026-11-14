@@ -137,6 +137,65 @@ async fn blanked_path_is_denied_from_a_subdirectory() {
 }
 
 #[tokio::test]
+async fn blanked_path_outside_a_repository_is_not_checked() {
+    let n = net(Opts::default()).await;
+    // tmpdir() is under target/, inside this checkout; the system temp dir is not.
+    let plain = std::env::temp_dir().join(format!("wormhole-plain-{}", std::process::id()));
+    std::fs::create_dir_all(&plain).unwrap();
+    assert!(wormhole::repo::find(&plain).is_none());
+    hook(&n.a, session_start(SA, &plain)).await;
+    let r = hook(
+        &n.a,
+        pre_edit(SA, &plain, &format!("{}x.txt", "./".repeat(2100))),
+    )
+    .await;
+    assert_eq!(r, json!({}));
+}
+
+#[tokio::test]
+async fn unchecked_path_fails_open_when_hub_stops_answering() {
+    // The session is registered, then the hub keeps its connection open but stops answering.
+    let dir = tmpdir();
+    let hub = start_hub(&dir).await;
+    let (addr, stall) = stall_proxy(hub.addr).await;
+    let opts = Opts {
+        protected: vec!["secrets/**".into()],
+        ..Opts::default()
+    };
+    let d = daemon::start(daemon_config(
+        &dir,
+        format!("ws://{addr}/ws"),
+        "alice@machine-a",
+        &opts,
+    ))
+    .await
+    .unwrap();
+    wait_connected(&d).await;
+    let repo = make_repo(&dir.join("proj"));
+    hook(&d, session_start(SA, &repo)).await;
+    stall.store(true, std::sync::atomic::Ordering::SeqCst);
+    let deep = format!(
+        "secrets/{}/{}/{}/k",
+        "a".repeat(200),
+        "b".repeat(200),
+        "c".repeat(200)
+    );
+    // A normal edit first, so the expected result is the one it gets.
+    let blanked = format!("{}secrets/key.txt", "./".repeat(2100));
+    for file in ["secrets/key.txt".to_string(), blanked, deep] {
+        let t = Instant::now();
+        let r = hook(&d, pre_edit(SA, &repo, &file)).await;
+        assert!(
+            t.elapsed() < Duration::from_millis(1500),
+            "took {:?}",
+            t.elapsed()
+        );
+        assert_eq!(decision(&r), None, "{r}");
+        assert!(ctx(&r).contains("stale"), "{r}");
+    }
+}
+
+#[tokio::test]
 async fn repo_path_over_field_limit_is_denied() {
     let deep = format!(
         "secrets/{}/{}/{}/k",
