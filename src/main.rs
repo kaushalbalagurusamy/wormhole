@@ -34,10 +34,18 @@ enum Cmd {
         /// Accept only this user (Tailscale login name, or tag:name for tagged nodes). Repeatable.
         #[arg(long)]
         allow: Vec<String>,
+        /// TLS certificate chain (PEM), e.g. from `tailscale cert`. Serves wss:// and https://.
+        /// Reloaded on SIGHUP.
+        #[arg(long, requires = "tls_key")]
+        tls_cert: Option<PathBuf>,
+        /// TLS private key (PEM).
+        #[arg(long, requires = "tls_cert")]
+        tls_key: Option<PathBuf>,
     },
     /// Run the per-machine daemon.
     Daemon {
-        /// Hub WebSocket URL, e.g. ws://100.64.0.1:7420/ws
+        /// Hub WebSocket URL: wss://hub.example.ts.net:7420/ws with TLS, or ws:// to a loopback,
+        /// Tailscale or *.ts.net address.
         #[arg(long)]
         hub: String,
         #[arg(long, default_value = "127.0.0.1:7421")]
@@ -92,6 +100,8 @@ async fn main() {
             tailscale_bin,
             hostname,
             allow,
+            tls_cert,
+            tls_key,
         } => {
             let identity = match identity.as_str() {
                 "tailscale" => hub::identity::IdentityConfig::Tailscale { bin: tailscale_bin },
@@ -107,7 +117,9 @@ async fn main() {
                 identity,
                 hostnames: hostname,
                 allow_users: allow,
-                tls: None,
+                tls: tls_cert
+                    .zip(tls_key)
+                    .map(|(cert, key)| wormhole::tls::TlsFiles { cert, key }),
             })
             .await
             {

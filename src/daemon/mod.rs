@@ -107,6 +107,8 @@ pub(crate) struct Daemon {
     pub link: Link,
     pub http_port: AtomicU64,
     pub hook_token: String,
+    /// Verified TLS client config for a wss:// hub.
+    tls_client: Option<Arc<rustls::ClientConfig>>,
 }
 
 impl Daemon {
@@ -211,10 +213,31 @@ fn request_session(r: &Request) -> Option<String> {
     }
 }
 
+/// Check the hub URL: wss:// gets a verified TLS config; ws:// is allowed only to loopback,
+/// a Tailscale address or a `*.ts.net` name, where WireGuard (or nothing leaving the machine)
+/// protects the path.
+fn hub_transport(cfg: &DaemonConfig) -> Result<Option<Arc<rustls::ClientConfig>>, String> {
+    let req = cfg
+        .hub_url
+        .as_str()
+        .into_client_request()
+        .map_err(|e| format!("hub URL {}: {e}", cfg.hub_url))?;
+    let host = req.uri().host().unwrap_or("").to_string();
+    match req.uri().scheme_str() {
+        Some("wss") => Ok(Some(crate::tls::client_config(&cfg.extra_roots)?)),
+        Some("ws") if crate::tls::plaintext_ok_host(&host) => Ok(None),
+        Some("ws") => Err(format!(
+            "refusing plaintext ws:// to {host}: it is not loopback, a Tailscale address or a .ts.net name; use wss://"
+        )),
+        _ => Err(format!("hub URL {} must start with ws:// or wss://", cfg.hub_url)),
+    }
+}
+
 pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
     if !cfg.http_listen.ip().is_loopback() {
         return Err("the hook HTTP endpoint must listen on loopback".into());
     }
+    let tls_client = hub_transport(&cfg)?;
     let unix = sock::bind(&cfg.socket_path)?;
     let hook_token = sock::hook_token(
         cfg.socket_path
@@ -227,6 +250,7 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         link: Link::default(),
         http_port: AtomicU64::new(0),
         hook_token: hook_token.clone(),
+        tls_client,
     });
     let http = tokio::net::TcpListener::bind(cfg.http_listen)
         .await
@@ -284,9 +308,13 @@ async fn connect(d: &Daemon) -> Result<Ws, String> {
     let conf = tungstenite::protocol::WebSocketConfig::default()
         .max_message_size(Some(MAX_FRAME))
         .max_frame_size(Some(MAX_FRAME));
+    let connector = d
+        .tls_client
+        .clone()
+        .map(tokio_tungstenite::Connector::Rustls);
     let (ws, _) = tokio::time::timeout(
         Duration::from_secs(5),
-        tokio_tungstenite::connect_async_with_config(req, Some(conf), false),
+        tokio_tungstenite::connect_async_tls_with_config(req, Some(conf), false, connector),
     )
     .await
     .map_err(|_| "connect timed out".to_string())?
