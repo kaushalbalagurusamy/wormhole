@@ -15,7 +15,7 @@ Build with a current stable Rust toolchain:
     cargo build --release --locked
     export PATH="$PWD/target/release:$PATH"
 
-On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused, and with `--allow` only the named users (or `tag:` names) are accepted.
+On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused, and with `--allow` only the named tailnet logins (or `tag:` names) are accepted.
 
     mkdir -m 700 -p ~/.wormhole
     wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite \
@@ -54,12 +54,14 @@ For a single machine without Tailscale, run the hub with `--identity static` on 
 ## Scope
 
 - Honest, enrolled devices on one private network (Tailscale), and their Claude Code sessions. Crashes, restarts and partitions are tolerated; dishonest participants are not. See [the fault model](docs/design.md#fault-model).
+- Each machine is used by one person, or by accounts that all trust each other. Identity is per tailnet node: every account on an allowed machine has that machine's full access to the hub, including its sessions' messages.
 - One hub process on one machine; one small daemon per developer machine.
 - Delivery into Claude Code through hooks (generally available) and, optionally, channels (research preview).
 
 ## Not in scope
 
 - Untrusted or dishonest participants (Byzantine fault tolerance), and public networks.
+- Machines shared with accounts you do not trust.
 - Replacing git, pull requests or code review.
 - Routing between different users' Claude accounts through Anthropic's services; wormhole runs its own relay.
 
