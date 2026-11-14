@@ -112,7 +112,12 @@ fn event_row(r: &rusqlite::Row) -> rusqlite::Result<Event> {
 
 impl Store {
     pub fn open(path: &Path) -> rusqlite::Result<Store> {
-        Self::init(rusqlite::Connection::open(path)?)
+        let s = Self::init(rusqlite::Connection::open(path)?)?;
+        // The log holds message bodies: owner-only. SQLite gives its -wal and -shm files the
+        // same mode as the database.
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+        Ok(s)
     }
 
     pub fn open_memory() -> rusqlite::Result<Store> {
@@ -668,6 +673,11 @@ mod tests {
             granted(s.acquire(0, &h("A"), "r", "f", 1000).unwrap()).token
         };
         let mut s = Store::open(&p).unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&p).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
         assert_eq!(s.head().unwrap(), 1);
         s.release_session("A").unwrap();
         let t2 = granted(s.acquire(0, &h("A"), "r", "f", 1000).unwrap()).token;

@@ -13,8 +13,11 @@ pub const MAX_PATHS: usize = 32;
 pub const MAX_FIELD: usize = 512;
 /// Longest task description, in characters.
 pub const MAX_TASK: usize = 200;
-/// Largest WebSocket frame either side accepts.
-pub const MAX_FRAME: usize = 64 * 1024;
+/// Largest WebSocket frame either side accepts. Snapshots are the largest frames.
+pub const MAX_FRAME: usize = 1024 * 1024;
+/// Most sessions and leases in one snapshot, so it fits in a frame.
+pub const MAX_SNAPSHOT_SESSIONS: usize = 500;
+pub const MAX_SNAPSHOT_LEASES: usize = 1000;
 
 /// Header a daemon uses to claim an identity when the hub runs with static identity.
 pub const STATIC_ID_HEADER: &str = "x-wormhole-static-identity";

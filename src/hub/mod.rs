@@ -727,7 +727,15 @@ impl Hub {
                 )?;
                 Ok(json!({}))
             }
-            Request::Snapshot => Ok(serde_json::to_value(self.snapshot()?).unwrap_or(Value::Null)),
+            Request::Snapshot => {
+                let mut snap = self.snapshot()?;
+                // Newest first, capped so the reply fits in one frame.
+                snap.sessions.reverse();
+                snap.sessions.truncate(MAX_SNAPSHOT_SESSIONS);
+                snap.leases.reverse();
+                snap.leases.truncate(MAX_SNAPSHOT_LEASES);
+                Ok(serde_json::to_value(snap).unwrap_or(Value::Null))
+            }
         }
     }
 
