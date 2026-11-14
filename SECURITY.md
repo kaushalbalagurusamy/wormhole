@@ -22,6 +22,7 @@ Out of scope: participants who are already trusted acting maliciously within the
 Covered:
 
 - Identity comes from the network (`tailscale whois` on the peer address), never from the payload. whois runs once for every new connection or HTTP request and is never cached, so a tailnet address reassigned to another node is identified afresh; if whois fails or returns no user and node, the connection is refused (identity fails closed, unlike hooks). Static identity is for tests; the hub refuses it unless bound to loopback and rejects non-loopback peers.
+- The hub's own identity, only with `--secret-file` on the hub and every daemon. The daemon sends a fresh 32-byte nonce on the WebSocket upgrade; the hub answers with its own nonce and HMAC-SHA256 under the secret over its role and both nonces; the daemon checks it in constant time and drops the connection before sending anything, so a hub that fails sees no session ids, repositories or tasks and cannot inject events. The daemon then proves itself the same way in its first frame, and the hub refuses it before replay or requests. Fresh nonces on both sides stop a captured proof being replayed, and the role in the MAC stops a proof being reflected. If one side has a secret and the other does not, the connection is refused and logged on both sides.
 - Relayed text is cleaned before it reaches a model: control characters and all Unicode format (Cf) characters are removed, including the tag block U+E0000 to U+E007F used to smuggle hidden instructions, variation selectors, U+00AD, U+034F and U+180E. U+2028, U+2029 and U+0085 are treated as line breaks. `<`, `>` and `&` are escaped so a body cannot close its wrapper.
 - A session id is bound in the hub database to the first peer that registers it, and stays bound after the session ends or times out; another peer cannot re-register it. A timed-out session's leases are released. A message to a session records the recipient's user and machine when it is sent, and only that peer can receive it, before or after the session expires.
 - Each hub connection has a bounded outbound queue. A consumer that cannot keep up is disconnected (and resumes from its cursor on reconnect); replay waits at most 2 s for queue space and reaches back at most 100,000 events.
@@ -35,6 +36,8 @@ Covered:
 - Length caps are applied to the escaped output, so escaping cannot expand text past the cap. A block larger than the whole context budget is truncated rather than withheld.
 
 Not covered (accepted for this slice; details in docs/design.md under "Security notes"):
+
+- Without `--secret-file` the hub is not authenticated: a daemon sends its sessions to, and takes events from, whatever answers at its `--hub` address. With it, traffic is still plain `ws://` and not encrypted, and an attacker who can relay between a daemon and the real hub at connection time can pass the challenge through and then read or alter the link; the secret only proves who is at each end. The activity page and the hub's HTTP routes are not covered by the secret and are identified by `tailscale whois` alone.
 
 - Processes running as the same user, including the agent's own shell, can read the hook token and use the daemon socket.
 - While the daemon is down, another local user could listen on the fixed hook port and receive hook requests.

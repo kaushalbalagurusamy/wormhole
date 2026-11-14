@@ -1067,6 +1067,8 @@ async fn fake_hub(
         while let Ok((tcp, _)) = l.accept().await {
             let (answer, u, s) = (answer.clone(), u.clone(), s.clone());
             tokio::spawn(async move {
+                // The error type is tungstenite's, fixed by its callback signature.
+                #[allow(clippy::result_large_err)]
                 let cb = |req: &Request, mut resp: Response| {
                     let n = req
                         .headers()
@@ -1190,9 +1192,9 @@ async fn daemon_with_a_secret_sends_nothing_to_a_hub_that_cannot_prove_it() {
     }
 
     // A real hub without a secret is refused too.
-    let plain = start_hub(&dir.join("plain")).await;
+    let plain = start_hub(&dir.join("p")).await;
     let mut c = daemon_config(
-        &dir.join("plain"),
+        &dir.join("p"),
         format!("ws://{}/ws", plain.addr),
         "alice@machine-a",
         &Opts::default(),

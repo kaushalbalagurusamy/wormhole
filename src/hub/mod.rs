@@ -33,6 +33,9 @@ pub struct HubConfig {
     /// Users (login names, or `tag:...` for tagged nodes) the hub accepts. Empty accepts any
     /// peer the identity source can identify.
     pub allow_users: Vec<String>,
+    /// Shared secret daemons must prove on the WebSocket (see `auth`). The HTTP routes
+    /// do not use it.
+    pub secret: Option<String>,
 }
 
 /// A session with no heartbeat for this long is reported gone.
@@ -55,6 +58,7 @@ pub(crate) struct Hub {
     kick: broadcast::Sender<String>,
     /// Bound address and accepted host names, for the Host check.
     endpoint: std::sync::OnceLock<(SocketAddr, Vec<String>)>,
+    secret: Option<String>,
 }
 
 /// Frames queued per connection before a slow consumer is dropped.
@@ -96,6 +100,7 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
     let store = Store::open(&cfg.db)?;
     let mut hub = Hub::new(store, cfg.identity.clone());
     hub.ident = Identifier::with_allowlist(cfg.identity.clone(), cfg.allow_users.clone());
+    hub.secret = cfg.secret.clone();
     let hub = Arc::new(hub);
     let listener = tokio::net::TcpListener::bind(cfg.listen)
         .await
@@ -158,9 +163,50 @@ async fn ws(
         Ok(p) => p,
         Err(s) => return s.into_response(),
     };
-    up.max_message_size(MAX_FRAME)
+    let dn = headers
+        .get(crate::auth::NONCE_HEADER)
+        .and_then(|v| v.to_str().ok());
+    // With a secret: answer the daemon's challenge and send our own; the daemon proves
+    // itself in its first frame. Mismatched configuration is refused, never ignored.
+    let challenge = match (&hub.secret, dn) {
+        (None, None) => None,
+        (Some(_), Some(dn)) if crate::auth::is_nonce(dn) => match crate::auth::random_hex() {
+            Ok(hn) => Some((dn.to_string(), hn)),
+            Err(e) => {
+                eprintln!("wormhole hub: {e}");
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        },
+        (secret, _) => {
+            eprintln!(
+                "wormhole hub: refused {addr} ({}): {}",
+                peer.key(),
+                if secret.is_some() {
+                    "it sent no valid shared-secret challenge;give the daemon the same --secret-file"
+                } else {
+                    "it has a shared secret and this hub has none; set --secret-file here too"
+                }
+            );
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+    };
+    let answer = match (&hub.secret, &challenge) {
+        (Some(secret), Some((dn, hn))) => {
+            Some((hn.clone(), crate::auth::proof(secret, "hub", dn, hn)))
+        }
+        _ => None,
+    };
+    let mut resp = up
+        .max_message_size(MAX_FRAME)
         .max_frame_size(MAX_FRAME)
-        .on_upgrade(move |sock| connection(hub, peer, sock))
+        .on_upgrade(move |sock| connection(hub, peer, sock, addr, challenge));
+    if let Some((hn, proof)) = answer {
+        // Both are hex, so they always parse as header values.
+        let h = resp.headers_mut();
+        h.insert(crate::auth::NONCE_HEADER, hn.parse().unwrap());
+        h.insert(crate::auth::PROOF_HEADER, proof.parse().unwrap());
+    }
+    resp
 }
 
 /// Queue a frame without waiting. False if the queue is full (slow consumer) or closed.
@@ -171,7 +217,14 @@ fn try_down(out: &mpsc::Sender<Message>, d: &Down) -> bool {
     }
 }
 
-async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
+/// `challenge` is the (daemon, hub) nonce pair when a shared secret is set.
+async fn connection(
+    hub: Arc<Hub>,
+    peer: Peer,
+    sock: WebSocket,
+    addr: SocketAddr,
+    challenge: Option<(String, String)>,
+) {
     let (mut sink, mut stream) = sock.split();
     let (out, mut out_rx) = mpsc::channel::<Message>(OUT_QUEUE);
     let writer = tokio::spawn(async move {
@@ -183,10 +236,31 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
     });
     let mut kick = hub.kick.subscribe();
 
-    // First frame must be Resume.
+    // First frame must be Resume, carrying the daemon's proof when a secret is set.
     let from = match tokio::time::timeout(Duration::from_secs(10), stream.next()).await {
         Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Up>(&t) {
-            Ok(Up::Resume { from }) => from,
+            Ok(Up::Resume { from, proof }) => {
+                let passed = match (&hub.secret, &challenge) {
+                    (None, _) => true,
+                    (Some(_), None) => false,
+                    (Some(secret), Some((dn, hn))) => crate::auth::verify(
+                        secret,
+                        "daemon",
+                        dn,
+                        hn,
+                        proof.as_deref().unwrap_or(""),
+                    ),
+                };
+                if !passed {
+                    eprintln!(
+                        "wormhole hub: refused {addr} ({}): wrong shared secret",
+                        peer.key()
+                    );
+                    writer.abort();
+                    return;
+                }
+                from
+            }
             _ => {
                 writer.abort();
                 return;
@@ -337,6 +411,7 @@ impl Hub {
             ident: Identifier::new(identity),
             kick,
             endpoint: std::sync::OnceLock::new(),
+            secret: None,
         }
     }
 
@@ -957,7 +1032,7 @@ mod tests {
                     .insert(STATIC_ID_HEADER, "alice@ma".parse().unwrap());
                 let (mut ws, _) = tokio_tungstenite::connect_async(req).await.unwrap();
                 ws.send(M::text(
-                    serde_json::to_string(&Up::Resume { from }).unwrap(),
+                    serde_json::to_string(&Up::Resume { from, proof: None }).unwrap(),
                 ))
                 .await
                 .unwrap();

@@ -88,18 +88,14 @@ pub(crate) fn bind(path: &Path) -> Result<Bound, String> {
 /// The secret HTTP hook requests must carry, kept in `dir/hook-token` (mode 0600) so it
 /// survives daemon restarts and `wormhole install` can print it.
 pub(crate) fn hook_token(dir: &Path) -> Result<String, String> {
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     private_dir(dir)?;
     let p = dir.join("hook-token");
     if let Some(t) = read_hook_token(&p)? {
         return Ok(t);
     }
-    let mut raw = [0u8; 32];
-    std::fs::File::open("/dev/urandom")
-        .and_then(|mut f| f.read_exact(&mut raw))
-        .map_err(|e| format!("read /dev/urandom: {e}"))?;
-    let token: String = raw.iter().map(|b| format!("{b:02x}")).collect();
+    let token = crate::auth::random_hex()?;
     let mut f = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -129,7 +125,7 @@ pub(crate) fn read_hook_token(p: &Path) -> Result<Option<String>, String> {
                 .to_string();
             if t.len() < 32 {
                 return Err(format!(
-                    "{} is too short; delete it to regenerate",
+                    "{} is too short: it needs at least 32 characters",
                     p.display()
                 ));
             }

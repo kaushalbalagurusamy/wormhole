@@ -34,6 +34,9 @@ enum Cmd {
         /// Accept only this user (Tailscale login name, or tag:name for tagged nodes). Repeatable.
         #[arg(long)]
         allow: Vec<String>,
+        /// File (mode 600, 32+ characters) holding a secret every daemon must also have.
+        #[arg(long)]
+        secret_file: Option<PathBuf>,
     },
     /// Run the per-machine daemon.
     Daemon {
@@ -52,6 +55,9 @@ enum Cmd {
         protected: Vec<String>,
         #[arg(long, default_value_t = 600)]
         lease_ttl_secs: u64,
+        /// File (mode 600) holding the hub's secret; the hub must prove it before anything is sent.
+        #[arg(long)]
+        secret_file: Option<PathBuf>,
     },
     /// Stdio MCP server for one Claude Code session (tools and channel push).
     McpChannel {
@@ -81,6 +87,16 @@ fn default_socket() -> PathBuf {
     home.join(".wormhole").join("daemon.sock")
 }
 
+/// The `--secret-file` contents; a bad file stops the process.
+fn read_secret(p: Option<PathBuf>) -> Option<String> {
+    p.map(|p| {
+        daemon::read_secret(&p).unwrap_or_else(|e| {
+            eprintln!("wormhole: {e}");
+            std::process::exit(1)
+        })
+    })
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -92,7 +108,9 @@ async fn main() {
             tailscale_bin,
             hostname,
             allow,
+            secret_file,
         } => {
+            let secret = read_secret(secret_file);
             let identity = match identity.as_str() {
                 "tailscale" => hub::identity::IdentityConfig::Tailscale { bin: tailscale_bin },
                 "static" => hub::identity::IdentityConfig::Static,
@@ -107,6 +125,7 @@ async fn main() {
                 identity,
                 hostnames: hostname,
                 allow_users: allow,
+                secret,
             })
             .await
             {
@@ -126,8 +145,11 @@ async fn main() {
             static_identity,
             protected,
             lease_ttl_secs,
+            secret_file,
         } => {
+            let secret = read_secret(secret_file);
             let mut c = daemon::DaemonConfig::new(hub, socket.unwrap_or_else(default_socket));
+            c.secret = secret;
             c.http_listen = http;
             c.static_identity = static_identity;
             c.protected = protected;

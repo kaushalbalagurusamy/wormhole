@@ -36,9 +36,12 @@ pub enum Target {
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum Up {
     /// First frame on a connection. `from` is the last sequence number the daemon has
-    /// processed; `None` asks the hub to use its stored cursor for this machine.
+    /// processed; `None` asks the hub to use its stored cursor for this machine. `proof`
+    /// answers the hub's challenge when a shared secret is set (see `auth`).
     Resume {
         from: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        proof: Option<String>,
     },
     /// Everything up to and including `seq` has been processed.
     Ack {

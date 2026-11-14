@@ -37,6 +37,8 @@ pub struct DaemonConfig {
     pub hub_deadline: Duration,
     /// First reconnect delay; doubles up to 10 s.
     pub reconnect_min: Duration,
+    /// Shared secret the hub must prove before anything is sent to it (see `auth`).
+    pub secret: Option<String>,
 }
 
 impl DaemonConfig {
@@ -50,6 +52,7 @@ impl DaemonConfig {
             lease_ttl: Duration::from_secs(600),
             hub_deadline: Duration::from_millis(800),
             reconnect_min: Duration::from_millis(250),
+            secret: None,
         }
     }
 }
@@ -188,6 +191,11 @@ pub fn read_hook_token(socket_path: &std::path::Path) -> Result<Option<String>, 
     }
 }
 
+/// A shared-secret file for `--secret-file`, held to the same checks as the hook token.
+pub fn read_secret(p: &std::path::Path) -> Result<String, String> {
+    sock::read_hook_token(p)?.ok_or_else(|| format!("{}: no such file", p.display()))
+}
+
 /// The session a request acts for, if any.
 fn request_session(r: &Request) -> Option<String> {
     use Request::*;
@@ -248,8 +256,8 @@ async fn link_loop(d: Arc<Daemon>) {
     let max = Duration::from_secs(10);
     let mut delay = d.cfg.reconnect_min;
     loop {
-        if let Ok(ws) = connect(&d).await {
-            if run_connection(&d, ws).await {
+        if let Ok((ws, proof)) = connect(&d).await {
+            if run_connection(&d, ws, proof).await {
                 delay = d.cfg.reconnect_min;
             }
         }
@@ -264,7 +272,9 @@ async fn link_loop(d: Arc<Daemon>) {
 type Ws =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
-async fn connect(d: &Daemon) -> Result<Ws, String> {
+/// Open the hub connection. With a secret, the hub must prove it in the upgrade response
+/// before anything else is sent; the result then carries the daemon's own proof.
+async fn connect(d: &Daemon) -> Result<(Ws, Option<String>), String> {
     let mut req = d
         .cfg
         .hub_url
@@ -277,24 +287,64 @@ async fn connect(d: &Daemon) -> Result<Ws, String> {
             id.parse().map_err(|_| "bad static identity")?,
         );
     }
+    let nonce = match &d.cfg.secret {
+        Some(_) => Some(crate::auth::random_hex()?),
+        None => None,
+    };
+    if let Some(n) = &nonce {
+        req.headers_mut().insert(
+            crate::auth::NONCE_HEADER,
+            n.parse().map_err(|_| "bad nonce")?,
+        );
+    }
     let conf = tungstenite::protocol::WebSocketConfig::default()
         .max_message_size(Some(MAX_FRAME))
         .max_frame_size(Some(MAX_FRAME));
-    let (ws, _) = tokio::time::timeout(
+    let (ws, resp) = match tokio::time::timeout(
         Duration::from_secs(5),
         tokio_tungstenite::connect_async_with_config(req, Some(conf), false),
     )
     .await
     .map_err(|_| "connect timed out".to_string())?
-    .map_err(|e| e.to_string())?;
-    Ok(ws)
+    {
+        Ok(r) => r,
+        Err(tungstenite::Error::Http(r)) if r.status() == 401 => {
+            eprintln!(
+                "wormhole daemon: {} refused the shared-secret check; set the same --secret-file on both or on neither (see the hub's log)",
+                d.cfg.hub_url
+            );
+            return Err("refused by hub".into());
+        }
+        Err(e) => return Err(e.to_string()),
+    };
+    let (Some(secret), Some(dn)) = (&d.cfg.secret, nonce) else {
+        return Ok((ws, None));
+    };
+    let h = |k| {
+        resp.headers()
+            .get(k)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+    };
+    let hn = h(crate::auth::NONCE_HEADER);
+    if !crate::auth::is_nonce(hn)
+        || !crate::auth::verify(secret, "hub", &dn, hn, h(crate::auth::PROOF_HEADER))
+    {
+        // Dropping the socket here: nothing about our sessions has been sent.
+        eprintln!(
+            "wormhole daemon: {} did not prove the shared secret (no or a different --secret-file on the hub, or not the hub); disconnecting",
+            d.cfg.hub_url
+        );
+        return Err("hub failed the shared-secret check".into());
+    }
+    Ok((ws, Some(crate::auth::proof(secret, "daemon", &dn, hn))))
 }
 
 /// Run one hub connection until it drops. True if the handshake completed.
-async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
+async fn run_connection(d: &Arc<Daemon>, ws: Ws, proof: Option<String>) -> bool {
     let (mut sink, mut stream) = ws.split();
     let from = d.st.lock().unwrap().last_seq;
-    let resume = serde_json::to_string(&Up::Resume { from }).unwrap_or_default();
+    let resume = serde_json::to_string(&Up::Resume { from, proof }).unwrap_or_default();
     if sink.send(Message::text(resume)).await.is_err() {
         return false;
     }

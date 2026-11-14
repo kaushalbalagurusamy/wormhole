@@ -39,6 +39,14 @@ Channels need a claude.ai account or a Console API key, are not available on Bed
 
 The activity page is at `http://hub.your-tailnet.ts.net:7420/` from any machine on the tailnet.
 
+By default the hub is not authenticated: a daemon trusts whatever answers at its `--hub` address, and sends it its sessions' ids, repositories and tasks. To have hub and daemons prove to each other that they hold the same secret before anything is sent, put one secret in a file on every machine and pass it to the hub and to each daemon:
+
+    (umask 077; head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > ~/.wormhole/secret)
+    wormhole hub ... --secret-file ~/.wormhole/secret
+    wormhole daemon ... --secret-file ~/.wormhole/secret
+
+The file must be mode 600, owned by you, and at least 32 characters. If only one side has a secret, or the secrets differ, the connection is refused and both sides log why. This does not encrypt traffic, and the activity page and HTTP routes still rely on `tailscale whois` alone; see [SECURITY.md](SECURITY.md).
+
 For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address, and a browser cannot open the activity page in this mode because it cannot send the identity header.
 
 ## Scope
