@@ -27,6 +27,9 @@ pub struct HubConfig {
     pub listen: SocketAddr,
     pub db: PathBuf,
     pub identity: IdentityConfig,
+    /// DNS names clients may use for the hub (e.g. its tailnet name). Requests whose Host
+    /// is not the listen address or one of these are refused, to stop DNS rebinding.
+    pub hostnames: Vec<String>,
 }
 
 /// A session with no heartbeat for this long is reported gone.
@@ -214,6 +217,22 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
         }
     }
     writer.abort();
+}
+
+/// Furthest back a resuming connection is replayed.
+const MAX_REPLAY: u64 = 100_000;
+
+/// Where to resume a connection: the daemon's last sequence, else its stored cursor, else
+/// the head; never past the head and never more than `MAX_REPLAY` behind it.
+fn resume_point(from: Option<u64>, cursor: Option<u64>, head: u64) -> u64 {
+    let _ = (from, cursor, head);
+    todo!()
+}
+
+/// Is `host` (a Host header) one of the names this hub answers to?
+pub(crate) fn host_allowed(host: &str, listen: SocketAddr, names: &[String]) -> bool {
+    let _ = (host, listen, names);
+    todo!()
 }
 
 fn now() -> u64 {
@@ -615,5 +634,179 @@ async fn sweep(hub: Arc<Hub>) {
     loop {
         tick.tick().await;
         hub.sweep_once(now());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hub() -> Hub {
+        Hub::new(Store::open_memory().unwrap(), IdentityConfig::Static)
+    }
+
+    fn p(u: &str, m: &str) -> Peer {
+        Peer {
+            user: u.into(),
+            machine: m.into(),
+        }
+    }
+
+    fn hello(s: &str) -> Request {
+        Request::Hello {
+            session: s.into(),
+            repo: "r".into(),
+            branch: "main".into(),
+            task: String::new(),
+        }
+    }
+
+    fn last_event(h: &Hub) -> Event {
+        h.recent(1).unwrap().pop().unwrap()
+    }
+
+    #[test]
+    fn session_id_cannot_be_taken_over() {
+        let h = hub();
+        let (a, b) = (p("alice", "ma"), p("bob", "mb"));
+        h.handle(&a, hello("s1")).unwrap();
+        assert!(h.handle(&b, hello("s1")).is_err());
+        h.handle(
+            &a,
+            Request::LeaseAcquire {
+                session: "s1".into(),
+                repo: "r".into(),
+                scope: "f".into(),
+                ttl_ms: 3_600_000,
+            },
+        )
+        .unwrap();
+        // Presence times out: the session's leases go with it, but the id stays bound.
+        h.sweep_once(now() + PRESENCE_TIMEOUT_MS + 1000);
+        assert!(h.snapshot().unwrap().leases.is_empty());
+        assert!(h.snapshot().unwrap().sessions.is_empty());
+        assert!(h.handle(&b, hello("s1")).is_err());
+        // The owner can come back.
+        h.handle(&a, hello("s1")).unwrap();
+        // Ending a session does not free its id for others either.
+        h.handle(&a, Request::Bye { session: "s1".into() }).unwrap();
+        assert!(h.handle(&b, hello("s1")).is_err());
+    }
+
+    #[test]
+    fn message_visibility_is_fixed_at_send_time() {
+        let h = hub();
+        let (a, b, c) = (p("alice", "ma"), p("bob", "mb"), p("carol", "mc"));
+        h.handle(&a, hello("s1")).unwrap();
+        h.handle(&c, hello("s3")).unwrap();
+        h.handle(
+            &c,
+            Request::Send {
+                session: "s3".into(),
+                to: Target::Session("s1".into()),
+                body: "for alice".into(),
+                reply_to: None,
+            },
+        )
+        .unwrap();
+        let e = last_event(&h);
+        assert!(h.visible(&e, &a));
+        assert!(!h.visible(&e, &b));
+        h.sweep_once(now() + PRESENCE_TIMEOUT_MS + 1000);
+        // After expiry the recipient can still replay it and nobody else can.
+        assert!(h.visible(&e, &a));
+        assert!(!h.visible(&e, &b));
+    }
+
+    #[test]
+    fn resume_point_is_bounded() {
+        assert_eq!(resume_point(Some(0), None, 250_000), 250_000 - MAX_REPLAY);
+        assert_eq!(resume_point(None, Some(10), 20), 10);
+        assert_eq!(resume_point(None, None, 20), 20);
+        assert_eq!(resume_point(Some(30), None, 20), 20);
+    }
+
+    #[test]
+    fn host_header_must_name_the_hub() {
+        let listen: SocketAddr = "100.64.0.1:7420".parse().unwrap();
+        let names = vec!["hub.example.ts.net".to_string()];
+        assert!(host_allowed("100.64.0.1:7420", listen, &names));
+        assert!(host_allowed("hub.example.ts.net:7420", listen, &names));
+        assert!(host_allowed("hub.example.ts.net", listen, &names));
+        assert!(!host_allowed("evil.example:7420", listen, &names));
+        assert!(!host_allowed("100.64.0.1:7421", listen, &names));
+        assert!(!host_allowed("", listen, &names));
+        let lo: SocketAddr = "127.0.0.1:9000".parse().unwrap();
+        assert!(host_allowed("localhost:9000", lo, &[]));
+        assert!(!host_allowed("localhost:9000", listen, &[]));
+    }
+
+    #[tokio::test]
+    async fn slow_consumer_is_dropped_and_resumes_from_its_cursor() {
+        use tokio_tungstenite::tungstenite::{client::IntoClientRequest, Message as M};
+        let dir = std::env::temp_dir().join(format!("wh-slow-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let hh = start(HubConfig {
+            listen: "127.0.0.1:0".parse().unwrap(),
+            db: dir.join("hub.sqlite"),
+            identity: IdentityConfig::Static,
+            hostnames: vec![],
+        })
+        .await
+        .unwrap();
+        let url = format!("ws://{}/ws", hh.addr);
+        let connect = |from: Option<u64>| {
+            let url = url.clone();
+            async move {
+                let mut req = url.into_client_request().unwrap();
+                req.headers_mut().insert(STATIC_ID_HEADER, "alice@ma".parse().unwrap());
+                let (mut ws, _) = tokio_tungstenite::connect_async(req).await.unwrap();
+                ws.send(M::text(serde_json::to_string(&Up::Resume { from }).unwrap())).await.unwrap();
+                ws
+            }
+        };
+        async fn read_seqs(
+            ws: &mut tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+            until: u64,
+            seqs: &mut Vec<u64>,
+        ) -> bool {
+            loop {
+                match tokio::time::timeout(Duration::from_secs(10), ws.next()).await {
+                    Ok(Some(Ok(M::Text(t)))) => {
+                        if let Ok(Down::Event { event }) = serde_json::from_str::<Down>(&t) {
+                            seqs.push(event.seq);
+                            if event.seq >= until {
+                                return true;
+                            }
+                        }
+                    }
+                    Ok(Some(Ok(_))) => {}
+                    _ => return false,
+                }
+            }
+        }
+        let head = hh.hub.store.lock().unwrap().head().unwrap();
+        let mut ws = connect(Some(head)).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        // The client stops reading while far more is produced than any buffer holds.
+        let peer = p("alice", "ma");
+        let pad = "x".repeat(8000);
+        let total = 4000;
+        for i in 0..total {
+            hh.hub.emit("activity", &peer, "s", json!({"pad": pad, "i": i})).unwrap();
+        }
+        let end = head + total;
+        let mut seqs = Vec::new();
+        let finished = read_seqs(&mut ws, end, &mut seqs).await;
+        assert!(!finished, "slow consumer was not dropped");
+        let last = *seqs.last().unwrap_or(&head);
+        // Reconnect from the last sequence seen: the rest arrives, without gaps.
+        let mut ws = connect(Some(last)).await;
+        assert!(read_seqs(&mut ws, end, &mut seqs).await);
+        let want: Vec<u64> = (head + 1..=end).collect();
+        assert_eq!(seqs, want);
+        hh.shutdown().await;
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

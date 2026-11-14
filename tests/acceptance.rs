@@ -302,6 +302,7 @@ async fn hub_rejects_unidentified_and_browser_connections() {
         listen: "0.0.0.0:0".parse().unwrap(),
         db: dir.join("x.sqlite"),
         identity: wormhole::hub::identity::IdentityConfig::Static,
+        hostnames: vec![],
     })
     .await;
     assert!(r.is_err());
@@ -370,4 +371,26 @@ async fn activity_page_shows_presence_leases_and_events_without_contents() {
         got.push_str(&String::from_utf8_lossy(&buf[..k]));
     }
     assert!(!got.contains("SECRET-BODY") && !got.contains("FILE-CONTENTS-XYZ"), "{got}");
+}
+
+#[tokio::test]
+async fn activity_page_refuses_rebinding_and_cross_site_reads() {
+    let n = two_sessions(Opts::default()).await;
+    hook(&n.a, pre_edit(SA, &n.repo_a, "src/lib.rs")).await;
+    let id = ("x-wormhole-static-identity", "carol@viewer");
+    let own = format!("http://{}", n.hub.addr);
+    for (path, extra) in [
+        ("/api/state", ("Host", "evil.example:7420")),
+        ("/", ("Host", "evil.example:7420")),
+        ("/api/state", ("Origin", "http://evil.example")),
+        ("/api/events", ("Origin", "http://evil.example")),
+        ("/api/state", ("Sec-Fetch-Site", "cross-site")),
+    ] {
+        let (s, _, _) = http(n.hub.addr, "GET", path, &[id, extra], "").await;
+        assert_eq!(s, 403, "{path} with {extra:?}");
+    }
+    let (s, _, state) = http(n.hub.addr, "GET", "/api/state", &[id, ("Origin", &own), ("Sec-Fetch-Site", "same-origin")], "").await;
+    assert_eq!(s, 200);
+    assert!(state.contains("src/lib.rs"), "{state}");
+    assert!(!state.contains("\"token\""), "fencing tokens leaked to the page: {state}");
 }

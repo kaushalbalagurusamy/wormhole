@@ -24,6 +24,9 @@ enum Cmd {
         identity: String,
         #[arg(long, default_value = "tailscale")]
         tailscale_bin: PathBuf,
+        /// DNS name clients use for the hub, such as its tailnet name. Repeatable.
+        #[arg(long)]
+        hostname: Vec<String>,
     },
     /// Run the per-machine daemon.
     Daemon {
@@ -78,6 +81,7 @@ async fn main() {
             db,
             identity,
             tailscale_bin,
+            hostname,
         } => {
             let identity = match identity.as_str() {
                 "tailscale" => hub::identity::IdentityConfig::Tailscale { bin: tailscale_bin },
@@ -87,7 +91,14 @@ async fn main() {
                     std::process::exit(2);
                 }
             };
-            match hub::start(hub::HubConfig { listen, db, identity }).await {
+            match hub::start(hub::HubConfig {
+                listen,
+                db,
+                identity,
+                hostnames: hostname,
+            })
+            .await
+            {
                 Ok(h) => {
                     eprintln!("wormhole hub listening on {}", h.addr);
                     let _ = tokio::signal::ctrl_c().await;
