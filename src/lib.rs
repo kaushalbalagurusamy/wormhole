@@ -11,3 +11,4 @@ pub mod mcp;
 pub mod proto;
 pub mod repo;
 pub mod text;
+pub mod tls;
