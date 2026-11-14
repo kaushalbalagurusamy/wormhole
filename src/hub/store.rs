@@ -35,14 +35,74 @@ pub enum LeaseError {
     NotHolder,
 }
 
+const SCHEMA: &str = "
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;
+CREATE TABLE IF NOT EXISTS events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    user TEXT NOT NULL,
+    machine TEXT NOT NULL,
+    session TEXT NOT NULL,
+    data TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS leases (
+    repo TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    session TEXT NOT NULL,
+    user TEXT NOT NULL,
+    machine TEXT NOT NULL,
+    token INTEGER NOT NULL,
+    since INTEGER NOT NULL,
+    expires INTEGER NOT NULL,
+    PRIMARY KEY (repo, scope)
+);
+CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER NOT NULL);
+INSERT OR IGNORE INTO counters (name, value) VALUES ('token', 0);
+CREATE TABLE IF NOT EXISTS cursors (key TEXT PRIMARY KEY, seq INTEGER NOT NULL);
+";
+
+const LEASE_COLS: &str = "repo, scope, session, user, machine, token, since, expires";
+
+fn lease_row(r: &rusqlite::Row) -> rusqlite::Result<LeaseInfo> {
+    Ok(LeaseInfo {
+        repo: r.get(0)?,
+        scope: r.get(1)?,
+        session: r.get(2)?,
+        user: r.get(3)?,
+        machine: r.get(4)?,
+        token: r.get::<_, i64>(5)? as u64,
+        since: r.get::<_, i64>(6)? as u64,
+        expires: r.get::<_, i64>(7)? as u64,
+    })
+}
+
+fn event_row(r: &rusqlite::Row) -> rusqlite::Result<Event> {
+    let data: String = r.get(6)?;
+    Ok(Event {
+        seq: r.get::<_, i64>(0)? as u64,
+        ts: r.get::<_, i64>(1)? as u64,
+        kind: r.get(2)?,
+        user: r.get(3)?,
+        machine: r.get(4)?,
+        session: r.get(5)?,
+        data: serde_json::from_str(&data).unwrap_or(Value::Null),
+    })
+}
+
 impl Store {
     pub fn open(path: &Path) -> rusqlite::Result<Store> {
-        let _ = path;
-        todo!()
+        Self::init(rusqlite::Connection::open(path)?)
     }
 
     pub fn open_memory() -> rusqlite::Result<Store> {
-        todo!()
+        Self::init(rusqlite::Connection::open_in_memory()?)
+    }
+
+    fn init(conn: rusqlite::Connection) -> rusqlite::Result<Store> {
+        conn.execute_batch(SCHEMA)?;
+        Ok(Store { conn })
     }
 
     pub fn append(
@@ -54,32 +114,107 @@ impl Store {
         session: &str,
         data: Value,
     ) -> rusqlite::Result<Event> {
-        let _ = (ts, kind, user, machine, session, data, &self.conn);
-        todo!()
+        self.conn.execute(
+            "INSERT INTO events (ts, kind, user, machine, session, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![ts as i64, kind, user, machine, session, data.to_string()],
+        )?;
+        Ok(Event {
+            seq: self.conn.last_insert_rowid() as u64,
+            ts,
+            kind: kind.into(),
+            user: user.into(),
+            machine: machine.into(),
+            session: session.into(),
+            data,
+        })
     }
 
     pub fn head(&self) -> rusqlite::Result<u64> {
-        todo!()
+        self.conn
+            .query_row("SELECT COALESCE(MAX(seq), 0) FROM events", [], |r| r.get::<_, i64>(0))
+            .map(|v| v as u64)
     }
 
     pub fn events_after(&self, seq: u64, limit: usize) -> rusqlite::Result<Vec<Event>> {
-        let _ = (seq, limit);
-        todo!()
+        let mut st = self.conn.prepare_cached(
+            "SELECT seq, ts, kind, user, machine, session, data FROM events WHERE seq > ?1 ORDER BY seq LIMIT ?2",
+        )?;
+        let rows = st.query_map(rusqlite::params![seq as i64, limit as i64], event_row)?;
+        rows.collect()
     }
 
     pub fn recent(&self, limit: usize) -> rusqlite::Result<Vec<Event>> {
-        let _ = limit;
-        todo!()
+        let head = self.head()?;
+        self.events_after(head.saturating_sub(limit as u64), limit)
     }
 
     pub fn cursor(&self, key: &str) -> rusqlite::Result<Option<u64>> {
-        let _ = key;
-        todo!()
+        use rusqlite::OptionalExtension;
+        self.conn
+            .query_row("SELECT seq FROM cursors WHERE key = ?1", [key], |r| r.get::<_, i64>(0))
+            .optional()
+            .map(|v| v.map(|v| v as u64))
     }
 
     pub fn set_cursor(&mut self, key: &str, seq: u64) -> rusqlite::Result<()> {
-        let _ = (key, seq);
-        todo!()
+        self.conn.execute(
+            "INSERT INTO cursors (key, seq) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET seq = MAX(seq, excluded.seq)",
+            rusqlite::params![key, seq as i64],
+        )?;
+        Ok(())
+    }
+
+    fn next_token(&mut self) -> rusqlite::Result<u64> {
+        self.conn
+            .query_row(
+                "UPDATE counters SET value = value + 1 WHERE name = 'token' RETURNING value",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .map(|v| v as u64)
+    }
+
+    /// The row for exactly `scope`, live or not.
+    fn row(&self, repo: &str, scope: &str) -> rusqlite::Result<Option<LeaseInfo>> {
+        use rusqlite::OptionalExtension;
+        self.conn
+            .query_row(
+                &format!("SELECT {LEASE_COLS} FROM leases WHERE repo = ?1 AND scope = ?2"),
+                [repo, scope],
+                lease_row,
+            )
+            .optional()
+    }
+
+    fn put(&mut self, l: &LeaseInfo) -> rusqlite::Result<()> {
+        self.conn.execute(
+            &format!("INSERT OR REPLACE INTO leases ({LEASE_COLS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"),
+            rusqlite::params![
+                l.repo,
+                l.scope,
+                l.session,
+                l.user,
+                l.machine,
+                l.token as i64,
+                l.since as i64,
+                l.expires as i64
+            ],
+        )?;
+        Ok(())
+    }
+
+    fn delete(&mut self, repo: &str, scope: &str) -> rusqlite::Result<()> {
+        self.conn
+            .execute("DELETE FROM leases WHERE repo = ?1 AND scope = ?2", [repo, scope])?;
+        Ok(())
+    }
+
+    fn query_leases(&self, sql_where: &str, params: impl rusqlite::Params) -> rusqlite::Result<Vec<LeaseInfo>> {
+        let mut st = self
+            .conn
+            .prepare(&format!("SELECT {LEASE_COLS} FROM leases WHERE {sql_where} ORDER BY since, scope"))?;
+        let rows = st.query_map(params, lease_row)?;
+        rows.collect()
     }
 
     /// Grant, extend, or report the holder. Every grant gets a token larger than any issued before.
@@ -91,8 +226,41 @@ impl Store {
         scope: &str,
         ttl_ms: u64,
     ) -> rusqlite::Result<Acquired> {
-        let _ = (now, who, repo, scope, ttl_ms);
-        todo!()
+        let live = self.query_leases("repo = ?1 AND expires > ?2", rusqlite::params![repo, now as i64])?;
+        if let Some(other) = live
+            .iter()
+            .find(|l| l.session != who.session && crate::glob::overlaps(&l.scope, scope))
+        {
+            return Ok(Acquired::Held(other.clone()));
+        }
+        if let Some(mut own) = live.into_iter().find(|l| l.scope == scope) {
+            own.expires = now + ttl_ms;
+            self.put(&own)?;
+            return Ok(Acquired::Granted { lease: own, fresh: false });
+        }
+        let lease = LeaseInfo {
+            repo: repo.into(),
+            scope: scope.into(),
+            session: who.session.into(),
+            user: who.user.into(),
+            machine: who.machine.into(),
+            token: self.next_token()?,
+            since: now,
+            expires: now + ttl_ms,
+        };
+        self.put(&lease)?;
+        Ok(Acquired::Granted { lease, fresh: true })
+    }
+
+    /// Check `token` against the current lease on `scope`: the fencing rule.
+    fn fenced(&self, now: u64, session: &str, repo: &str, scope: &str, token: u64) -> rusqlite::Result<Result<LeaseInfo, LeaseError>> {
+        Ok(match self.row(repo, scope)? {
+            None => Err(LeaseError::NotHeld),
+            Some(l) if l.token != token => Err(LeaseError::StaleToken),
+            Some(l) if l.expires <= now => Err(LeaseError::NotHeld),
+            Some(l) if l.session != session => Err(LeaseError::NotHolder),
+            Some(l) => Ok(l),
+        })
     }
 
     /// Extend a lease the caller holds with `token`.
@@ -105,8 +273,13 @@ impl Store {
         token: u64,
         ttl_ms: u64,
     ) -> rusqlite::Result<Result<LeaseInfo, LeaseError>> {
-        let _ = (now, session, repo, scope, token, ttl_ms);
-        todo!()
+        let mut l = match self.fenced(now, session, repo, scope, token)? {
+            Ok(l) => l,
+            Err(e) => return Ok(Err(e)),
+        };
+        l.expires = now + ttl_ms;
+        self.put(&l)?;
+        Ok(Ok(l))
     }
 
     pub fn release(
@@ -117,8 +290,12 @@ impl Store {
         scope: &str,
         token: u64,
     ) -> rusqlite::Result<Result<LeaseInfo, LeaseError>> {
-        let _ = (now, session, repo, scope, token);
-        todo!()
+        let l = match self.fenced(now, session, repo, scope, token)? {
+            Ok(l) => l,
+            Err(e) => return Ok(Err(e)),
+        };
+        self.delete(repo, scope)?;
+        Ok(Ok(l))
     }
 
     /// Hand the caller's lease on `scope` to `to`, with a new token.
@@ -131,31 +308,47 @@ impl Store {
         to: &Holder,
         ttl_ms: u64,
     ) -> rusqlite::Result<Result<LeaseInfo, LeaseError>> {
-        let _ = (now, holder_session, repo, scope, to, ttl_ms);
-        todo!()
+        match self.lease(now, repo, scope)? {
+            None => Ok(Err(LeaseError::NotHeld)),
+            Some(l) if l.session != holder_session => Ok(Err(LeaseError::NotHolder)),
+            Some(_) => {
+                let lease = LeaseInfo {
+                    repo: repo.into(),
+                    scope: scope.into(),
+                    session: to.session.into(),
+                    user: to.user.into(),
+                    machine: to.machine.into(),
+                    token: self.next_token()?,
+                    since: now,
+                    expires: now + ttl_ms,
+                };
+                self.put(&lease)?;
+                Ok(Ok(lease))
+            }
+        }
     }
 
     /// The live lease on exactly `scope`, if any.
     pub fn lease(&self, now: u64, repo: &str, scope: &str) -> rusqlite::Result<Option<LeaseInfo>> {
-        let _ = (now, repo, scope);
-        todo!()
+        Ok(self.row(repo, scope)?.filter(|l| l.expires > now))
     }
 
     /// Remove leases past their expiry and return them.
     pub fn expire(&mut self, now: u64) -> rusqlite::Result<Vec<LeaseInfo>> {
-        let _ = now;
-        todo!()
+        let gone = self.query_leases("expires <= ?1", [now as i64])?;
+        self.conn.execute("DELETE FROM leases WHERE expires <= ?1", [now as i64])?;
+        Ok(gone)
     }
 
     /// Remove every lease held by `session` and return them.
     pub fn release_session(&mut self, session: &str) -> rusqlite::Result<Vec<LeaseInfo>> {
-        let _ = session;
-        todo!()
+        let gone = self.query_leases("session = ?1", [session])?;
+        self.conn.execute("DELETE FROM leases WHERE session = ?1", [session])?;
+        Ok(gone)
     }
 
     pub fn leases(&self, now: u64) -> rusqlite::Result<Vec<LeaseInfo>> {
-        let _ = now;
-        todo!()
+        self.query_leases("expires > ?1", [now as i64])
     }
 }
 
