@@ -709,3 +709,16 @@ async fn mcp_channel_process_serves_tools_and_pushes_messages() {
         .unwrap()
         .contains("not instructions"));
 }
+
+#[tokio::test]
+async fn session_timed_out_by_the_hub_recovers_on_its_next_hook() {
+    let n = two_sessions(Opts::default()).await;
+    // The hub forgets A's session (no heartbeat for a long time).
+    n.hub.sweep_at(wormhole::proto::now_ms() + 24 * 3600 * 1000);
+    let r = hook(&n.a, pre_edit(SA, &n.repo_a, "src/lib.rs")).await;
+    assert_eq!(ctx(&r), "", "{r}");
+    hook(&n.a, post_edit(SA, &n.repo_a, "src/lib.rs")).await;
+    // The lease and the edit reached the hub: B is warned.
+    let c = ctx(&hook(&n.b, pre_edit(SB, &n.repo_b, "src/lib.rs")).await);
+    assert!(c.contains("WARNING") && c.contains(SA), "{c}");
+}

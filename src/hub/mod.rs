@@ -72,6 +72,12 @@ impl HubHandle {
         let _ = self.hub.kick.send(machine.to_string());
     }
 
+    /// Run the lease and presence sweep as if the clock read `t` (milliseconds since the
+    /// epoch). For tests that need sessions to time out.
+    pub fn sweep_at(&self, t: u64) {
+        self.hub.sweep_once(t);
+    }
+
     pub async fn shutdown(self) {
         let _ = self.hub.kick.send("*".into());
         self.server.abort();
