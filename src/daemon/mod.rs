@@ -105,8 +105,21 @@ pub(crate) struct Daemon {
 }
 
 impl Daemon {
-    /// One request to the hub, answered by `deadline` or `Unavailable`.
+    /// One request to the hub, answered by `deadline` or `Unavailable`. If the hub has
+    /// forgotten the session (it timed out while idle), register it again and retry once.
     pub async fn request(&self, req: Request, deadline: Instant) -> Result<Value, HubError> {
+        let r = self.send_request(req.clone(), deadline).await;
+        let session = match &r {
+            Err(HubError::Rejected(e)) if e.starts_with("unknown session") => request_session(&req),
+            _ => None,
+        };
+        let Some(session) = session else { return r };
+        self.st.lock().unwrap().sess(&session).hello_gen = 0;
+        self.hello(&session, deadline).await?;
+        self.send_request(req, deadline).await
+    }
+
+    async fn send_request(&self, req: Request, deadline: Instant) -> Result<Value, HubError> {
         if !self.link.connected.load(Ordering::SeqCst) {
             return Err(HubError::Unavailable);
         }
@@ -160,7 +173,7 @@ impl Daemon {
                 task: s.task.clone(),
             }
         };
-        self.request(req, deadline).await?;
+        self.send_request(req, deadline).await?;
         self.st.lock().unwrap().sess(session).hello_gen = gen;
         Ok(())
     }
@@ -171,6 +184,25 @@ pub fn read_hook_token(socket_path: &std::path::Path) -> Result<Option<String>, 
     match socket_path.parent() {
         Some(d) => sock::read_hook_token(&d.join("hook-token")),
         None => Ok(None),
+    }
+}
+
+/// The session a request acts for, if any.
+fn request_session(r: &Request) -> Option<String> {
+    use Request::*;
+    match r {
+        Hello { .. } | Snapshot => None,
+        Heartbeat { session }
+        | Bye { session }
+        | Activity { session, .. }
+        | Send { session, .. }
+        | MsgRead { session, .. }
+        | LeaseAcquire { session, .. }
+        | LeaseRenew { session, .. }
+        | LeaseRelease { session, .. }
+        | LeaseRequestTransfer { session, .. }
+        | LeaseGrant { session, .. }
+        | LeaseDeny { session, .. } => Some(session.clone()),
     }
 }
 
