@@ -69,19 +69,19 @@ pub fn covers(outer: &str, inner: &str) -> bool {
     let segment_prefix = |a: &[&str], b: &[&str]| a.len() <= b.len() && a == &b[..a.len()];
     let outer_dir: Vec<&str> = outer.split('/').collect();
     match (is_glob(outer), is_glob(inner)) {
-        // A path names one file or directory: covered by a matching glob or an enclosing directory.
-        (true, false) => matches(outer, inner),
+        // A plain scope may name a directory, so the glob must also cover what is under it.
+        (true, false) => matches(outer, inner) && matches(outer, &format!("{inner}/x")),
         (false, false) => segment_prefix(&outer_dir, &inner.split('/').collect::<Vec<_>>()),
         // A glob inside a directory, or inside `<dir>/**`.
         (false, true) => segment_prefix(&outer_dir, &literal_prefix(inner)),
         (true, true) => {
-            let Some(base) = outer.strip_suffix("**").map(|b| b.trim_end_matches('/')) else {
-                return false;
-            };
-            let base: Vec<&str> = if base.is_empty() {
+            // Only `**` or `<literal dirs>/**` is a recursive glob; `src/a**` is not.
+            let base: Vec<&str> = if outer == "**" {
                 vec![]
+            } else if let Some(b) = outer.strip_suffix("/**") {
+                b.split('/').collect()
             } else {
-                base.split('/').collect()
+                return false;
             };
             !base.iter().any(|s| s.contains('*')) && segment_prefix(&base, &literal_prefix(inner))
         }
@@ -163,12 +163,17 @@ mod tests {
         assert!(covers("src/**", "src/hub/a.rs"));
         assert!(covers("src", "src/a.rs"));
         assert!(covers("src", "src/hub/**"));
-        // A plain scope may name a directory, so a glob covers it only if it also covers
-        // everything under it; when unsure, not covered (a transfer is then refused, never lossy).
-        assert!(!covers("src/*.rs", "src/a.rs"));
-        assert!(!covers("src/*", "src/hub"));
-        assert!(covers("src/**", "src/hub"));
+        // Plain scopes are files; a directory scope ends with `/` (the lease tool adds it for an
+        // existing directory). A glob covers a file it matches, and a directory only if it
+        // covers everything under it.
+        assert!(covers("src/*.rs", "src/a.rs"));
+        assert!(covers("src/*", "src/hub"));
+        assert!(!covers("src/*", "src/hub/"));
+        assert!(covers("src/**", "src/hub/"));
         assert!(covers("src/**", "src/a/b"));
+        assert!(covers("src/", "src/a.rs"));
+        assert!(covers("src/", "src/hub/"));
+        assert!(!covers("src/hub/", "src/"));
         assert!(covers("**", "x"));
         // `a**` is not a recursive glob.
         assert!(!covers("src/a**", "src/a/b"));
@@ -183,10 +188,13 @@ mod tests {
 
     #[test]
     fn a_directory_scope_covers_what_is_under_it() {
-        assert!(overlaps("src/auth", "src/auth/login.rs"));
-        assert!(overlaps("src/auth/login.rs", "src/auth"));
-        assert!(overlaps("src/auth", "src/auth/**"));
-        assert!(!overlaps("src/auth", "src/authz/x.rs"));
+        assert!(overlaps("src/auth/", "src/auth/login.rs"));
+        assert!(overlaps("src/auth/login.rs", "src/auth/"));
+        assert!(overlaps("src/auth/", "src/auth/**"));
+        assert!(overlaps("src/auth/", "src/"));
+        assert!(!overlaps("src/auth/", "src/authz/x.rs"));
+        // A plain scope is a file.
+        assert!(!overlaps("src/auth", "src/auth/login.rs"));
         assert!(!overlaps("src/a.rs", "src/a.rs.bak"));
     }
 

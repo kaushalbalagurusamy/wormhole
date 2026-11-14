@@ -979,3 +979,14 @@ async fn session_start_lists_this_repos_leases_first() {
         "lease missing from SessionStart: {c}"
     );
 }
+
+#[tokio::test]
+async fn leasing_a_directory_covers_edits_inside_it() {
+    let n = two_sessions(Opts::default()).await;
+    let r = tool(&n.a, SA, "lease", json!({"scope": "src"}))
+        .await
+        .unwrap();
+    assert!(r.contains("src/"), "{r}");
+    let c = ctx(&hook(&n.b, pre_edit(SB, &n.repo_b, "src/lib.rs")).await);
+    assert!(c.contains("WARNING") && c.contains(SA), "{c}");
+}
