@@ -67,9 +67,19 @@ Leases expire unless renewed, so a crashed session cannot hold one indefinitely;
 - **Tell an agent when something it read has changed.** The daemon tracks files a session has read; a later edit by another session produces a change notice at the reader's next action.
 - **Server-tracked claims, not negotiation in chat.** AgentRoom (related-work.md) found claims tracked by a server beat agents negotiating ownership in messages.
 
+## Fault model
+
+Decided 2026-11-14. Every other trust or safety statement in this repo follows from this section.
+
+- **Participants are honest.** Every machine is an enrolled device on the team's tailnet, identified by its node key through `tailscale whois`, and every user on it is a teammate. Nobody lies to the hub on purpose. Byzantine fault tolerance (replicas that outvote liars, signed events, lying-peer detection) is a non-goal, and work aimed only at a dishonest participant is not done.
+- **Participants are fallible.** Honest machines still crash, lose power, get partitioned, run buggy builds, loop, and relay text their agent read from an untrusted source. The design tolerates these faults. Guards against them stay: ownership and fencing checks, session binding, text cleaning and wrapping, bounded queues, and receiver-side caps. They exist to catch bugs and accidents, not adversaries.
+- **Crash faults are tolerated for work, not for coordination.** Any component can crash or be cut off without corrupting shared state or blocking an edit: hooks let the action through and say the state is stale. There is one hub and no replica, so while it is down there is no coordination. Recovery restores it: daemons resume from their cursors and leases expire on their own.
+- **Device enrolment is the trust boundary.** Admitting a node to the tailnet admits it to wormhole. Narrow that with tailnet ACLs and `wormhole hub --allow`. Tailscale's Tailnet Lock makes enrolment require a signature from a trusted node, which matches the "signed devices" assumption; wormhole does not check whether it is on.
+- **Consequences.** A peer that claims every lease, sends inaccurate activity, or floods messages is treated as a bug: rate limits and pruning are for loops, not abuse. The hub is trusted to keep the log honestly. Work toward tolerating more crash faults is in scope: keeping daemon state across restarts, watching the working tree, and possibly a replicated hub.
+
 ## Trust and safety
 
-- Participants are trusted, but messages from other agents are still data to the receiving model. Every inbound message is wrapped as coming from a named session and cleaned, so it is not mistaken for the local user's instruction. Wrapping does not stop a model from following it, and a trusted agent can relay text it read from an untrusted source; the user's own permission prompts stay in force because wormhole never answers `allow`.
+- Participants are trusted (see "Fault model"), but messages from other agents are still data to the receiving model. Every inbound message is wrapped as coming from a named session and cleaned, so it is not mistaken for the local user's instruction. Wrapping does not stop a model from following it, and a trusted agent can relay text it read from an untrusted source; the user's own permission prompts stay in force because wormhole never answers `allow`.
 - Remote approval of another session's tool calls (channel permission relay) is never declared by wormhole's channel server, so it cannot be enabled through wormhole. It would let another person approve command execution on your machine.
 - The hub listens only on the private network. No path is exposed to the public internet.
 - By default events carry paths and one-line summaries, not file contents or prompts. Full supervision detail is opt-in per session.

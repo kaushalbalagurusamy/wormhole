@@ -43,13 +43,13 @@ For a single machine without Tailscale, run the hub with `--identity static` on 
 
 ## Scope
 
-- Machines that fully trust each other, connected over a private network (Tailscale or similar).
+- Honest, enrolled devices on one private network (Tailscale), and their Claude Code sessions. Crashes, restarts and partitions are tolerated; dishonest participants are not. See [the fault model](docs/design.md#fault-model).
 - One hub process on one machine; one small daemon per developer machine.
 - Delivery into Claude Code through hooks (generally available) and, optionally, channels (research preview).
 
 ## Not in scope
 
-- Untrusted participants or public networks.
+- Untrusted or dishonest participants (Byzantine fault tolerance), and public networks.
 - Replacing git, pull requests or code review.
 - Routing between different users' Claude accounts through Anthropic's services; wormhole runs its own relay.
 

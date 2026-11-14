@@ -6,7 +6,7 @@ Report a vulnerability privately through GitHub's "Report a vulnerability" form 
 
 ## Scope
 
-wormhole assumes machines that trust each other on a private network (Tailscale or similar). In scope:
+wormhole assumes honest, enrolled devices on a private network (Tailscale); see the fault model in docs/design.md. Participants do not lie, but they crash, run buggy builds and relay untrusted text, so the checks below still matter. In scope:
 
 - The hub accepting a connection it cannot identify, or letting one connection act for a session, user or machine it does not own.
 - Lease bypass: a stale fencing token accepted, a lease released or granted by a non-holder.
@@ -15,7 +15,7 @@ wormhole assumes machines that trust each other on a private network (Tailscale 
 - The daemon's loopback HTTP endpoint or Unix socket being usable from a browser or another local user.
 - Hooks blocking work when the hub or daemon is down. They must fail open; a protected path is denied only while the hub answers and reports another holder.
 
-Out of scope: participants who are already trusted acting maliciously within their own permissions, denial of service from a trusted peer, and anything requiring the hub to be exposed to the public internet (unsupported).
+Out of scope: an enrolled participant lying on purpose (no Byzantine fault tolerance: false activity, hoarding leases, a dishonest hub), denial of service from an enrolled peer, a compromised device that was admitted to the tailnet, and anything requiring the hub to be exposed to the public internet (unsupported). The same behaviour caused by a bug, such as an agent loop, is in scope.
 
 ## Threat model notes
 
