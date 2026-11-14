@@ -60,8 +60,32 @@ fn literal_prefix(glob: &str) -> Vec<&str> {
 
 /// Does `outer` cover everything `inner` can name? Conservative: false when unsure.
 pub fn covers(outer: &str, inner: &str) -> bool {
-    let _ = (outer, inner);
-    todo!()
+    if outer == inner {
+        return true;
+    }
+    if outer.starts_with("area:") || inner.starts_with("area:") {
+        return false;
+    }
+    let segment_prefix = |a: &[&str], b: &[&str]| a.len() <= b.len() && a == &b[..a.len()];
+    let outer_dir: Vec<&str> = outer.split('/').collect();
+    match (is_glob(outer), is_glob(inner)) {
+        // A path names one file or directory: covered by a matching glob or an enclosing directory.
+        (true, false) => matches(outer, inner),
+        (false, false) => segment_prefix(&outer_dir, &inner.split('/').collect::<Vec<_>>()),
+        // A glob inside a directory, or inside `<dir>/**`.
+        (false, true) => segment_prefix(&outer_dir, &literal_prefix(inner)),
+        (true, true) => {
+            let Some(base) = outer.strip_suffix("**").map(|b| b.trim_end_matches('/')) else {
+                return false;
+            };
+            let base: Vec<&str> = if base.is_empty() {
+                vec![]
+            } else {
+                base.split('/').collect()
+            };
+            !base.iter().any(|s| s.contains('*')) && segment_prefix(&base, &literal_prefix(inner))
+        }
+    }
 }
 
 /// A directory scope (`src/auth`) overlaps a glob under it (`src/auth/**`).

@@ -705,7 +705,14 @@ impl Hub {
                     &who,
                     TRANSFER_TTL_MS,
                 ))?;
-                let (l, _released) = r.map_err(lease_err)?;
+                let (l, released) = r.map_err(lease_err)?;
+                for x in &released {
+                    self.emit_lease(
+                        "lease.released",
+                        x,
+                        json!({"reason": "transferred with a wider scope"}),
+                    )?;
+                }
                 self.emit_lease(
                     "lease.granted",
                     &l,

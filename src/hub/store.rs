@@ -450,13 +450,20 @@ impl Store {
         {
             return Ok(Err(LeaseError::Conflict(other.clone())));
         }
-        // The grantor's own leases inside the scope go with it.
-        for l in live
+        // The grantor's leases inside the scope go with it; a broader one it also holds would
+        // be silently lost, so the transfer is refused until the grantor narrows or releases it.
+        let own: Vec<&LeaseInfo> = live
             .iter()
             .filter(overlapping)
             .filter(|l| l.session == holder_session)
-        {
+            .collect();
+        if let Some(broader) = own.iter().find(|l| !crate::glob::covers(scope, &l.scope)) {
+            return Ok(Err(LeaseError::GrantorHoldsBroader((*broader).clone())));
+        }
+        let mut released = Vec::new();
+        for l in own {
             self.delete(&l.repo, &l.scope)?;
+            released.push(l.clone());
         }
         let lease = LeaseInfo {
             repo: repo.into(),
@@ -470,7 +477,7 @@ impl Store {
         };
         self.put(&lease)?;
         tx.commit()?;
-        Ok(Ok((lease, Vec::new())))
+        Ok(Ok((lease, released)))
     }
 
     /// The live lease on exactly `scope`, if any.
