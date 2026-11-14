@@ -741,27 +741,29 @@ async fn hook_token_is_checked_before_the_body_and_bodies_are_capped() {
     let reply = String::from_utf8_lossy(&buf[..k]);
     assert!(reply.starts_with("HTTP/1.1 403"), "{reply}");
 
-    // With the token, a body over 1 MiB is refused as too large.
-    let mut big = post(
-        SA,
-        &n.repo_a,
-        "Write",
-        json!({"file_path": n.repo_a.join("x"), "content": "x".repeat(2 * 1024 * 1024)}),
-    );
-    big["tool_response"] = json!({});
-    let auth = format!("Bearer {}", n.a.hook_token);
-    let body = big.to_string();
-    let mut s = tokio::net::TcpStream::connect(n.a.http_addr).await.unwrap();
-    let head = format!(
-        "POST /hook HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nAuthorization: {auth}\r\nContent-Length: {}\r\n\r\n",
-        n.a.http_addr,
-        body.len()
-    );
-    s.write_all(head.as_bytes()).await.unwrap();
-    // The server may answer and close before all of the body is sent.
-    let _ = s.write_all(body.as_bytes()).await;
-    let mut reply = Vec::new();
-    let _ = tokio::time::timeout(Duration::from_secs(2), s.read_to_end(&mut reply)).await;
-    let reply = String::from_utf8_lossy(&reply);
-    assert!(reply.starts_with("HTTP/1.1 413"), "{reply}");
+    // With the token, a 2 MiB Write (a large file) is handled; 40 MiB is refused as too large.
+    for (mib, want) in [(2, "HTTP/1.1 200"), (40, "HTTP/1.1 413")] {
+        let mut big = post(
+            SA,
+            &n.repo_a,
+            "Write",
+            json!({"file_path": n.repo_a.join("x"), "content": "x".repeat(mib * 1024 * 1024)}),
+        );
+        big["tool_response"] = json!({});
+        let auth = format!("Bearer {}", n.a.hook_token);
+        let body = big.to_string();
+        let mut s = tokio::net::TcpStream::connect(n.a.http_addr).await.unwrap();
+        let head = format!(
+            "POST /hook HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nAuthorization: {auth}\r\nConnection: close\r\nContent-Length: {}\r\n\r\n",
+            n.a.http_addr,
+            body.len()
+        );
+        s.write_all(head.as_bytes()).await.unwrap();
+        // The server may answer and close before all of the body is sent.
+        let _ = s.write_all(body.as_bytes()).await;
+        let mut reply = Vec::new();
+        let _ = tokio::time::timeout(Duration::from_secs(5), s.read_to_end(&mut reply)).await;
+        let reply = String::from_utf8_lossy(&reply);
+        assert!(reply.starts_with(want), "{mib} MiB: {reply}");
+    }
 }
