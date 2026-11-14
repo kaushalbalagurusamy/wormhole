@@ -8,16 +8,27 @@ pub fn matches(pattern: &str, path: &str) -> bool {
     match_segments(&p, &s)
 }
 
+// `match_segment` one level up, with `**` as the star: O(len(p) * len(s)) segment steps,
+// where recursing into every `**` cost O(len(s) ^ count(**)).
 fn match_segments(p: &[&str], s: &[&str]) -> bool {
-    match p.split_first() {
-        None => s.is_empty(),
-        Some((&"**", rest)) => (0..=s.len()).any(|i| match_segments(rest, &s[i..])),
-        Some((first, rest)) => {
-            !s.is_empty()
-                && match_segment(first.as_bytes(), s[0].as_bytes())
-                && match_segments(rest, &s[1..])
+    let (mut pi, mut si) = (0, 0);
+    let mut star: Option<(usize, usize)> = None;
+    while si < s.len() {
+        if pi < p.len() && p[pi] == "**" {
+            star = Some((pi, si));
+            pi += 1;
+        } else if pi < p.len() && match_segment(p[pi].as_bytes(), s[si].as_bytes()) {
+            pi += 1;
+            si += 1;
+        } else if let Some((sp, ss)) = star {
+            pi = sp + 1;
+            si = ss + 1;
+            star = Some((sp, ss + 1));
+        } else {
+            return false;
         }
     }
+    p[pi..].iter().all(|&x| x == "**")
 }
 
 // Greedy wildcard match with one backtrack point: O(len(p) * len(s)), no recursion.
@@ -42,7 +53,7 @@ fn match_segment(p: &[u8], s: &[u8]) -> bool {
     p[pi..].iter().all(|&c| c == b'*')
 }
 
-/// Patterns the hub accepts: bounded `**` count, so matching stays cheap.
+/// Patterns the hub accepts: at most four `**` segments.
 pub fn valid(pattern: &str) -> bool {
     pattern.split('/').filter(|s| *s == "**").count() <= 4
 }
@@ -228,5 +239,68 @@ mod tests {
         // Same directory, different name patterns: reported as overlapping (a false
         // positive is only an extra warning).
         assert!(overlaps("src/a*", "src/b*"));
+    }
+
+    /// The former recursive matcher, kept as the reference for the semantics.
+    fn reference(p: &[&str], s: &[&str]) -> bool {
+        match p.split_first() {
+            None => s.is_empty(),
+            Some((&"**", rest)) => (0..=s.len()).any(|i| reference(rest, &s[i..])),
+            Some((first, rest)) => {
+                !s.is_empty()
+                    && match_segment(first.as_bytes(), s[0].as_bytes())
+                    && reference(rest, &s[1..])
+            }
+        }
+    }
+
+    /// Every pattern and path of up to four segments over a small alphabet, which covers
+    /// repeated, leading and trailing `**`, trailing `/` and empty segments.
+    #[test]
+    fn agrees_with_the_recursive_matcher() {
+        fn all(alphabet: &[&'static str], max: usize) -> Vec<String> {
+            let mut out: Vec<Vec<&str>> = vec![vec![]];
+            let mut layer = out.clone();
+            for _ in 0..max {
+                layer = layer
+                    .iter()
+                    .flat_map(|v| alphabet.iter().map(move |a| [v.as_slice(), &[*a]].concat()))
+                    .collect();
+                out.extend(layer.clone());
+            }
+            out.into_iter().map(|v| v.join("/")).collect()
+        }
+        let patterns = all(&["**", "*", "a", "a*", "*b", ""], 4);
+        let paths = all(&["a", "b", "ab", ""], 4);
+        for p in &patterns {
+            let ps: Vec<&str> = p.split('/').collect();
+            for s in &paths {
+                let ss: Vec<&str> = s.split('/').collect();
+                assert_eq!(matches(p, s), reference(&ps, &ss), "{p:?} vs {s:?}");
+            }
+        }
+    }
+
+    /// Patterns `valid` accepts, against a path of 256 segments (within the 512-byte field
+    /// limit) that they do not match. The recursive matcher took most of a second here.
+    #[test]
+    fn worst_case_patterns_are_fast() {
+        let path = vec!["a"; 256].join("/");
+        let star = format!("{}x", "*".repeat(255));
+        let patterns = [
+            "**/**/**/**/x",
+            "**/a/**/a/**/a/**/x",
+            "**/*a/**/a*/**/*/**/x",
+            star.as_str(),
+        ];
+        for p in patterns {
+            assert!(valid(p));
+            let start = std::time::Instant::now();
+            assert!(!matches(p, &path));
+            assert!(!overlaps(p, &path));
+            assert!(!covers(p, &path));
+            let took = start.elapsed();
+            assert!(took.as_millis() < 100, "{p}: {took:?}");
+        }
     }
 }
