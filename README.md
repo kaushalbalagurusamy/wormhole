@@ -80,7 +80,7 @@ A policy names senders exactly and gives each a level: `off`, `inform` (informat
       ]
     }
 
-A denylist is on by default (force pushes, deploys, publishing, secrets paths and similar); every bypass answer is checked against it again per tool call. Each decision, bypass answer and contract close is appended to `delegation.json.audit.jsonl` next to the policy. To stop everything at once:
+A command in a contract runs without a prompt only if it matches a contract pattern word for word and its program is on a short safe list (`ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`, `diff`, `stat`, `pwd`, `echo`, `true`, `false`, `sort`, `uniq`, `cut`, `tr`, `basename`, `dirname`, `realpath`, `rustfmt`, `git`, `cargo`; add more with `"safe_programs"` in the policy, which is your call); anything else prompts as usual. `full-bypass` Bash is not bounded by any parser: it is a trust decision about the sender. A denylist is on by default (force pushes, deploys, publishing, secrets paths and similar) as defence in depth; every bypass answer is checked against it again per tool call. Each decision, bypass answer and contract close is appended to `delegation.json.audit.jsonl` next to the policy. To stop everything at once:
 
     wormhole delegation revoke --policy ~/.wormhole/delegation.json
     wormhole delegation resume --policy ~/.wormhole/delegation.json
