@@ -273,3 +273,6 @@ machine back to a commit from before a security fix.
 - A target whose attempt ended in `refused: ...` or `failed: ...` is not attempted again automatically until the
   hub announces a different target or the daemon restarts; the status stays. A new target that arrives within
   `min_interval` of the last attempt is deferred (`waiting: rate limit`) and started once the interval has passed.
+- `wormhole_log` shows a request's full task: besides the contract text, its `spec` and `exit` (as `done when:`), and a
+  result's `fields`. These are the other session's words, so they go in the `> `-quoted relayed section, never on
+  a daemon-written line. Daemon lines carry only hub-validated values (ids, kind, paths, `ref`, status, level).
