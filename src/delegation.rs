@@ -106,6 +106,12 @@ pub const DEFAULT_DENY_PATHS: &[&str] = &[
     "**/.envrc",
     "**/*.p12",
     "**/*.pfx",
+    "**/.cargo/**",
+    "**/rust-toolchain",
+    "**/rust-toolchain.toml",
+    "**/.pgpass",
+    "**/.docker/config.json",
+    "**/.gnupg/**",
 ];
 
 /// Programs a contract command may start with, without an owner's addition: none. Every
@@ -234,6 +240,8 @@ pub struct Policy {
     /// Programs the owner added to `DEFAULT_SAFE_PROGRAMS`.
     safe: Vec<String>,
     deny: Option<Deny>,
+    /// The daemon has `--protected` globs: git is then `status` only.
+    protected: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -353,7 +361,12 @@ impl Policy {
                 max_steps: g.max_steps,
             });
         }
-        Ok(Policy { grants, safe, deny })
+        Ok(Policy {
+            grants,
+            safe,
+            deny,
+            protected: false,
+        })
     }
 
     /// Decide a request from the hub-stamped sender. The level comes from a grant, never
@@ -455,7 +468,14 @@ impl Policy {
                 let t = self
                     .pattern_words(x)
                     .map_err(|e| format!("command {x:?}: {e}"))?;
-                if !g.commands.iter().any(|gc| gc == "*") && !grant.contains(&t) {
+                let any = g.commands.iter().any(|gc| gc == "*");
+                // Under a `*` grant the owner has listed no option, so the contract may carry none.
+                if any && t.iter().skip(1).any(|w| w.starts_with('-')) {
+                    return Err(format!(
+                        "command {x:?} carries an option the grant does not list"
+                    ));
+                }
+                if !any && !grant.contains(&t) {
                     return Err(format!("command {x:?} is outside the grant"));
                 }
             }
@@ -495,6 +515,17 @@ impl Policy {
         Ok(())
     }
 
+    /// Tell the policy whether the daemon has `--protected` globs. With any, `git log`,
+    /// `git diff` and `git show` are refused even with the denylist off.
+    pub fn with_protected(mut self, protected: bool) -> Policy {
+        self.protected = protected;
+        self
+    }
+
+    fn git_status_only(&self) -> bool {
+        self.deny.is_some() || self.protected
+    }
+
     /// Is `name` a program contract commands may start with? Exact, case-sensitive.
     pub fn safe_program(&self, name: &str) -> bool {
         DEFAULT_SAFE_PROGRAMS.contains(&name) || self.safe.iter().any(|s| s == name)
@@ -503,7 +534,7 @@ impl Policy {
     /// Words of a command pattern: literal words and an optional final `*`. Valid only for
     /// a literal safe program with no config or exec option.
     pub fn pattern_words(&self, pattern: &str) -> Result<Vec<String>, String> {
-        pattern_words_with(&self.safe, self.deny.is_some(), pattern)
+        pattern_words_with(&self.safe, self.git_status_only(), pattern)
     }
 
     /// Does `command` match one of the exact argv `patterns`, argv[0] included? The raw
@@ -511,11 +542,12 @@ impl Policy {
     /// valid pattern matches word for word, a final `*` taking one or more further words that
     /// do not start with `-`. This allowlist is the boundary at the scoped levels.
     pub fn command_allowed(&self, patterns: &[String], command: &str) -> Result<(), String> {
-        if command.contains(NO_RAW) {
+        // zsh expands a word `=cmd` to the path of `cmd`.
+        if command.contains('=') || command.contains(NO_RAW) {
             return Err("quotes, backslashes, glob characters and ~ are not allowed".into());
         }
         let t = tokenize(command)?;
-        if let Some(o) = unsafe_option(&t, self.deny.is_some()) {
+        if let Some(o) = unsafe_option(&t, self.git_status_only()) {
             return Err(format!("unsafe option or subcommand: {o}"));
         }
         let hit = patterns
@@ -773,6 +805,9 @@ fn pattern_words_with(
     deny_on: bool,
     pattern: &str,
 ) -> Result<Vec<String>, String> {
+    if pattern.contains('=') {
+        return Err("a pattern may not contain `=` (zsh expands `=cmd`)".into());
+    }
     // A final whole `*` word is the one wildcard a pattern has.
     let t = pattern.trim_end();
     let (body, star) = match t.strip_suffix('*') {
@@ -1410,6 +1445,42 @@ mod tests {
             assert!(p.safe_program(prog), "{prog}");
         }
         assert!(!p.safe_program("git"));
+    }
+
+    #[test]
+    fn amendment_8_matcher_rules() {
+        let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let pol = Policy::parse(POLICY).unwrap();
+        // zsh expands =cmd: no `=` in a command or a pattern.
+        assert!(pol.command_allowed(&p(&["ls *"]), "ls =sh").is_err());
+        assert!(pol.pattern_words("ls a=b").is_err());
+        // A `*` grant allows patterns with no option; options only where the owner wrote them.
+        let grant = |cmds: &str| {
+            Policy::parse(&format!(
+                r#"{{"safe_programs":["ls"],"grants":[{{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["*"],"commands":{cmds}}}]}}"#
+            ))
+            .unwrap()
+        };
+        let mut c = contract();
+        c.commands = vec!["ls -a".into()];
+        assert!(!grant(r#"["*"]"#).evaluate("a", "m", "r", &c).accepted);
+        assert!(grant(r#"["ls -a"]"#).evaluate("a", "m", "r", &c).accepted);
+        c.commands = vec!["ls src".into()];
+        assert!(grant(r#"["*"]"#).evaluate("a", "m", "r", &c).accepted);
+        // git log/diff/show need the denylist off and no --protected globs.
+        let off = r#"{"safe_programs":["git"],"denylist":{"enabled":false},"grants":[]}"#;
+        assert!(Policy::parse(off).unwrap().pattern_words("git log").is_ok());
+        let prot = Policy::parse(off).unwrap().with_protected(true);
+        assert!(prot.pattern_words("git log").is_err() && prot.pattern_words("git status").is_ok());
+        for d in [
+            "a/.cargo/x",
+            "a/rust-toolchain.toml",
+            "a/.pgpass",
+            "a/.docker/config.json",
+            "a/.gnupg/k",
+        ] {
+            assert!(pol.denied_path(d).is_some(), "{d}");
+        }
     }
 
     #[test]

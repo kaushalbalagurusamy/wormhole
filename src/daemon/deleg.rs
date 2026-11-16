@@ -10,7 +10,7 @@ use crate::delegation::{self, Decision, Level, Policy};
 use crate::proto::*;
 use crate::{glob, text};
 use serde_json::{json, Value};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 /// A contract the owner's policy let this session open.
 #[derive(Clone)]
@@ -19,11 +19,11 @@ pub(crate) struct Open {
     pub level: Level,
     pub contract: Contract,
     pub repo: String,
-    pub expires: Instant,
+    pub expires: SystemTime,
     pub steps_left: u64,
     /// When it was accepted and how many bypass answers it has given, to shrink it if the
     /// owner tightens the policy.
-    pub accepted_at: Instant,
+    pub accepted_at: SystemTime,
     pub steps_used: u64,
     /// The hub-stamped sender, to re-evaluate the policy before each bypass answer.
     pub from_user: String,
@@ -99,6 +99,14 @@ fn decide(
     policy.evaluate(&e.user, &e.machine, repo, c)
 }
 
+/// The policy file as this daemon applies it: with `--protected` globs set, git is `status`
+/// only, since `git log -p` could print a protected file.
+fn load_policy(d: &Daemon, path: &std::path::Path) -> Option<Policy> {
+    Policy::load(path)
+        .ok()
+        .map(|p| p.with_protected(!d.cfg.protected.is_empty()))
+}
+
 /// Handle a `delegation.request` event addressed to one of this daemon's sessions.
 pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
     let Some(path) = d.cfg.delegation_policy.clone() else {
@@ -114,11 +122,18 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
         return;
     };
     let repo = e.data["repo"].as_str().unwrap_or("").to_string();
-    let policy = Policy::load(&path).ok();
+    let policy = load_policy(&d, &path);
     let mut dec = decide(&d, policy.as_ref(), &to, &e, &repo, &c);
-    // Nothing is accepted that cannot be audited.
-    if dec.accepted && delegation::audit_ready(&path).is_err() {
-        dec = no(Level::Inform, "audit log unavailable");
+    // The acceptance is written to the audit log before the ack that makes it real; if that
+    // fails the answer is information only.
+    let mut logged_first = false;
+    if dec.accepted {
+        let line = json!({"accepted": true, "reason": dec.reason, "from_user": e.user,
+            "from_machine": e.machine, "task_id": c.task_id, "kind": c.kind});
+        match audit_strict(&d, "request", e.seq, &to, dec.level.as_str(), line) {
+            Ok(()) => logged_first = true,
+            Err(_) => dec = no(Level::Inform, "audit log unavailable"),
+        }
     }
     let deadline = || Instant::now() + Duration::from_secs(5);
     let ack = |accept: bool, level: &str, reason: &str, ttl_ms: u64| Request::DelegateAck {
@@ -167,17 +182,17 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
             .request(ack(false, dec.level.as_str(), &dec.reason, 0), deadline())
             .await;
     }
-    let logged = audit_strict(
-        &d,
-        "request",
-        e.seq,
-        &to,
-        dec.level.as_str(),
-        json!({"accepted": dec.accepted, "reason": dec.reason, "from_user": e.user,
-            "from_machine": e.machine, "task_id": c.task_id, "kind": c.kind}),
-    );
-    if dec.accepted && logged.is_err() {
-        dec = no(Level::Inform, "audit log unavailable");
+    // The line is already written for an acceptance that stood; every other outcome is recorded now.
+    if !(logged_first && dec.accepted) {
+        audit(
+            &d,
+            "request",
+            e.seq,
+            &to,
+            dec.level.as_str(),
+            json!({"accepted": dec.accepted, "reason": dec.reason, "from_user": e.user,
+                "from_machine": e.machine, "task_id": c.task_id, "kind": c.kind}),
+        );
     }
     if dec.accepted {
         let o = Open {
@@ -185,9 +200,9 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
             level: dec.level,
             contract: c.clone(),
             repo: repo.clone(),
-            expires: Instant::now() + Duration::from_secs(dec.ttl_secs),
+            expires: SystemTime::now() + Duration::from_secs(dec.ttl_secs),
             steps_left: dec.max_steps,
-            accepted_at: Instant::now(),
+            accepted_at: SystemTime::now(),
             steps_used: 0,
             from_user: e.user.clone(),
             from_machine: e.machine.clone(),
@@ -369,7 +384,7 @@ fn closed(d: &Daemon, session: &str, o: &Open, reason: &str) {
 
 /// Close this session's contracts that ran out of time.
 fn expire(d: &Daemon, session: Option<&str>) {
-    let now = Instant::now();
+    let now = SystemTime::now();
     let gone: Vec<(String, Open)> = {
         let mut m = d.deleg.lock().unwrap();
         let mut gone = Vec::new();
@@ -505,6 +520,7 @@ fn operand_ok(d: &Daemon, session: &str, policy: &Policy, dir_ok: bool, tok: &st
         return false;
     }
     match crate::repo::canonical_relative(&root, &cwd, tok) {
+        Some(rel) if text::plain(&rel, MAX_FIELD) != rel => false,
         Some(rel) => policy.denied_path(&rel).is_none() && !hooks::is_protected(d, session, &rel),
         // `.` or the root itself names the repository, which no scope covers.
         None => false,
@@ -522,6 +538,12 @@ fn permitted(
     granted: bool,
 ) -> Option<(&'static str, String)> {
     let ti = &input["tool_input"];
+    // A blanked path (the shrinker empties one over 4 KiB) or two path keys name no file
+    // this check can see.
+    let (fp, np) = (&ti["file_path"], &ti["notebook_path"]);
+    if fp.as_str() == Some("") || np.as_str() == Some("") || (!fp.is_null() && !np.is_null()) {
+        return None;
+    }
     let edit = hooks::EDIT_TOOLS.contains(&tool);
     // Full bypass covers exactly Bash, the edit tools and Read; scoped bypass never Read.
     if edit || (tool == "Read" && o.level == Level::FullBypass) {
@@ -535,14 +557,21 @@ fn permitted(
         if !ti[other].is_null() {
             return None;
         }
-        let (_, _, cwd) = session_repo(d, session)?;
+        let (repo, root, cwd) = session_repo(d, session)?;
         if crate::repo::dangling_symlink(&cwd, file) {
+            return None;
+        }
+        // Scope and denylist run on the path as it is; one the cleaner would rewrite is refused.
+        let rel = crate::repo::canonical_relative(&root, &cwd, file)?;
+        if rel.len() > MAX_FIELD || text::plain(&rel, MAX_FIELD) != rel {
+            return None;
+        }
+        if edit && !granted {
             return None;
         }
         // Edits need the lease step to have ended with this session holding the path: a held
         // lease, a protected path or an unchecked path never gets `allow`. Every path is
         // resolved inside the repository and checked against the denylist and --protected.
-        let (repo, rel) = hooks::tool_path(d, session, input).filter(|_| granted || !edit)?;
         let inside = o.level == Level::FullBypass
             || o.contract
                 .paths
@@ -556,6 +585,9 @@ fn permitted(
     }
     if tool == "Bash" {
         // An unsandboxed command is never answered for.
+        if ti["run_in_background"].as_bool() == Some(true) {
+            return None;
+        }
         if !ti["dangerouslyDisableSandbox"].is_null()
             && ti["dangerouslyDisableSandbox"] != json!(false)
         {
@@ -616,7 +648,7 @@ pub(crate) async fn bypass(
     if !hub_ok || out["hookSpecificOutput"]["permissionDecision"] == "deny" {
         return out;
     }
-    let Ok(policy) = Policy::load(path) else {
+    let Some(policy) = load_policy(d, path) else {
         return out;
     };
     // The owner may have narrowed the policy since acceptance. A contract the file no longer
@@ -624,7 +656,7 @@ pub(crate) async fn bypass(
     // and closes if either is already used up.
     let closing: Vec<(Open, &str)> = {
         let mut m = d.deleg.lock().unwrap();
-        let now = Instant::now();
+        let now = SystemTime::now();
         let mut out = Vec::new();
         if let Some(v) = m.get_mut(session) {
             let mut keep = Vec::new();
@@ -679,7 +711,7 @@ pub(crate) async fn bypass(
         let left = m
             .get_mut(session)
             .and_then(|v| v.iter_mut().find(|x| x.seq == o.seq))
-            .filter(|x| x.steps_left > 0)
+            .filter(|x| x.steps_left > 0 && x.expires > SystemTime::now())
             .map(|x| {
                 x.steps_left -= 1;
                 x.steps_used += 1;
