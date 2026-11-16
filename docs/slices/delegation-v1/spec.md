@@ -557,3 +557,30 @@ Tests (protected, written before the fix): `tests/delegation_amend6.rs`, plus up
 `git log`, `git diff` or `git show` with the module on.
 - Clarification (second separate run): for `cargo`, a token starting with `+` is refused wherever it appears, not
   only as the toolchain position.
+
+## Amendment 7 (2026-11-15, sixth security review; closes the "safe program with a reaching mode" class)
+
+Finding (S9, high): with no operand, `grep -r`, `-R`, `-rn`, `--recursive`, `-d recurse` and `diff -r` search the
+working directory, denied paths included; the directory-operand check never sees an operand. Every earlier
+"safe" program has had some such mode, so the class is closed by default rather than by instance.
+
+1. `DEFAULT_SAFE_PROGRAMS` is **empty** (**pinned**). Under `scoped-bypass` no Bash command is allowed unless the
+   owner lists programs in `safe_programs`. The former list ships as a documented example policy,
+   `docs/examples/delegation-policy.json` (a valid policy file that `Policy::load` accepts), and the docs give each
+   program's known escapes beside it.
+2. For any program the owner enables, at both bypass levels where operands are checked (`scoped-bypass`):
+   - Option tokens must match `-[A-Za-z0-9]+` or `--[a-z0-9-]+` (no `=`, `.`, `/` or attached values).
+   - Recursive options are refused for every program: `-r`, `-R`, `--recursive`, `--dereference-recursive`,
+     `-d`, `--directories`, `--recurse`, and any short-option cluster containing `r`, `R` or `d`.
+   - Every non-option token is an operand and is path-checked (inside the repo, not absolute, no `..`, not
+     protected, not denied, not a dangling symlink, a directory only for `ls`, `stat`, `realpath`, `basename`,
+     `dirname`), except the pattern of `grep`: the token after `-e` when `-e` is present, otherwise the first
+     non-option token.
+   - A command with no operand gets no `allow` (it would read the working directory or stdin), except for programs
+     in the **pinned** `pub const NO_OPERAND_PROGRAMS: &[&str] = &["pwd", "echo", "true", "false"]`.
+   - `git` and `cargo` keep their Amendment 4 to 6 rules (subcommand and option allowlists; `status` only while
+     the denylist is on). `git status` with no pathspec reports names only and stays allowed.
+3. Everything refused falls through to the normal local prompt (no `permissionDecision`).
+
+Tests (protected, written before the fix): `tests/delegation_amend7.rs`, plus updates to earlier files that rely
+on default safe programs (they must now list programs in `safe_programs`).
