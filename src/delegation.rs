@@ -108,15 +108,16 @@ pub const DEFAULT_DENY_PATHS: &[&str] = &[
     "**/*.pfx",
 ];
 
-/// Programs a contract command may start with, without an owner's addition: none has an
-/// option that runs another program, and each only reads (or prints). `rg`, `sort`,
-/// `rustfmt`, `uniq`, `git` and `cargo` are left out because an option or an operand makes them
-/// run code or write files; the owner may add `git` and `cargo` (with the subcommand and option
-/// lists below) or any other program they have checked, through `safe_programs`.
-pub const DEFAULT_SAFE_PROGRAMS: &[&str] = &[
-    "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false",
-    "cut", "tr", "basename", "dirname", "realpath",
-];
+/// Programs a contract command may start with, without an owner's addition: none. Every
+/// program people reach for has some mode that reads or runs more than its operands name (a
+/// recursive search, a file of names, an exec option), so Bash is off at `scoped-bypass`
+/// until the owner lists the programs they have checked in `safe_programs`.
+/// `docs/examples/delegation-policy.json` lists seventeen read-only candidates and the docs
+/// give the known escapes of each.
+pub const DEFAULT_SAFE_PROGRAMS: &[&str] = &[];
+
+/// Programs that may run with no operand: they read neither files nor standard input.
+pub const NO_OPERAND_PROGRAMS: &[&str] = &["pwd", "echo", "true", "false"];
 
 /// The only git subcommands a pattern may name, and the only options a git command may carry.
 pub const GIT_SUBCOMMANDS: &[&str] = &["status", "log", "diff", "show"];
@@ -798,6 +799,71 @@ fn pattern_words_with(
     Ok(w)
 }
 
+/// The operands of a command at `scoped-bypass`: its non-option tokens, which the caller
+/// path-checks. Options must be plain (`-ab` or `--long-name`), never recursive, and a command
+/// with no operand reads the working directory or stdin, so it is refused unless the program
+/// is in `NO_OPERAND_PROGRAMS`. `git` and `cargo` are held to their own option lists instead.
+pub fn command_operands(tokens: &[String]) -> Result<Vec<String>, String> {
+    let prog = base_name(&tokens[0]).to_lowercase();
+    if matches!(prog.as_str(), "git" | "cargo") {
+        return Ok(tokens[2.min(tokens.len())..]
+            .iter()
+            .filter(|t| !t.starts_with('-'))
+            .cloned()
+            .collect());
+    }
+    let option = |t: &str| t.starts_with('-');
+    // grep's first word that is not an option is its pattern, not a path (or the word after -e).
+    let pattern_at = if prog == "grep" {
+        tokens
+            .iter()
+            .position(|t| t == "-e")
+            .map(|i| i + 1)
+            .or_else(|| (1..tokens.len()).find(|&i| !option(&tokens[i])))
+    } else {
+        None
+    };
+    let mut ops = Vec::new();
+    for (i, t) in tokens.iter().enumerate().skip(1) {
+        if Some(i) == pattern_at {
+            continue;
+        }
+        if !option(t) {
+            ops.push(t.clone());
+            continue;
+        }
+        let long = t.strip_prefix("--");
+        let plain = match long {
+            Some(l) => {
+                !l.is_empty()
+                    && l.chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+            }
+            None => t.len() > 1 && t[1..].chars().all(|c| c.is_ascii_alphanumeric()),
+        };
+        if !plain {
+            return Err(format!("option {t:?} is not a plain option"));
+        }
+        let recursive = match long {
+            Some(l) => [
+                "recursive",
+                "dereference-recursive",
+                "directories",
+                "recurse",
+            ]
+            .contains(&l),
+            None => t[1..].contains(['r', 'R', 'd']),
+        };
+        if recursive {
+            return Err(format!("recursive option {t:?}"));
+        }
+    }
+    if ops.is_empty() && !NO_OPERAND_PROGRAMS.contains(&prog.as_str()) {
+        return Err("a command with no operand would read the working directory or stdin".into());
+    }
+    Ok(ops)
+}
+
 fn cluster(a: &str, set: &str) -> bool {
     a.len() > 1
         && a.starts_with('-')
@@ -1010,7 +1076,7 @@ pub fn audit(
 mod tests {
     use super::*;
 
-    const POLICY: &str = r#"{"safe_programs": ["cargo"], "grants": [
+    const POLICY: &str = r#"{"safe_programs": ["cargo", "ls"], "grants": [
       {"from": ["alice@machine-a"], "repos": ["example.com/team/proj"], "task_ids": ["T-*"],
        "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["tests", "fix"],
        "commands": ["cargo test"], "max_ttl_secs": 600, "max_steps": 5},
@@ -1172,6 +1238,7 @@ mod tests {
         let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let pol = Policy::parse(POLICY).unwrap();
         // Defaults hold only programs with no option that runs another program.
+        assert!(DEFAULT_SAFE_PROGRAMS.is_empty());
         assert!(pol.safe_program("ls") && !pol.safe_program("git") && !pol.safe_program("sort"));
         assert!(
             !pol.safe_program("uniq") && !pol.safe_program("rg") && !pol.safe_program("rustfmt")
@@ -1262,7 +1329,7 @@ mod tests {
             .is_ok());
         let load = |c: &str| {
             Policy::parse(&format!(
-                r#"{{"safe_programs":["cargo"],"grants":[{{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["x"],"commands":["{c}"]}}]}}"#
+                r#"{{"safe_programs":["cargo","ls"],"grants":[{{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["x"],"commands":["{c}"]}}]}}"#
             ))
         };
         assert!(load("cargo test").is_ok() && load("*").is_ok() && load("ls *").is_ok());
@@ -1281,7 +1348,7 @@ mod tests {
     fn star_patterns_are_accepted_with_the_denylist_on_and_wrappers_are_denied() {
         let pol = Policy::parse(POLICY).unwrap();
         let p = Policy::parse(
-            r#"{"safe_programs":["cargo"],"grants":[{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["*"],"commands":["ls *","cargo check *"]}]}"#,
+            r#"{"safe_programs":["cargo","ls"],"grants":[{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["*"],"commands":["ls *","cargo check *"]}]}"#,
         )
         .unwrap();
         let mut c = contract();
@@ -1295,6 +1362,54 @@ mod tests {
                 "{d}"
             );
         }
+    }
+
+    #[test]
+    fn operands_options_and_the_example_policy() {
+        let t = |c: &str| tokenize(c).unwrap();
+        let ok = |c: &str| command_operands(&t(c));
+        assert_eq!(ok("ls -la src").unwrap(), ["src"]);
+        assert_eq!(ok("grep -n foo src/a.rs").unwrap(), ["src/a.rs"]);
+        assert_eq!(
+            ok("grep -e foo -e bar src/a.rs").unwrap(),
+            ["bar", "src/a.rs"]
+        );
+        assert!(ok("pwd").unwrap().is_empty() && ok("echo").is_ok() && ok("true").is_ok());
+        for bad in [
+            "ls",
+            "cat",
+            "grep foo",
+            "grep -r foo",
+            "grep -rn foo src",
+            "grep -R foo",
+            "grep --recursive foo",
+            "grep -d recurse foo src",
+            "diff -r a b",
+            "ls --directories x",
+            "ls -a=1 x",
+            "ls --Color x",
+            "ls -a.b x",
+            "cat -",
+            "cat --dereference-recursive x",
+            "wc --files0-from=f",
+            "head -n5x -",
+        ] {
+            assert!(ok(bad).is_err(), "{bad}");
+        }
+        assert_eq!(ok("git status").unwrap().len(), 0);
+        assert!(ok("cargo test").is_ok());
+        // The example policy is valid and lists the seventeen former defaults.
+        let p = Policy::load(std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/docs/examples/delegation-policy.json"
+        )))
+        .unwrap();
+        for prog in [
+            "ls", "cat", "grep", "diff", "realpath", "dirname", "tr", "cut",
+        ] {
+            assert!(p.safe_program(prog), "{prog}");
+        }
+        assert!(!p.safe_program("git"));
     }
 
     #[test]

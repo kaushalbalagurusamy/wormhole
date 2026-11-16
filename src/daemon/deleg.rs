@@ -572,14 +572,12 @@ fn permitted(
                 // Every operand is a path the contract could have named; options carry no `=`.
                 let t = delegation::tokenize(cmd).ok()?;
                 let prog = t[0].rsplit('/').next().unwrap_or("").to_lowercase();
-                let first = usize::from(matches!(prog.as_str(), "git" | "cargo")) + 1;
-                t[first.min(t.len())..].iter().all(|x| {
-                    if x.starts_with('-') {
-                        !x.contains('=')
-                    } else {
-                        operand_ok(d, session, policy, &prog, x)
-                    }
-                })
+                // Plain options only, nothing recursive, and every operand a path inside the
+                // contract's reach; a command with no operand would read the working directory.
+                delegation::command_operands(&t)
+                    .ok()?
+                    .iter()
+                    .all(|x| operand_ok(d, session, policy, &prog, x))
             }
         } else {
             // Full bypass with the denylist on still refuses what cannot be read as plain words.
