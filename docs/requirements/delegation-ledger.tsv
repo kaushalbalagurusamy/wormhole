@@ -21,3 +21,25 @@ R8	satisfied	preamble, tag naming the sender, cleaning; limits before relayed te
 R9	satisfied	recorded as future work in ADR 0001 decision 12 (does not fit cleanly), as R9 allows
 R10	satisfied	docs/design.md Trust and safety with the per-level risk table; ADR 0001
 R11	satisfied	tests first (commits 9237beb onward), blind implementer in a worktree without tests, separate runner, adversarial reviews; branch only, pushed, not merged
+S1	partial	team-log-v1 in progress: see TL1 to TL13 (docs/requirements/team-log.md)
+TL1	unserved	team-log-v1: team_log table and ADR 0002
+TL2	unserved	team-log-v1: wormhole_log, daemon tool log, Request::Log
+TL3	unserved	team-log-v1: decision recorded in ADR 0002 decision 6 (page stays redacted)
+TL4	unserved	team-log-v1: for_you addressing; delegation stays target-only
+TL5	unserved	team-log-v1: daemon-written header and attributes, quoted relayed text
+TL6	unserved	team-log-v1: --log-max-entries, --log-max-age-days
+TL7	unserved	team-log-v1: docs/examples/team-policy.json
+TL8	unserved	team-log-v1: join.sh --delegation-policy
+TL9	unserved	team-log-v1: review and task result schemas in the hub
+TL10	unserved	team-log-v1: Contract ref
+TL11	unserved	team-log-v1: README and docs/design.md "Which channel"
+TL12	unserved	team-log-v1: no change to local-only policy; checked in review
+TL13	unserved	team-log-v1: team-log and update capabilities; compat tests
+S2	partial	team-log-v1 in progress: see AU1 to AU7
+AU1	unserved	team-log-v1: --target-file, Welcome target, Down::Target
+AU2	unserved	team-log-v1: src/update.rs, --auto-update, join.sh default
+AU3	unserved	team-log-v1: refusals, rate limit, idle wait
+AU4	unserved	team-log-v1: older target on main; wormhole update --revert
+AU5	unserved	team-log-v1: updater never touches the policy; ADR 0003 decision 8
+AU6	unserved	team-log-v1: DaemonStatus, Snapshot.daemons, who and page
+AU7	unserved	team-log-v1: ADR 0003 trust concentration, README, SECURITY.md
