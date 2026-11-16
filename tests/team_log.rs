@@ -124,9 +124,7 @@ async fn a_third_session_reads_message_text_and_sees_it_is_not_for_it() {
     // The relayed text is there, quoted, and nowhere unquoted.
     assert!(text.lines().any(|l| unquote(l) == Some(body)), "{text}");
     assert!(
-        text.lines()
-            .filter(|l| l.contains("MSG-ONE"))
-            .all(quoted),
+        text.lines().filter(|l| l.contains("MSG-ONE")).all(quoted),
         "{text}"
     );
 
