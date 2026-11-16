@@ -323,3 +323,8 @@ commit and then, from that binary, further back, one hop at a time.
 - `wormhole update --revert` does not change the ratchet file; a local revert is the owner's own act. The hold
   file still stops the daemon from following the hub.
 - Tests (protected, written before the fix): `tests/auto_update_ratchet.rs`.
+- Clarifications to Amendment 3 (2026-11-16, run 5): the ratchet records only `min_safe`, never the local `floor`
+  (a local floor is config the owner can lower again by changing the flag; it applies from config only, with its
+  own refusal `refused: below local floor`). Lines are trimmed before `valid_commit`, so a recorded SHA with
+  surrounding whitespace still counts (fail closed). `<bin>.floors` is an expected file beside the binary. A target
+  whose attempt ended `installed` is not attempted again either (it matters when `exit_after_install` is false).
