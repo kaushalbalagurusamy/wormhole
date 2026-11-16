@@ -586,3 +586,34 @@ Tests (protected, written before the fix): `tests/delegation_amend7.rs`, plus up
 on default safe programs (they must now list programs in `safe_programs`).
 - Clarification (third separate run): `git status` may take a directory operand (for example `git status src`);
   it reports names only, so it joins the programs that may take a directory under Amendment 6.
+
+## Amendment 8 (2026-11-15, the slice's own re-review of the matcher)
+
+Confirmed findings F1 to F7 from a fresh adversarial re-review (of the amendment-6 code; F2a to F2c are already
+closed by Amendment 7's option shape, recursion and no-operand rules).
+
+- **F1 (medium) blank paths.** At either bypass level, any tool input whose path key is present but empty (as the
+  4 KiB shrinker leaves it), or that carries both path keys, gets no `allow`. This applies to `Read` as well as
+  edits.
+- **F2 (medium) options via a `"*"` grant.** When a grant's `commands` is `["*"]`, a contract pattern may contain no
+  option token (no token starting with `-`); options are allowed only in patterns the owner wrote into the grant
+  verbatim. The docs say the owner is responsible for the options they list (for example `diff -l` runs `pr`, and
+  some `grep` builds have `--filter` and `--pager`).
+- **F3 (low) zsh `=` expansion.** At `scoped-bypass` a command containing `=` anywhere gets no `allow` (zsh expands a
+  word `=cmd` to a path on PATH), and a pattern containing `=` is invalid.
+- **F4 (low) lookalike paths.** A repo-relative path that `text::plain` would change (invisible or control
+  characters) gets no `allow`; scope and deny checks run on the raw path.
+- **F5 (low) git with the module off.** `git log`, `git diff` and `git show` are usable only when the denylist module
+  is off **and** the daemon has no `--protected` globs; otherwise git is `status` only.
+- **F6 (low) clocks and background runs.** Contract expiry uses wall-clock time (`SystemTime`, so sleep counts), and
+  is checked again at the moment a step is spent. A `Bash` input with `run_in_background: true` gets no `allow`.
+- **F7 (low) audit before ack.** The `request` audit line for an acceptance is written before the accepting ack is
+  sent; if the write fails, the ack is `accept: false` (`inform`, reason `audit log unavailable`).
+- **Deny paths.** `DEFAULT_DENY_PATHS` gains `**/.cargo/**`, `**/rust-toolchain`, `**/rust-toolchain.toml`,
+  `**/.pgpass`, `**/.docker/config.json`, `**/.gnupg/**`.
+
+Recorded, not changed: cargo's manifest and config discovery can climb above the repository when the cwd has no
+`Cargo.toml`; cargo runs project code by design. Full-bypass remains a trust decision (its wrapper list is not
+complete).
+
+Tests (protected, written before the fix): `tests/delegation_amend8.rs`.
