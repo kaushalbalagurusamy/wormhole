@@ -21,10 +21,10 @@ Read by the `/sf` build loop before any implementation work in this repository.
 - A separate agent runs the tests and reports counts.
 - A fresh reviewer reads the code, not the comments.
 
-## Toolchain (this machine)
+## Toolchain
 
-    export RUSTUP_HOME=/Users/kaushal/rust-mini/rustup CARGO_HOME=/Users/kaushal/rust-mini/cargo \
-        TMPDIR=/Users/kaushal/rust-mini/tmp PATH=/Users/kaushal/rust-mini/cargo/bin:$PATH
+A current stable Rust toolchain. Where cargo is not on PATH (a shared machine), set `RUSTUP_HOME`,
+`CARGO_HOME`, `TMPDIR` and `PATH` as that machine's local notes say; keep those paths out of this file.
 
 ## Hygiene
 
