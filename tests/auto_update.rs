@@ -273,6 +273,8 @@ fn untouched(w: &World) {
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
         .collect();
+    // The ratchet file is an expected companion; anything else is a stray.
+    names.retain(|n| n != "wormhole.floors");
     names.sort();
     assert_eq!(names, ["wormhole"], "stray files beside the binary");
 }
@@ -308,6 +310,7 @@ async fn a_new_main_commit_is_built_swapped_kept_and_reported() {
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
         .collect();
+    names.retain(|n| n != "wormhole.floors");
     names.sort();
     assert_eq!(names, ["wormhole", "wormhole.prev"]);
     // The clone is at the target, detached.

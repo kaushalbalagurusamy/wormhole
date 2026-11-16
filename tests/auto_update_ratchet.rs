@@ -221,11 +221,8 @@ async fn starting_the_updater_records_its_minimums_privately_without_duplicates(
         update::floors_path(&w.bin).exists().then_some(())
     })
     .await;
-    let mut got = floors(&w);
-    got.sort();
-    let mut want = vec![w.c[0].clone(), w.c[1].clone()];
-    want.sort();
-    assert_eq!(got, want);
+    // Only the built-in minimum is remembered; a local floor is config and is never recorded.
+    assert_eq!(floors(&w), [w.c[0].clone()]);
     assert_eq!(
         std::fs::metadata(update::floors_path(&w.bin))
             .unwrap()
@@ -238,10 +235,10 @@ async fn starting_the_updater_records_its_minimums_privately_without_duplicates(
     a.shutdown().await;
     let a = start_daemon(&w, &hub, update_config(&w, &w.c[0], Some(&w.c[1]))).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
-    assert_eq!(floors(&w).len(), 2, "{:?}", floors(&w));
+    assert_eq!(floors(&w), [w.c[0].clone()]);
     a.shutdown().await;
     let _a = start_daemon(&w, &hub, update_config(&w, &w.c[2], None)).await;
-    eventually(10, || async { (floors(&w).len() == 3).then_some(()) }).await;
+    eventually(10, || async { (floors(&w).len() == 2).then_some(()) }).await;
     assert!(floors(&w).contains(&w.c[2]));
     // Nothing else is in the directory beside the binary but the floors file.
     let mut names: Vec<String> = std::fs::read_dir(w.bin.parent().unwrap())
@@ -302,10 +299,16 @@ async fn lines_that_are_not_commits_are_ignored_not_refused() {
             "--upload-pack=x",
             &w.c[3].to_uppercase(),
             &w.c[3][..39],
-            &format!("{} ", w.c[3]),
         ],
     );
     installs(&w, update_config(&w, &w.c[0], None), &w.c[1].clone()).await;
+}
+
+#[tokio::test]
+async fn a_recorded_commit_with_surrounding_whitespace_still_counts() {
+    let w = world();
+    write_floors(&w, &[&format!("  {}\t", w.c[3])]);
+    refuses_below_minimum(&w, update_config(&w, &w.c[0], None), &w.c[1]).await;
 }
 
 #[tokio::test]
