@@ -45,6 +45,11 @@ pub struct Opts {
     pub reconnect_min: Duration,
     /// Delegation policy file for daemon b only.
     pub policy_b: Option<PathBuf>,
+    /// Hub team-log retention (see `hub::DEFAULT_LOG_MAX_ENTRIES`, `hub::DEFAULT_LOG_MAX_AGE_SECS`).
+    pub log_max_entries: usize,
+    pub log_max_age_secs: u64,
+    /// File the hub reads its update target from.
+    pub target_file: Option<PathBuf>,
 }
 
 impl Default for Opts {
@@ -54,6 +59,9 @@ impl Default for Opts {
             protected: vec![],
             reconnect_min: Duration::from_millis(100),
             policy_b: None,
+            log_max_entries: hub::DEFAULT_LOG_MAX_ENTRIES,
+            log_max_age_secs: hub::DEFAULT_LOG_MAX_AGE_SECS,
+            target_file: None,
         }
     }
 }
@@ -68,6 +76,10 @@ pub struct Net {
 }
 
 pub async fn start_hub(dir: &Path) -> HubHandle {
+    start_hub_with(dir, &Opts::default()).await
+}
+
+pub async fn start_hub_with(dir: &Path, opts: &Opts) -> HubHandle {
     hub::start(HubConfig {
         listen: "127.0.0.1:0".parse().unwrap(),
         db: dir.join("hub.sqlite"),
@@ -75,9 +87,46 @@ pub async fn start_hub(dir: &Path) -> HubHandle {
         hostnames: vec![],
         allow_users: vec![],
         tls: None,
+        log_max_entries: opts.log_max_entries,
+        log_max_age_secs: opts.log_max_age_secs,
+        target_file: opts.target_file.clone(),
     })
     .await
     .unwrap()
+}
+
+/// A repository whose origin differs from `make_repo`'s, so its id differs.
+pub fn make_other_repo(dir: &Path) -> PathBuf {
+    let r = make_repo(dir);
+    std::fs::write(
+        r.join(".git/config"),
+        "[remote \"origin\"]\n\turl = git@example.com:team/other.git\n",
+    )
+    .unwrap();
+    r
+}
+
+/// Another daemon on the same hub (socket and hook port are its own).
+pub async fn add_daemon(
+    n: &Net,
+    who: &str,
+    policy: Option<PathBuf>,
+    opts: &Opts,
+) -> (DaemonHandle, PathBuf) {
+    let mut c = daemon_config(&n.dir, format!("ws://{}/ws", n.hub.addr), who, opts);
+    c.delegation_policy = policy;
+    let d = daemon::start(c).await.unwrap();
+    wait_connected(&d).await;
+    let repo = make_repo(&n.dir.join(format!("{}/proj", &who[..1])));
+    (d, repo)
+}
+
+/// `GET /api/state` as a page viewer, parsed.
+pub async fn api_state(hub: &HubHandle) -> Value {
+    let id = ("x-wormhole-static-identity", "viewer@viewer-machine");
+    let (s, _, body) = http(hub.addr, "GET", "/api/state", &[id], "").await;
+    assert_eq!(s, 200, "{body}");
+    serde_json::from_str(&body).unwrap_or_else(|e| panic!("state not json ({e}): {body}"))
 }
 
 pub fn daemon_config(dir: &Path, hub_url: String, who: &str, opts: &Opts) -> DaemonConfig {
@@ -92,7 +141,7 @@ pub fn daemon_config(dir: &Path, hub_url: String, who: &str, opts: &Opts) -> Dae
 
 pub async fn net(opts: Opts) -> Net {
     let dir = tmpdir();
-    let hub = start_hub(&dir).await;
+    let hub = start_hub_with(&dir, &opts).await;
     let url = format!("ws://{}/ws", hub.addr);
     let a = daemon::start(daemon_config(&dir, url.clone(), "alice@machine-a", &opts))
         .await
