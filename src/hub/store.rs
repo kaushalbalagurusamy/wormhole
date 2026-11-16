@@ -97,7 +97,7 @@ fn valid_location(l: &str) -> bool {
             && !p.chars().any(char::is_whitespace)
             && !n.is_empty()
             && n.chars().all(|c| c.is_ascii_digit())
-            && n.trim_start_matches('0') != ""
+            && !n.trim_start_matches('0').is_empty()
     })
 }
 
