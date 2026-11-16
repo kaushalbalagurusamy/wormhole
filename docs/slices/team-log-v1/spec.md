@@ -276,3 +276,33 @@ machine back to a commit from before a security fix.
 - `wormhole_log` shows a request's full task: besides the contract text, its `spec` and `exit` (as `done when:`), and a
   result's `fields`. These are the other session's words, so they go in the `> `-quoted relayed section, never on
   a daemon-written line. Daemon lines carry only hub-validated values (ids, kind, paths, `ref`, status, level).
+
+## Amendment 2 (2026-11-16, adversarial review: no High findings; these Mediums and Lows are fixed)
+
+- R-A1 (medium): every id or name the daemon writes on a daemon-written log line (`from_session`, `from_user`,
+  `from_machine`, `to`, `to_user`, `task_id`) is reduced with `text::attr` (the attribute character set), so a
+  hostile user target, session id or task id cannot put words in the daemon's voice. Free text stays in the
+  quoted section.
+- R-A3 (medium): `wormhole update --revert` prints that the daemon keeps running the current build until its service
+  restarts, with the restart command for launchd (`launchctl kickstart -k gui/<uid>/dev.wormhole.daemon`) and
+  systemd (`systemctl --user restart wormhole-daemon`); it never claims the daemon is already held there.
+- R-A5 (low-medium): only an attempt that ended in `refused: ...` or `failed: ...` marks its target as not to be
+  retried. An attempt interrupted because the hub changed the target does not; the same SHA announced again is
+  attempted.
+- R-A7 (low): `Delegate` is refused with **pinned** `different repository` also when the sender session's repo (as
+  the hub holds it) differs from `repo`, so a delegation's rows all land in one repository's log.
+- R-A8 (low): when entries were left out of a reply made without `since`, the last line reads
+  `More entries: older entries were left out; call wormhole_log with since=0 to read from the oldest` (pinned
+  prefix `More entries` unchanged). Git refers to `refs/remotes/origin/main`, fully qualified.
+- R-B1: `UpdateConfig` gains `pub running: Option<String>` (default `None`, meaning `wormhole::COMMIT`), the commit
+  the daemon treats as running for the downgrade decision and the `current` status; the CLI cannot set it. A
+  target that descends from the running commit is not a downgrade: no `downgrade` in the status, `downgrade: false`
+  on the hub, no `daemon.downgrade` event, no `DOWNGRADE` in `wormhole_who`.
+- Left as documented limits (README, ADR 0003): failed or denied tool calls that never get a `PostToolUse` delay an
+  update by up to 10 minutes; status is not re-sent until an attempt ends after a reconnect; retention is global
+  across repositories; the updater checks out the target in the clone `join.sh` ran from, leaving its branch;
+  `install` replaces a symlinked `bin` with a regular file.
+- `MIN_SAFE_COMMIT` is raised, in the release commit after the last code change of this slice, to that last code
+  commit on the branch (which `main` will contain after the merge).
+- Tests (protected, written before the fix): `tests/team_review_fixes.rs`, plus the strengthened never-allow case
+  in `tests/team_log.rs` (an edit inside the foreign contract's paths).
