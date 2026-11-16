@@ -47,7 +47,10 @@ fn a_new_welcome_parses_as_the_old_type_and_an_old_welcome_as_the_new_one() {
         assert_eq!(v["caps"], json!(caps));
         match &target {
             Some(t) => assert_eq!(v["target"], *t),
-            None => assert!(v.get("target").is_none(), "an absent target is not serialised: {s}"),
+            None => assert!(
+                v.get("target").is_none(),
+                "an absent target is not serialised: {s}"
+            ),
         }
         match serde_json::from_str::<v0::Down>(&s).unwrap() {
             v0::Down::Welcome {
@@ -61,21 +64,26 @@ fn a_new_welcome_parses_as_the_old_type_and_an_old_welcome_as_the_new_one() {
             _ => panic!("not a welcome"),
         }
         match serde_json::from_str::<Down>(&s).unwrap() {
-            Down::Welcome { target: t, caps: c, .. } => assert_eq!((t, c), (target, caps.clone())),
+            Down::Welcome {
+                target: t, caps: c, ..
+            } => assert_eq!((t, c), (target, caps.clone())),
             other => panic!("{other:?}"),
         }
     }
     // What a hub from before the slice sends.
     let old = r#"{"op":"welcome","user":"alice","machine":"machine-a","head":9}"#;
     match serde_json::from_str::<Down>(old).unwrap() {
-        Down::Welcome { caps, target, head, .. } => {
+        Down::Welcome {
+            caps, target, head, ..
+        } => {
             assert!(caps.is_empty() && target.is_none());
             assert_eq!(head, 9);
         }
         other => panic!("{other:?}"),
     }
     // And one from the delegation slice (caps, no target).
-    let mid = r#"{"op":"welcome","user":"alice","machine":"machine-a","head":9,"caps":["delegation"]}"#;
+    let mid =
+        r#"{"op":"welcome","user":"alice","machine":"machine-a","head":9,"caps":["delegation"]}"#;
     match serde_json::from_str::<Down>(mid).unwrap() {
         Down::Welcome { caps, target, .. } => {
             assert_eq!(caps, ["delegation"]);
@@ -88,7 +96,10 @@ fn a_new_welcome_parses_as_the_old_type_and_an_old_welcome_as_the_new_one() {
 #[test]
 fn target_frames_parse_with_and_without_a_commit_and_old_daemons_cannot_parse_them() {
     for (raw, want) in [
-        (format!(r#"{{"op":"target","commit":"{SHA}"}}"#), Some(SHA.to_string())),
+        (
+            format!(r#"{{"op":"target","commit":"{SHA}"}}"#),
+            Some(SHA.to_string()),
+        ),
         (r#"{"op":"target","commit":null}"#.to_string(), None),
         (r#"{"op":"target"}"#.to_string(), None),
     ] {
@@ -105,7 +116,10 @@ fn target_frames_parse_with_and_without_a_commit_and_old_daemons_cannot_parse_th
     })
     .unwrap();
     let v: Value = serde_json::from_str(&s).unwrap();
-    assert_eq!((v["op"].as_str(), v["commit"].as_str()), (Some("target"), Some(SHA)));
+    assert_eq!(
+        (v["op"].as_str(), v["commit"].as_str()),
+        (Some("target"), Some(SHA))
+    );
 }
 
 #[test]
@@ -212,8 +226,10 @@ fn log_and_daemon_status_requests_have_their_pinned_shape_and_old_hubs_cannot_pa
             other => panic!("{other:?}"),
         }
     }
-    match serde_json::from_str::<Request>(r#"{"type":"log","session":"s","query":{"limit":7,"since":3}}"#)
-        .unwrap()
+    match serde_json::from_str::<Request>(
+        r#"{"type":"log","session":"s","query":{"limit":7,"since":3}}"#,
+    )
+    .unwrap()
     {
         Request::Log { query, .. } => {
             assert_eq!((query.limit, query.since, query.kind), (7, Some(3), None))
@@ -243,11 +259,16 @@ fn log_and_daemon_status_requests_have_their_pinned_shape_and_old_hubs_cannot_pa
         other => panic!("{other:?}"),
     }
     match serde_json::from_value::<Request>(sv.clone()).unwrap() {
-        Request::DaemonStatus { commit, status, .. } => assert_eq!((commit.as_str(), status.as_str()), (SHA, "current")),
+        Request::DaemonStatus { commit, status, .. } => {
+            assert_eq!((commit.as_str(), status.as_str()), (SHA, "current"))
+        }
         other => panic!("{other:?}"),
     }
     for r in [v, sv] {
-        assert!(serde_json::from_value::<v0::Request>(r.clone()).is_err(), "{r}");
+        assert!(
+            serde_json::from_value::<v0::Request>(r.clone()).is_err(),
+            "{r}"
+        );
         let framed = json!({"op": "req", "id": 1, "req": r});
         assert!(serde_json::from_value::<v0::Up>(framed).is_err());
     }
@@ -369,7 +390,12 @@ async fn a_daemon_never_sends_log_or_daemon_status_unless_the_hub_advertised_the
     ] {
         let (addr, frames) = fake_hub(welcome(&caps, Some(SHA))).await;
         let dir = tmpdir();
-        let mut cfg = daemon_config(&dir, format!("ws://{addr}/ws"), "alice@machine-a", &Opts::default());
+        let mut cfg = daemon_config(
+            &dir,
+            format!("ws://{addr}/ws"),
+            "alice@machine-a",
+            &Opts::default(),
+        );
         // An updater that has nowhere to go: the status would be `current` or `waiting` at most.
         cfg.auto_update = Some(wormhole::update::UpdateConfig::new(
             dir.join("no-src"),
@@ -391,10 +417,16 @@ async fn a_daemon_never_sends_log_or_daemon_status_unless_the_hub_advertised_the
         assert_eq!(reqs(&frames, "log").len(), usize::from(log_ok), "{caps:?}");
         let status = reqs(&frames, "daemon_status");
         if status_ok {
-            assert!(!status.is_empty(), "{caps:?}: no daemon_status after Welcome");
+            assert!(
+                !status.is_empty(),
+                "{caps:?}: no daemon_status after Welcome"
+            );
             let first = &status[0];
             assert_eq!(first["commit"], wormhole::COMMIT, "{first}");
-            assert!(first["status"].as_str().is_some_and(|s| !s.is_empty()), "{first}");
+            assert!(
+                first["status"].as_str().is_some_and(|s| !s.is_empty()),
+                "{first}"
+            );
             // A status never carries a local path.
             for s in &status {
                 let text = s.to_string();
@@ -413,7 +445,10 @@ async fn a_daemon_never_sends_log_or_daemon_status_unless_the_hub_advertised_the
             .iter()
             .map(|c| c.as_str().unwrap())
             .collect();
-        assert!(have.contains(&"team-log") && have.contains(&"update"), "{have:?}");
+        assert!(
+            have.contains(&"team-log") && have.contains(&"update"),
+            "{have:?}"
+        );
         assert!(!have.contains(&"delegation"), "{have:?}");
         d.shutdown().await;
     }
@@ -432,7 +467,10 @@ async fn a_daemon_without_an_updater_reports_disabled_with_the_hubs_target() {
     .await
     .unwrap();
     wait_connected(&d).await;
-    let s = eventually(5, || async { reqs(&frames, "daemon_status").into_iter().last() }).await;
+    let s = eventually(5, || async {
+        reqs(&frames, "daemon_status").into_iter().last()
+    })
+    .await;
     assert_eq!(s["commit"], wormhole::COMMIT);
     assert_eq!(s["target"], SHA);
     assert!(s["status"].as_str().unwrap().starts_with("disabled"), "{s}");

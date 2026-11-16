@@ -28,7 +28,11 @@ fn git(dir: &Path, args: &[&str]) -> String {
         .env("GIT_TERMINAL_PROMPT", "0")
         .output()
         .unwrap();
-    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
@@ -65,7 +69,10 @@ fn world() -> World {
         git(&dev, &["config", k, v]);
     }
     std::fs::write(dev.join(".gitignore"), "target/\n").unwrap();
-    let c: Vec<String> = ["one", "two", "three", "four"].iter().map(|n| commit(&dev, n)).collect();
+    let c: Vec<String> = ["one", "two", "three", "four"]
+        .iter()
+        .map(|n| commit(&dev, n))
+        .collect();
     git(&dev, &["remote", "add", "origin", origin.to_str().unwrap()]);
     git(&dev, &["push", "-q", "origin", "main"]);
     git(&dir, &["clone", "-q", origin.to_str().unwrap(), "src"]);
@@ -74,11 +81,20 @@ fn world() -> World {
     let bin = bindir.join("wormhole");
     std::fs::write(&bin, OLD_BIN).unwrap();
     std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
-    World { build_log: dir.join("build.log"), target_file: dir.join("target"), dir, src, bin, c }
+    World {
+        build_log: dir.join("build.log"),
+        target_file: dir.join("target"),
+        dir,
+        src,
+        bin,
+        c,
+    }
 }
 
 fn build_count(w: &World) -> usize {
-    std::fs::read_to_string(&w.build_log).map(|s| s.lines().count()).unwrap_or(0)
+    std::fs::read_to_string(&w.build_log)
+        .map(|s| s.lines().count())
+        .unwrap_or(0)
 }
 
 fn version(bin: &Path) -> String {
@@ -97,10 +113,18 @@ async fn start(
     std::fs::write(&w.target_file, format!("{target}\n")).unwrap();
     let hub = start_hub_with(
         &w.dir,
-        &Opts { target_file: Some(w.target_file.clone()), ..Opts::default() },
+        &Opts {
+            target_file: Some(w.target_file.clone()),
+            ..Opts::default()
+        },
     )
     .await;
-    let mut c = daemon_config(&w.dir, format!("ws://{}/ws", hub.addr), "alice@machine-a", &Opts::default());
+    let mut c = daemon_config(
+        &w.dir,
+        format!("ws://{}/ws", hub.addr),
+        "alice@machine-a",
+        &Opts::default(),
+    );
     let mut u = UpdateConfig::new(w.src.clone(), w.bin.clone());
     let log = w.build_log.display();
     u.build = Some(vec![
@@ -124,13 +148,20 @@ async fn start(
 }
 
 async fn info(hub: &HubHandle, user: &str) -> Option<Value> {
-    api_state(hub).await["daemons"].as_array()?.iter().find(|d| d["user"] == user).cloned()
+    api_state(hub).await["daemons"]
+        .as_array()?
+        .iter()
+        .find(|d| d["user"] == user)
+        .cloned()
 }
 
 async fn wait_status(hub: &HubHandle, w: &World, prefix: &str) -> String {
     eventually(30, || async {
         let s = info(hub, "alice").await?["status"].as_str()?.to_string();
-        assert!(!s.contains(w.dir.to_str().unwrap()), "status names a path: {s}");
+        assert!(
+            !s.contains(w.dir.to_str().unwrap()),
+            "status names a path: {s}"
+        );
         s.starts_with(prefix).then_some(s)
     })
     .await
@@ -141,15 +172,27 @@ async fn refuses(w: &World, min_safe: &str, floor: Option<&str>, target: &str, w
     let (hub, _a) = start(w, min_safe, floor, target).await;
     wait_status(&hub, w, want).await;
     tokio::time::sleep(Duration::from_millis(700)).await;
-    let s = info(&hub, "alice").await.unwrap()["status"].as_str().unwrap().to_string();
+    let s = info(&hub, "alice").await.unwrap()["status"]
+        .as_str()
+        .unwrap()
+        .to_string();
     assert!(s.starts_with(want), "{s}");
     assert_eq!(std::fs::read(&w.bin).unwrap(), OLD_BIN.as_bytes());
     assert!(!wormhole::update::prev_path(&w.bin).exists());
     assert_eq!(build_count(w), 0, "built a refused target");
-    assert_eq!(git(&w.src, &["rev-parse", "HEAD"]), w.c[3], "checked out a refused target");
+    assert_eq!(
+        git(&w.src, &["rev-parse", "HEAD"]),
+        w.c[3],
+        "checked out a refused target"
+    );
 }
 
-async fn installs(w: &World, min_safe: &str, floor: Option<&str>, target: &str) -> (HubHandle, DaemonHandle) {
+async fn installs(
+    w: &World,
+    min_safe: &str,
+    floor: Option<&str>,
+    target: &str,
+) -> (HubHandle, DaemonHandle) {
     let (hub, a) = start(w, min_safe, floor, target).await;
     wait_status(&hub, w, "installed").await;
     assert_eq!(version(&w.bin), format!("wormhole {target}"));
@@ -160,8 +203,10 @@ async fn installs(w: &World, min_safe: &str, floor: Option<&str>, target: &str) 
 async fn a_target_below_the_minimum_safe_commit_is_refused_and_one_at_or_above_installs() {
     let w = world();
     refuses(&w, &w.c[2], None, &w.c[1], BELOW_MIN).await;
-    // The minimum itself and anything above it are allowed.
-    installs(&world(), &w.c[2].clone(), None, &w.c[2].clone()).await;
+    // Anything above the minimum is allowed (a fresh repository, so its own commits).
+    let w2 = world();
+    let (min, t) = (w2.c[1].clone(), w2.c[2].clone());
+    installs(&w2, &min, None, &t).await;
 }
 
 #[tokio::test]
@@ -214,7 +259,9 @@ async fn a_downgrade_is_reported_in_the_status_the_page_the_event_and_who() {
     // No target yet: not a downgrade.
     wait_status(&hub, &w, "current").await;
     assert_ne!(info(&hub, "alice").await.unwrap()["downgrade"], true);
-    assert!(!api_state(&hub).await["events"].to_string().contains("daemon.downgrade"));
+    assert!(!api_state(&hub).await["events"]
+        .to_string()
+        .contains("daemon.downgrade"));
 
     // The running commit is the real build, which this temporary repository does not contain, so
     // any target here is not a descendant of it.
@@ -240,10 +287,16 @@ async fn a_downgrade_is_reported_in_the_status_the_page_the_event_and_who() {
         .collect();
     assert!(!events.is_empty(), "no daemon.downgrade event");
     for e in &events {
-        assert_eq!((e["user"].as_str(), e["machine"].as_str()), (Some("alice"), Some("machine-a")));
+        assert_eq!(
+            (e["user"].as_str(), e["machine"].as_str()),
+            (Some("alice"), Some("machine-a"))
+        );
         assert_eq!(e["data"]["commit"], wormhole::COMMIT);
         assert_eq!(e["data"]["target"], t);
-        assert!(e["data"]["status"].as_str().unwrap().contains("downgrade"), "{e}");
+        assert!(
+            e["data"]["status"].as_str().unwrap().contains("downgrade"),
+            "{e}"
+        );
     }
     // The newest event carries the final status.
     assert_eq!(events.last().unwrap()["data"]["status"], i["status"]);
@@ -283,7 +336,10 @@ async fn the_hub_emits_daemon_downgrade_once_per_change_under_the_connections_id
     u.req(report("building (downgrade)", true)).await.unwrap();
     let ev = events(api_state(&hub).await);
     assert_eq!(ev.len(), 1, "{ev:?}");
-    assert_eq!((ev[0]["user"].as_str(), ev[0]["machine"].as_str()), (Some("uma"), Some("machine-u")));
+    assert_eq!(
+        (ev[0]["user"].as_str(), ev[0]["machine"].as_str()),
+        (Some("uma"), Some("machine-u"))
+    );
     assert_eq!(ev[0]["data"]["commit"], c);
     assert_eq!(ev[0]["data"]["target"], t);
     assert_eq!(ev[0]["data"]["status"], "building (downgrade)");
@@ -297,18 +353,26 @@ async fn the_hub_emits_daemon_downgrade_once_per_change_under_the_connections_id
     assert_eq!(ev.len(), 2, "{ev:?}");
     assert_eq!(ev[1]["data"]["status"], "installed (downgrade)");
     // So is a new target.
-    u.req(json!({"type": "daemon_status", "commit": c, "target": "3".repeat(40),
-                 "status": "installed (downgrade)", "downgrade": true}))
-        .await
-        .unwrap();
+    u.req(
+        json!({"type": "daemon_status", "commit": c, "target": "3".repeat(40),
+                 "status": "installed (downgrade)", "downgrade": true}),
+    )
+    .await
+    .unwrap();
     assert_eq!(events(api_state(&hub).await).len(), 3);
     // The row is marked on the page's data.
     let d = api_state(&hub).await["daemons"][0].clone();
-    assert_eq!((d["user"].as_str(), d["downgrade"].as_bool()), (Some("uma"), Some(true)));
+    assert_eq!(
+        (d["user"].as_str(), d["downgrade"].as_bool()),
+        (Some("uma"), Some(true))
+    );
     // Leaving the downgrade clears the mark and adds no event.
     u.req(report("current", false)).await.unwrap();
     assert_eq!(events(api_state(&hub).await).len(), 3);
-    assert_eq!(api_state(&hub).await["daemons"][0]["downgrade"].as_bool(), Some(false));
+    assert_eq!(
+        api_state(&hub).await["daemons"][0]["downgrade"].as_bool(),
+        Some(false)
+    );
 }
 
 #[test]

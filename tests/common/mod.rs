@@ -494,7 +494,9 @@ impl Raw {
         let id = self.id;
         self.tx
             .send(Message::Text(
-                json!({"op": "req", "id": id, "req": req}).to_string().into(),
+                json!({"op": "req", "id": id, "req": req})
+                    .to_string()
+                    .into(),
             ))
             .await
             .unwrap();
@@ -518,18 +520,22 @@ impl Raw {
     }
 
     pub async fn hello(&mut self, session: &str, repo: &str) {
-        self.req(json!({"type": "hello", "session": session, "repo": repo, "branch": "main",
-                        "task": ""}))
-            .await
-            .unwrap();
+        self.req(
+            json!({"type": "hello", "session": session, "repo": repo, "branch": "main",
+                        "task": ""}),
+        )
+        .await
+        .unwrap();
     }
 
     /// Send a message to everyone; returns its seq.
     pub async fn send_all(&mut self, session: &str, body: &str) -> u64 {
-        self.req(json!({"type": "send", "session": session, "to": {"kind": "broadcast"},
-                        "body": body, "reply_to": null}))
-            .await
-            .unwrap()["seq"]
+        self.req(
+            json!({"type": "send", "session": session, "to": {"kind": "broadcast"},
+                        "body": body, "reply_to": null}),
+        )
+        .await
+        .unwrap()["seq"]
             .as_u64()
             .unwrap()
     }
@@ -547,9 +553,9 @@ impl Raw {
         let end = Instant::now() + Duration::from_millis(ms);
         while let Some(left) = end.checked_duration_since(Instant::now()) {
             match tokio::time::timeout(left, self.rx.next()).await {
-                Ok(Some(Ok(Message::Text(t)))) => {
-                    self.frames.push(serde_json::from_str(&t).unwrap_or_default())
-                }
+                Ok(Some(Ok(Message::Text(t)))) => self
+                    .frames
+                    .push(serde_json::from_str(&t).unwrap_or_default()),
                 Ok(Some(Ok(_))) => {}
                 _ => break,
             }
@@ -663,7 +669,10 @@ pub fn grant_policy(level: &str) -> PathBuf {
 
 /// The first integer after `marker` in `s` (`sent (seq 5)` gives 5).
 pub fn num_after(s: &str, marker: &str) -> u64 {
-    let i = s.find(marker).unwrap_or_else(|| panic!("no {marker} in {s}")) + marker.len();
+    let i = s
+        .find(marker)
+        .unwrap_or_else(|| panic!("no {marker} in {s}"))
+        + marker.len();
     s[i..]
         .trim_start()
         .chars()

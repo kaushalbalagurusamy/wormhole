@@ -100,7 +100,11 @@ async fn a_third_session_reads_message_text_and_sees_it_is_not_for_it() {
         ("for_you", "no".to_string()),
     ];
     for (k, v) in &want {
-        assert_eq!(attr_of(head, k).as_deref(), Some(v.as_str()), "{k} in {head}");
+        assert_eq!(
+            attr_of(head, k).as_deref(),
+            Some(v.as_str()),
+            "{k} in {head}"
+        );
     }
     // Attributes come in the pinned order.
     let pos: Vec<usize> = want
@@ -122,7 +126,7 @@ async fn a_third_session_reads_message_text_and_sees_it_is_not_for_it() {
     assert!(
         text.lines()
             .filter(|l| l.contains("MSG-ONE"))
-            .all(|l| quoted(l)),
+            .all(quoted),
         "{text}"
     );
 
@@ -193,7 +197,8 @@ async fn for_you_is_self_yes_all_or_no_for_every_reader() {
     }
     // A user target shows as the user, with the user's name, to a reader it is not for.
     let out = read_log(&w.n.b, SB, json!({})).await;
-    let b = block_with(&blocks(&out), "FY-2");
+    let all = blocks(&out);
+    let b = block_with(&all, "FY-2");
     assert_eq!(attr_of(&b.0, "to").as_deref(), Some("user:carol"));
     assert!(
         first_line(b).contains("For user:carol (carol)"),
@@ -270,12 +275,18 @@ async fn request_ack_and_result_are_in_the_log_with_pinned_lines() {
     for want in ["T-LOG-1", "src/a/**", r, "tests"] {
         assert!(l.contains(want), "{want} not in {l}");
     }
-    assert!(bl[0].1.lines().any(|l| unquote(l) == Some("REQ-TEXT-ALPHA add tests")));
+    assert!(bl[0]
+        .1
+        .lines()
+        .any(|l| unquote(l) == Some("REQ-TEXT-ALPHA add tests")));
     let l = own(&bl[2]);
     for want in ["done", "tests_added"] {
         assert!(l.contains(want), "{want} not in {l}");
     }
-    assert!(bl[2].1.lines().any(|l| unquote(l) == Some("RES-SUMMARY-BETA")));
+    assert!(bl[2]
+        .1
+        .lines()
+        .any(|l| unquote(l) == Some("RES-SUMMARY-BETA")));
 
     // Bob: the request is addressed to him but grants nothing; he wrote the other two.
     let ob = read_log(&w.n.b, SB, json!({"task_id": "T-LOG-1"})).await;
@@ -299,7 +310,8 @@ async fn request_ack_and_result_are_in_the_log_with_pinned_lines() {
     for b in &ba[1..] {
         assert!(first_line(b).contains("Addressed to this session."));
         assert!(
-            first_line(b).contains("The answer to a task this session handed out; information only."),
+            first_line(b)
+                .contains("The answer to a task this session handed out; information only."),
             "{}",
             first_line(b)
         );
@@ -401,7 +413,10 @@ async fn every_filter_selects_exactly_the_matching_entries_and_they_combine() {
     )
     .await
     .unwrap();
-    let n = wait_ctx(b, SB, &w.n.repo_b, |c| c.contains(NOTICE) && c.contains("T-1")).await;
+    let n = wait_ctx(b, SB, &w.n.repo_b, |c| {
+        c.contains(NOTICE) && c.contains("T-1")
+    })
+    .await;
     tool(
         b,
         SB,
@@ -459,9 +474,7 @@ async fn every_filter_selects_exactly_the_matching_entries_and_they_combine() {
         (json!({"task_id": "T-1"}), p(|r| r.task() == "T-1")),
         (
             json!({"session": SB, "kind": "msg"}),
-            p(|r| {
-                r.kind == "msg" && (r.from_session == SB || r.to == format!("session:{SB}"))
-            }),
+            p(|r| r.kind == "msg" && (r.from_session == SB || r.to == format!("session:{SB}"))),
         ),
         (
             json!({"user": "bob", "kind": "msg", "since": m2}),
@@ -549,7 +562,10 @@ async fn limit_defaults_to_50_is_capped_at_200_and_more_is_exact() {
     let r = z.log(SZ, json!({"since": s[9], "limit": 3})).await.unwrap();
     assert_eq!(texts(&r), range(10, 12));
     assert_eq!(r["more"], true);
-    let r = z.log(SZ, json!({"since": s[9], "limit": 1000})).await.unwrap();
+    let r = z
+        .log(SZ, json!({"since": s[9], "limit": 1000}))
+        .await
+        .unwrap();
     assert_eq!(texts(&r), range(10, 204));
     assert_eq!(r["more"], false);
     // Exactly as many matching rows as the limit is not "more"; one over is.
@@ -559,7 +575,10 @@ async fn limit_defaults_to_50_is_capped_at_200_and_more_is_exact() {
     let r = z.log(SZ, json!({"since": s[153]})).await.unwrap();
     assert_eq!(texts(&r), range(154, 203));
     assert_eq!(r["more"], true);
-    let r = z.log(SZ, json!({"since": s[202], "limit": 2})).await.unwrap();
+    let r = z
+        .log(SZ, json!({"since": s[202], "limit": 2}))
+        .await
+        .unwrap();
     assert_eq!(texts(&r), range(203, 204));
     assert_eq!(r["more"], false);
     let r = z.log(SZ, json!({"since": s[204]})).await.unwrap();
@@ -610,7 +629,11 @@ async fn the_tool_output_is_capped_at_40000_characters_with_a_continuation_line(
         send(&w.n.a, SA, "all", &format!("BIG-{i} {}", "x".repeat(1800))).await;
     }
     let out = read_log(&w.c, SC, json!({})).await;
-    assert!(out.chars().count() <= 40_000, "{} chars", out.chars().count());
+    assert!(
+        out.chars().count() <= 40_000,
+        "{} chars",
+        out.chars().count()
+    );
     let last = out.trim_end().lines().last().unwrap();
     assert!(last.starts_with("More entries"), "{last}");
     assert!(last.contains("since="), "{last}");
@@ -653,7 +676,12 @@ async fn the_log_keeps_only_the_newest_entries_up_to_the_count_limit() {
     assert_eq!(bl.len(), 5, "{out}");
     let got: Vec<String> = bl
         .iter()
-        .map(|b| b.1.lines().filter_map(unquote).collect::<Vec<_>>().join("\n"))
+        .map(|b| {
+            b.1.lines()
+                .filter_map(unquote)
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
         .collect();
     assert_eq!(got, ["RC-7", "RC-8", "RC-9", "RC-10", "RC-11"], "{out}");
     // The smallest limit is one row.
@@ -704,7 +732,11 @@ async fn the_log_drops_entries_older_than_the_age_limit_on_a_sweep() {
     hub.sweep_at(now + 30 * 60 * 1000);
     z.hello(SZ, &proj_id()).await;
     let r = z.log(SZ, json!({})).await.unwrap();
-    assert_eq!(texts(&r), ["AGE-1", "AGE-2"], "younger than the limit stays");
+    assert_eq!(
+        texts(&r),
+        ["AGE-1", "AGE-2"],
+        "younger than the limit stays"
+    );
     hub.sweep_at(now + 2 * 3600 * 1000);
     z.hello(SZ, &proj_id()).await;
     let r = z.log(SZ, json!({})).await.unwrap();
@@ -744,10 +776,12 @@ async fn messages_from_a_daemon_that_did_not_advertise_the_log_are_not_logged() 
     old.hello(s_old, &proj_id()).await;
     new.hello(s_new, &proj_id()).await;
     old.send_all(s_old, "OLD-DAEMON-BODY").await;
-    old.req(json!({"type": "send", "session": s_old, "to": {"kind": "session", "id": SB},
-                   "body": "OLD-DAEMON-DIRECT", "reply_to": null}))
-        .await
-        .unwrap();
+    old.req(
+        json!({"type": "send", "session": s_old, "to": {"kind": "session", "id": SB},
+                   "body": "OLD-DAEMON-DIRECT", "reply_to": null}),
+    )
+    .await
+    .unwrap();
     new.send_all(s_new, "NEW-DAEMON-BODY").await;
 
     let out = read_log(&w.n.a, SA, json!({})).await;
@@ -822,7 +856,10 @@ async fn a_database_from_before_the_log_opens_serves_an_empty_log_and_keeps_new_
     assert_eq!(read_log(&a, SA, json!({})).await.trim(), NONE);
     send(&a, SA, "all", "NEW-AFTER-OPEN").await;
     let out = read_log(&a, SA, json!({})).await;
-    assert!(out.contains("NEW-AFTER-OPEN") && !out.contains("OLD-EVENT-BODY"), "{out}");
+    assert!(
+        out.contains("NEW-AFTER-OPEN") && !out.contains("OLD-EVENT-BODY"),
+        "{out}"
+    );
 
     // The log survives a restart of the hub on the same database.
     a.shutdown().await;
@@ -839,7 +876,10 @@ async fn a_database_from_before_the_log_opens_serves_an_empty_log_and_keeps_new_
     wait_connected(&a).await;
     hook(&a, session_start(SA, &repo)).await;
     let out = read_log(&a, SA, json!({})).await;
-    assert!(out.contains("NEW-AFTER-OPEN") && !out.contains("OLD-EVENT-BODY"), "{out}");
+    assert!(
+        out.contains("NEW-AFTER-OPEN") && !out.contains("OLD-EVENT-BODY"),
+        "{out}"
+    );
 }
 
 #[tokio::test]
@@ -871,7 +911,13 @@ async fn the_activity_page_and_its_stream_still_show_no_text_while_the_log_has_i
         "PRIVATE-REF-THETA",
     ];
     send(&w.n.a, SA, "all", secrets[0]).await;
-    send(&w.n.a, SA, &format!("session:{SB}"), "PRIVATE-MSG-ALPHA direct").await;
+    send(
+        &w.n.a,
+        SA,
+        &format!("session:{SB}"),
+        "PRIVATE-MSG-ALPHA direct",
+    )
+    .await;
     delegate_tool(
         &w.n.a,
         SA,
@@ -901,10 +947,7 @@ async fn the_activity_page_and_its_stream_still_show_no_text_while_the_log_has_i
     // The log has every secret (so the page check below is not vacuous).
     let out = eventually(5, || async {
         let o = read_log(&w.c, SC, json!({})).await;
-        secrets
-            .iter()
-            .all(|s| o.contains(s))
-            .then_some(o)
+        secrets.iter().all(|s| o.contains(s)).then_some(o)
     })
     .await;
     assert!(out.contains("T-PAGE"));
@@ -968,7 +1011,11 @@ async fn forged_log_lines_in_a_hostile_body_stay_quoted_and_the_block_stays_not_
             .iter()
             .filter(|l| l.contains("Addressed to this session."))
             .collect();
-        assert_eq!(claims.len(), usize::from(want_for_you == "yes"), "{unquoted:?}");
+        assert_eq!(
+            claims.len(),
+            usize::from(want_for_you == "yes"),
+            "{unquoted:?}"
+        );
         if want_for_you == "no" {
             assert!(first_line(&bl[0]).contains("not for you: information only."));
         } else {
@@ -1095,9 +1142,7 @@ async fn a_full_bypass_grant_for_the_sender_does_not_make_a_foreign_request_in_t
     assert_eq!(requests.len(), 1, "{after:?}");
     assert_ne!(requests[0]["seq"], json!(foreign_seq), "{after:?}");
     assert!(
-        after
-            .iter()
-            .all(|l| !l.to_string().contains("T-FOREIGN-1")),
+        after.iter().all(|l| !l.to_string().contains("T-FOREIGN-1")),
         "{after:?}"
     );
 }
@@ -1161,16 +1206,20 @@ async fn hub_log_requests_are_scoped_validated_and_typed() {
     o.hello(SN, "").await;
 
     let direct = z
-        .req(json!({"type": "send", "session": SZ, "to": {"kind": "session", "id": SY},
-                    "body": "TYPED-DIRECT", "reply_to": null}))
+        .req(
+            json!({"type": "send", "session": SZ, "to": {"kind": "session", "id": SY},
+                    "body": "TYPED-DIRECT", "reply_to": null}),
+        )
         .await
         .unwrap()["seq"]
         .as_u64()
         .unwrap();
-    z.req(json!({"type": "send", "session": SZ, "to": {"kind": "user", "id": "yan"},
-                 "body": "TYPED-USER", "reply_to": null}))
-        .await
-        .unwrap();
+    z.req(
+        json!({"type": "send", "session": SZ, "to": {"kind": "user", "id": "yan"},
+                 "body": "TYPED-USER", "reply_to": null}),
+    )
+    .await
+    .unwrap();
     z.send_all(SZ, "TYPED-ALL").await;
 
     let r = y.log(SY, json!({})).await.unwrap();
@@ -1181,13 +1230,26 @@ async fn hub_log_requests_are_scoped_validated_and_typed() {
     assert_eq!(e[0].kind, "msg");
     assert_eq!(e[0].repo, proj_id());
     assert_eq!(
-        (e[0].from_session.as_str(), e[0].from_user.as_str(), e[0].from_machine.as_str()),
+        (
+            e[0].from_session.as_str(),
+            e[0].from_user.as_str(),
+            e[0].from_machine.as_str()
+        ),
         (SZ, "zed", "machine-z")
     );
-    assert_eq!((e[0].to.clone(), e[0].to_user.as_str()), (format!("session:{SY}"), "yan"));
-    assert_eq!((e[0].task_id.as_str(), e[0].text.as_str()), ("", "TYPED-DIRECT"));
+    assert_eq!(
+        (e[0].to.clone(), e[0].to_user.as_str()),
+        (format!("session:{SY}"), "yan")
+    );
+    assert_eq!(
+        (e[0].task_id.as_str(), e[0].text.as_str()),
+        ("", "TYPED-DIRECT")
+    );
     assert_eq!(e[0].data["body"], "TYPED-DIRECT");
-    assert_eq!((e[1].to.as_str(), e[1].to_user.as_str()), ("user:yan", "yan"));
+    assert_eq!(
+        (e[1].to.as_str(), e[1].to_user.as_str()),
+        ("user:yan", "yan")
+    );
     assert_eq!((e[2].to.as_str(), e[2].to_user.as_str()), ("all", ""));
 
     // Another repository sees none of it, and a session with no repository is refused.
@@ -1204,7 +1266,9 @@ async fn hub_log_requests_are_scoped_validated_and_typed() {
         .is_err());
     // The kind filter takes the four kinds and nothing else.
     for k in ["msg", "request", "ack", "result"] {
-        z.log(SZ, json!({"kind": k})).await.unwrap_or_else(|e| panic!("{k}: {e}"));
+        z.log(SZ, json!({"kind": k}))
+            .await
+            .unwrap_or_else(|e| panic!("{k}: {e}"));
     }
     for k in ["MSG", "message", "delegation.request", "msg "] {
         let e = z.log(SZ, json!({"kind": k})).await.unwrap_err();

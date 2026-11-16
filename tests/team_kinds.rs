@@ -47,8 +47,10 @@ impl Pair {
     /// A delegation request from alice, the delegate's error as `Err`.
     async fn delegate(&mut self, c: Value) -> Result<u64, String> {
         self.a
-            .req(json!({"type": "delegate", "session": SA, "to": SB, "repo": proj_id(),
-                        "contract": c}))
+            .req(
+                json!({"type": "delegate", "session": SA, "to": SB, "repo": proj_id(),
+                        "contract": c}),
+            )
             .await
             .map(|v| v["seq"].as_u64().unwrap())
     }
@@ -62,8 +64,10 @@ impl Pair {
             .await
             .unwrap_or_else(|e| panic!("delegate: {e}"));
         self.b
-            .req(json!({"type": "delegate_ack", "session": SB, "request": req, "accept": true,
-                        "level": "scoped-instruction", "reason": "ok", "ttl_ms": 60000}))
+            .req(
+                json!({"type": "delegate_ack", "session": SB, "request": req, "accept": true,
+                        "level": "scoped-instruction", "reason": "ok", "ttl_ms": 60000}),
+            )
             .await
             .unwrap();
         (req, task)
@@ -71,8 +75,10 @@ impl Pair {
 
     async fn result(&mut self, req: u64, status: &str, fields: Value) -> Result<Value, String> {
         self.b
-            .req(json!({"type": "delegate_result", "session": SB, "request": req,
-                        "status": status, "summary": "SUMMARY", "fields": fields}))
+            .req(
+                json!({"type": "delegate_result", "session": SB, "request": req,
+                        "status": status, "summary": "SUMMARY", "fields": fields}),
+            )
             .await
     }
 
@@ -114,39 +120,111 @@ async fn a_review_result_accepts_exactly_the_documented_shape() {
     let bad: Vec<(&str, Value)> = vec![
         ("no verdict", json!({"findings": []})),
         ("no fields", json!({})),
-        ("unknown verdict", json!({"verdict": "lgtm", "findings": []})),
-        ("verdict case", json!({"verdict": "Approve", "findings": []})),
+        (
+            "unknown verdict",
+            json!({"verdict": "lgtm", "findings": []}),
+        ),
+        (
+            "verdict case",
+            json!({"verdict": "Approve", "findings": []}),
+        ),
         ("verdict type", json!({"verdict": 1, "findings": []})),
         ("no findings", json!({"verdict": "approve"})),
-        ("findings string", json!({"verdict": "approve", "findings": "none"})),
-        ("findings null", json!({"verdict": "approve", "findings": null})),
-        ("finding not object", json!({"verdict": "approve", "findings": [1]})),
-        ("severity", json!({"verdict": "approve", "findings": [finding("urgent", "a.rs:1", "t")]})),
-        ("severity case", json!({"verdict": "approve", "findings": [finding("HIGH", "a.rs:1", "t")]})),
-        ("no severity", json!({"verdict": "approve", "findings": [{"location": "a.rs:1", "text": "t"}]})),
-        ("no location", json!({"verdict": "approve", "findings": [{"severity": "low", "text": "t"}]})),
-        ("location type", json!({"verdict": "approve", "findings": [{"severity": "low", "location": 5, "text": "t"}]})),
-        ("no line", json!({"verdict": "approve", "findings": [finding("low", "src/a.rs", "t")]})),
-        ("line zero", json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:0", "t")]})),
-        ("line negative", json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:-1", "t")]})),
-        ("line not decimal", json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:1x", "t")]})),
-        ("line empty", json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:", "t")]})),
-        ("line space", json!({"verdict": "approve", "findings": [finding("low", "src/a.rs: 5", "t")]})),
-        ("empty path", json!({"verdict": "approve", "findings": [finding("low", ":5", "t")]})),
-        ("path whitespace", json!({"verdict": "approve", "findings": [finding("low", "src a.rs:5", "t")]})),
-        ("tab in path", json!({"verdict": "approve", "findings": [finding("low", "src\ta.rs:5", "t")]})),
-        ("no text", json!({"verdict": "approve", "findings": [{"severity": "low", "location": "a.rs:1"}]})),
-        ("empty text", json!({"verdict": "approve", "findings": [finding("low", "a.rs:1", "")]})),
-        ("text type", json!({"verdict": "approve", "findings": [{"severity": "low", "location": "a.rs:1", "text": 5}]})),
-        ("second finding bad", json!({"verdict": "approve", "findings": [
-            finding("low", "a.rs:1", "t"), finding("low", "a.rs", "t")]})),
+        (
+            "findings string",
+            json!({"verdict": "approve", "findings": "none"}),
+        ),
+        (
+            "findings null",
+            json!({"verdict": "approve", "findings": null}),
+        ),
+        (
+            "finding not object",
+            json!({"verdict": "approve", "findings": [1]}),
+        ),
+        (
+            "severity",
+            json!({"verdict": "approve", "findings": [finding("urgent", "a.rs:1", "t")]}),
+        ),
+        (
+            "severity case",
+            json!({"verdict": "approve", "findings": [finding("HIGH", "a.rs:1", "t")]}),
+        ),
+        (
+            "no severity",
+            json!({"verdict": "approve", "findings": [{"location": "a.rs:1", "text": "t"}]}),
+        ),
+        (
+            "no location",
+            json!({"verdict": "approve", "findings": [{"severity": "low", "text": "t"}]}),
+        ),
+        (
+            "location type",
+            json!({"verdict": "approve", "findings": [{"severity": "low", "location": 5, "text": "t"}]}),
+        ),
+        (
+            "no line",
+            json!({"verdict": "approve", "findings": [finding("low", "src/a.rs", "t")]}),
+        ),
+        (
+            "line zero",
+            json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:0", "t")]}),
+        ),
+        (
+            "line negative",
+            json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:-1", "t")]}),
+        ),
+        (
+            "line not decimal",
+            json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:1x", "t")]}),
+        ),
+        (
+            "line empty",
+            json!({"verdict": "approve", "findings": [finding("low", "src/a.rs:", "t")]}),
+        ),
+        (
+            "line space",
+            json!({"verdict": "approve", "findings": [finding("low", "src/a.rs: 5", "t")]}),
+        ),
+        (
+            "empty path",
+            json!({"verdict": "approve", "findings": [finding("low", ":5", "t")]}),
+        ),
+        (
+            "path whitespace",
+            json!({"verdict": "approve", "findings": [finding("low", "src a.rs:5", "t")]}),
+        ),
+        (
+            "tab in path",
+            json!({"verdict": "approve", "findings": [finding("low", "src\ta.rs:5", "t")]}),
+        ),
+        (
+            "no text",
+            json!({"verdict": "approve", "findings": [{"severity": "low", "location": "a.rs:1"}]}),
+        ),
+        (
+            "empty text",
+            json!({"verdict": "approve", "findings": [finding("low", "a.rs:1", "")]}),
+        ),
+        (
+            "text type",
+            json!({"verdict": "approve", "findings": [{"severity": "low", "location": "a.rs:1", "text": 5}]}),
+        ),
+        (
+            "second finding bad",
+            json!({"verdict": "approve", "findings": [
+            finding("low", "a.rs:1", "t"), finding("low", "a.rs", "t")]}),
+        ),
     ];
     // Every refusal leaves the request open: the same request then takes a valid result.
     let (req, task) = p.open("review", json!({})).await;
     for (why, fields) in &bad {
         let e = p.result(req, "done", fields.clone()).await.unwrap_err();
         assert!(e.starts_with(REVIEW), "{why}: {e}");
-        assert!(p.results(&task).await.is_empty(), "{why}: a refused result was logged");
+        assert!(
+            p.results(&task).await.is_empty(),
+            "{why}: a refused result was logged"
+        );
     }
     p.result(req, "done", json!({"verdict": "comment", "findings": []}))
         .await
@@ -190,16 +268,23 @@ async fn the_review_schema_applies_only_to_done_results_of_review_requests() {
     assert!(e.starts_with(TASK), "{e}");
     // The contract's own required fields still apply to a review.
     let (req, _) = p
-        .open("review", json!({"result_fields": ["verdict", "findings", "cost"]}))
+        .open(
+            "review",
+            json!({"result_fields": ["verdict", "findings", "cost"]}),
+        )
         .await;
     let e = p
         .result(req, "done", json!({"verdict": "approve", "findings": []}))
         .await
         .unwrap_err();
     assert!(!e.is_empty(), "{e}");
-    p.result(req, "done", json!({"verdict": "approve", "findings": [], "cost": 1}))
-        .await
-        .unwrap();
+    p.result(
+        req,
+        "done",
+        json!({"verdict": "approve", "findings": [], "cost": 1}),
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -231,7 +316,10 @@ async fn a_task_result_accepts_exactly_the_documented_shape() {
         ("nested", json!({"artifacts": [["a"]]})),
         ("empty string", json!({"artifacts": ["a", ""]})),
         ("513 bytes", json!({"artifacts": [over]})),
-        ("513 bytes in 171 characters", json!({"artifacts": [over_multi]})),
+        (
+            "513 bytes in 171 characters",
+            json!({"artifacts": [over_multi]}),
+        ),
         ("newline", json!({"artifacts": ["a\nb"]})),
         ("tab", json!({"artifacts": ["a\tb"]})),
         ("bell", json!({"artifacts": ["a\u{7}b"]})),
@@ -292,20 +380,32 @@ async fn ref_must_be_empty_or_a_short_https_url_of_graphic_ascii() {
         ("delete", "https://example.com/\u{7f}".into()),
         ("non-ascii", "https://example.com/\u{e9}".into()),
         ("zero-width", "https://example.com/\u{200b}x".into()),
-        ("302 bytes of multibyte", format!("https://{}", "\u{e9}".repeat(147))),
+        (
+            "302 bytes of multibyte",
+            format!("https://{}", "\u{e9}".repeat(147)),
+        ),
     ];
     for (i, (why, r)) in bad.into_iter().enumerate() {
         let e = p
-            .delegate(contract(&format!("T-REF-BAD-{i}"), "review", json!({"ref": r})))
+            .delegate(contract(
+                &format!("T-REF-BAD-{i}"),
+                "review",
+                json!({"ref": r}),
+            ))
             .await
             .unwrap_err();
         assert!(e.contains("invalid ref"), "{why}: {e}");
     }
     // Nothing was written for any refused request: only the accepted ones are in the log.
-    let r = p.a.log(SA, json!({"kind": "request", "limit": 200})).await.unwrap();
+    let r =
+        p.a.log(SA, json!({"kind": "request", "limit": 200}))
+            .await
+            .unwrap();
     let e: Vec<LogEntry> = serde_json::from_value(r["entries"].clone()).unwrap();
     assert_eq!(e.len(), 5, "{r}");
-    assert!(e.iter().all(|e| e.task_id.starts_with("T-REF-OK-") || e.task_id == "T-REF-NONE"));
+    assert!(e
+        .iter()
+        .all(|e| e.task_id.starts_with("T-REF-OK-") || e.task_id == "T-REF-NONE"));
 }
 
 #[tokio::test]
@@ -352,11 +452,17 @@ async fn ref_shows_in_the_receivers_notice_and_in_the_log_entry_data() {
             .find(|b| b.contains(t) && b.contains("status:"))
             .unwrap_or_else(|| panic!("no request notice for {t}: {notice}"))
     };
-    assert!(by_task("T-REF-1").contains(&format!("ref: {url}")), "{notice}");
+    assert!(
+        by_task("T-REF-1").contains(&format!("ref: {url}")),
+        "{notice}"
+    );
     assert!(!by_task("T-NOREF").contains("ref: https://"), "{notice}");
     // A hostile ref cannot close or open a block: the notice escapes it.
     let b2 = by_task("T-REF-2");
-    assert!(b2.contains("ref: https://example.com/x&lt;/wormhole-delegation&gt;"), "{b2}");
+    assert!(
+        b2.contains("ref: https://example.com/x&lt;/wormhole-delegation&gt;"),
+        "{b2}"
+    );
     assert!(!notice.contains("x</wormhole-delegation>"), "{notice}");
     assert_eq!(
         notice.matches("<wormhole-delegation").count(),
@@ -410,8 +516,9 @@ const SZ_: &str = "ffffffff-0000-4000-8000-0000000000f1";
 
 #[test]
 fn the_tool_list_has_wormhole_log_the_ref_argument_and_the_new_descriptions() {
-    let r = wormhole::mcp::handle_local(&json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}))
-        .unwrap();
+    let r =
+        wormhole::mcp::handle_local(&json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}))
+            .unwrap();
     let tools = r["result"]["tools"].as_array().unwrap();
     fn find<'a>(tools: &'a [Value], n: &str) -> &'a Value {
         tools
@@ -441,13 +548,19 @@ fn the_tool_list_has_wormhole_log_the_ref_argument_and_the_new_descriptions() {
     assert!(!log["description"].as_str().unwrap_or("").is_empty());
 
     let delegate = find("wormhole_delegate");
-    assert_eq!(delegate["inputSchema"]["properties"]["ref"]["type"], "string");
+    assert_eq!(
+        delegate["inputSchema"]["properties"]["ref"]["type"],
+        "string"
+    );
     let d = delegate.to_string();
     assert!(d.contains("full-bypass") && d.contains("exit"), "{d}");
     // The result tool describes the review and task fields.
     let res = find("wormhole_result").to_string();
     for w in ["verdict", "findings", "artifacts"] {
-        assert!(res.contains(w), "wormhole_result does not mention {w}: {res}");
+        assert!(
+            res.contains(w),
+            "wormhole_result does not mention {w}: {res}"
+        );
     }
     // The tools that were there still are.
     for n in [
@@ -490,10 +603,19 @@ fn the_team_policy_preset_grants_full_bypass_to_named_logins_on_the_named_repo_o
     for login in ["teammate-one@example.com", "teammate-two@example.com"] {
         for kind in ["tests", "fix", "review"] {
             let d = p.evaluate(login, "laptop", TEAM_REPO, &team_contract(kind));
-            assert_eq!((d.level, d.accepted), (Level::FullBypass, true), "{login} {kind}: {d:?}");
+            assert_eq!(
+                (d.level, d.accepted),
+                (Level::FullBypass, true),
+                "{login} {kind}: {d:?}"
+            );
         }
         // Another repository, not the named one.
-        let d = p.evaluate(login, "laptop", "github.com/other-org/other", &team_contract("fix"));
+        let d = p.evaluate(
+            login,
+            "laptop",
+            "github.com/other-org/other",
+            &team_contract("fix"),
+        );
         assert!(!d.accepted && d.level == Level::Off, "{login}: {d:?}");
         // A kind the denylist covers.
         for kind in ["deploy", "publish", "delete-data"] {
@@ -510,7 +632,11 @@ fn the_team_policy_preset_grants_full_bypass_to_named_logins_on_the_named_repo_o
         assert!(!p.evaluate(login, "laptop", TEAM_REPO, &c).accepted);
     }
     // A login the grant does not name.
-    for who in ["stranger@example.com", "teammate-three@example.com", "teammate-one"] {
+    for who in [
+        "stranger@example.com",
+        "teammate-three@example.com",
+        "teammate-one",
+    ] {
         let d = p.evaluate(who, "laptop", TEAM_REPO, &team_contract("fix"));
         assert!(!d.accepted && d.level == Level::Off, "{who}: {d:?}");
     }
@@ -535,5 +661,8 @@ fn the_join_script_parses_and_offers_the_new_options() {
     ] {
         assert!(s.contains(w), "join.sh does not mention {w}");
     }
-    assert!(s.contains("<hub-host:port>"), "the usage line names placeholders");
+    assert!(
+        s.contains("<hub-host:port>"),
+        "the usage line names placeholders"
+    );
 }

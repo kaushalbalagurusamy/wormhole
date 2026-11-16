@@ -366,9 +366,13 @@ async fn refused(
 #[tokio::test]
 async fn a_commit_that_is_not_on_origin_main_is_refused() {
     // On a side branch of the origin.
-    let (w, _h, _a) = refused(|w| push_side(w), Build::Ok, "refused: not on origin/main").await;
+    let (w, _h, _a) = refused(push_side, Build::Ok, "refused: not on origin/main").await;
     assert_eq!(build_count(&w), 0, "built a commit that is not on main");
-    assert_eq!(git(&w.src, &["rev-parse", "HEAD"]), w.c[2], "checked it out");
+    assert_eq!(
+        git(&w.src, &["rev-parse", "HEAD"]),
+        w.c[2],
+        "checked it out"
+    );
     untouched(&w);
 }
 
@@ -402,8 +406,14 @@ async fn a_dirty_clone_is_refused_and_left_as_it_was() {
         assert_eq!(build_count(&w), 0, "{how}: built a dirty clone");
         assert_eq!(git(&w.src, &["rev-parse", "HEAD"]), w.c[2], "{how}");
         match how {
-            "untracked" => assert_eq!(std::fs::read_to_string(w.src.join("scratch.txt")).unwrap(), "mine"),
-            _ => assert_eq!(std::fs::read_to_string(w.src.join("f.txt")).unwrap(), "edited by hand"),
+            "untracked" => assert_eq!(
+                std::fs::read_to_string(w.src.join("scratch.txt")).unwrap(),
+                "mine"
+            ),
+            _ => assert_eq!(
+                std::fs::read_to_string(w.src.join("f.txt")).unwrap(),
+                "edited by hand"
+            ),
         }
         untouched(&w);
     }
@@ -469,7 +479,10 @@ async fn a_second_target_inside_the_minimum_interval_waits_and_then_proceeds() {
     })
     .await;
     assert!(build_count(&w) >= 2);
-    assert_eq!(version(&update::prev_path(&w.bin)), format!("wormhole {t4}"));
+    assert_eq!(
+        version(&update::prev_path(&w.bin)),
+        format!("wormhole {t4}")
+    );
 }
 
 #[tokio::test]
@@ -547,7 +560,10 @@ async fn a_target_equal_to_the_running_commit_is_current() {
     let (hub, _a) = start(&w, Build::Ok, 300, Some(wormhole::COMMIT)).await;
     wait_status(&hub, &w, "alice", "current").await;
     tokio::time::sleep(Duration::from_millis(800)).await;
-    assert_eq!(info(&hub, "alice").await.unwrap()["target"], wormhole::COMMIT);
+    assert_eq!(
+        info(&hub, "alice").await.unwrap()["target"],
+        wormhole::COMMIT
+    );
     assert!(info(&hub, "alice").await.unwrap()["status"]
         .as_str()
         .unwrap()
@@ -579,7 +595,10 @@ async fn reverting_an_installed_update_holds_the_daemon_until_resumed() {
 
     update::revert(&w.bin).unwrap();
     assert_eq!(bytes(&w.bin), OLD_BIN.as_bytes());
-    assert_eq!(version(&update::prev_path(&w.bin)), format!("wormhole {t4}"));
+    assert_eq!(
+        version(&update::prev_path(&w.bin)),
+        format!("wormhole {t4}")
+    );
     assert!(update::hold_path(&w.bin).exists());
 
     let t5 = push(&w, "five");
@@ -603,7 +622,10 @@ async fn an_update_leaves_the_delegation_policy_and_its_side_files_alone() {
             .unwrap()
             .map(|e| {
                 let e = e.unwrap();
-                (e.file_name().to_string_lossy().to_string(), std::fs::read(e.path()).unwrap_or_default())
+                (
+                    e.file_name().to_string_lossy().to_string(),
+                    std::fs::read(e.path()).unwrap_or_default(),
+                )
             })
             .collect();
         v.sort();
@@ -649,11 +671,13 @@ async fn who_and_the_page_show_each_daemons_commit_target_and_status() {
     };
     let who = tool(&a, SA, "who", json!({})).await.unwrap();
     assert!(who.contains("Daemons:"), "{who}");
-    for (user, status) in [("alice@machine-a", "current"), ("bob@machine-b", "disabled")] {
+    for (user, status) in [
+        ("alice@machine-a", "current"),
+        ("bob@machine-b", "disabled"),
+    ] {
         let l = line(&who, user);
-        for want in [format!("commit {c12} target none: {status}")] {
-            assert!(l.contains(&want), "{want} not in {l}");
-        }
+        let want = format!("commit {c12} target none: {status}");
+        assert!(l.contains(&want), "{want} not in {l}");
     }
 
     set_target(&w, &t);
@@ -665,7 +689,10 @@ async fn who_and_the_page_show_each_daemons_commit_target_and_status() {
     .await;
     let who = tool(&a, SA, "who", json!({})).await.unwrap();
     let t12 = short(&t);
-    for (user, status) in [("alice@machine-a", "installed"), ("bob@machine-b", "disabled")] {
+    for (user, status) in [
+        ("alice@machine-a", "installed"),
+        ("bob@machine-b", "disabled"),
+    ] {
         let l = line(&who, user);
         let want = format!("commit {c12} target {t12}: {status}");
         assert!(l.contains(&want), "{want} not in {l}");
@@ -675,7 +702,9 @@ async fn who_and_the_page_show_each_daemons_commit_target_and_status() {
     let state = api_state(&hub).await;
     let ds = state["daemons"].as_array().unwrap();
     assert_eq!(
-        ds.iter().map(|d| d["user"].as_str().unwrap()).collect::<Vec<_>>(),
+        ds.iter()
+            .map(|d| d["user"].as_str().unwrap())
+            .collect::<Vec<_>>(),
         ["alice", "bob"],
         "sorted by user"
     );
@@ -709,7 +738,10 @@ fn revert_swaps_the_binaries_makes_a_hold_file_and_resume_removes_it() {
     assert_eq!(version(&bin), "OLD");
     assert_eq!(version(&prev), "NEW");
     assert!(update::hold_path(&bin).exists());
-    assert_ne!(std::fs::metadata(&bin).unwrap().permissions().mode() & 0o111, 0);
+    assert_ne!(
+        std::fs::metadata(&bin).unwrap().permissions().mode() & 0o111,
+        0
+    );
     // Reverting again swaps them back.
     update::revert(&bin).unwrap();
     assert_eq!(version(&bin), "NEW");
@@ -769,7 +801,10 @@ async fn wait_targets(r: &mut Raw, n: usize) -> Vec<Value> {
         if v.len() >= n {
             return v;
         }
-        assert!(t.elapsed() < Duration::from_secs(10), "target frames so far: {v:?}");
+        assert!(
+            t.elapsed() < Duration::from_secs(10),
+            "target frames so far: {v:?}"
+        );
     }
 }
 
@@ -790,7 +825,11 @@ async fn the_hub_announces_only_a_valid_target_and_only_to_update_connections() 
     let mut n = Raw::connect(hub.addr, "nat@machine-n", &[]).await;
     // The Welcome carries the target for an update connection only, trimmed.
     assert_eq!(u.welcome["target"], SHA1);
-    assert!(n.welcome.get("target").is_none_or(|t| t.is_null()), "{}", n.welcome);
+    assert!(
+        n.welcome.get("target").is_none_or(|t| t.is_null()),
+        "{}",
+        n.welcome
+    );
     for w in [&u.welcome, &n.welcome] {
         let caps: Vec<&str> = w["caps"]
             .as_array()
@@ -832,7 +871,12 @@ async fn the_hub_announces_only_a_valid_target_and_only_to_update_connections() 
             None => assert!(got.is_null(), "step {i}: {got}"),
         }
     }
-    assert_eq!(targets(&u).len(), base + steps.len(), "extra target frames: {:?}", targets(&u));
+    assert_eq!(
+        targets(&u).len(),
+        base + steps.len(),
+        "extra target frames: {:?}",
+        targets(&u)
+    );
     // The connection that did not advertise `update` never hears of any of it.
     n.drain(300).await;
     assert!(
@@ -852,25 +896,35 @@ async fn the_hub_stores_what_a_daemon_reports_under_the_connections_identity_and
     let mut u = Raw::connect(hub.addr, "uma@machine-u", &["update"]).await;
     let before = wormhole::proto::now_ms();
     // Extra fields claiming another identity are ignored.
-    u.req(json!({"type": "daemon_status", "commit": SHA1, "target": SHA2,
-                 "status": "building", "user": "mallory", "machine": "evil"}))
-        .await
-        .unwrap();
+    u.req(
+        json!({"type": "daemon_status", "commit": SHA1, "target": SHA2,
+                 "status": "building", "user": "mallory", "machine": "evil"}),
+    )
+    .await
+    .unwrap();
     let s = snapshot(&mut u).await;
     assert_eq!(s.daemons.len(), 1, "{:?}", s.daemons);
     let d = &s.daemons[0];
     assert_eq!(
-        (d.user.as_str(), d.machine.as_str(), d.commit.as_str(), d.target.as_str(), d.status.as_str()),
+        (
+            d.user.as_str(),
+            d.machine.as_str(),
+            d.commit.as_str(),
+            d.target.as_str(),
+            d.status.as_str()
+        ),
         ("uma", "machine-u", SHA1, SHA2, "building")
     );
     assert!(d.ts >= before && d.ts <= wormhole::proto::now_ms());
 
     // A later report replaces it; hostile values are reduced.
     let status = format!("line1\nline2\u{7} <i>{}", "y".repeat(500));
-    u.req(json!({"type": "daemon_status", "commit": "ZZ <b>top</b>\nzz", "target": "A".repeat(100),
-                 "status": status}))
-        .await
-        .unwrap();
+    u.req(
+        json!({"type": "daemon_status", "commit": "ZZ <b>top</b>\nzz", "target": "A".repeat(100),
+                 "status": status}),
+    )
+    .await
+    .unwrap();
     let s = snapshot(&mut u).await;
     assert_eq!(s.daemons.len(), 1, "{:?}", s.daemons);
     let d = &s.daemons[0];
@@ -878,7 +932,11 @@ async fn the_hub_stores_what_a_daemon_reports_under_the_connections_identity_and
     assert!(hex(&d.commit) || d.commit == "unknown", "{:?}", d.commit);
     assert!(hex(&d.target), "{:?}", d.target);
     assert!(d.status.chars().count() <= 200, "{}", d.status.len());
-    assert!(!d.status.contains('\n') && !d.status.chars().any(char::is_control), "{:?}", d.status);
+    assert!(
+        !d.status.contains('\n') && !d.status.chars().any(char::is_control),
+        "{:?}",
+        d.status
+    );
     assert!(d.status.starts_with("line1 line2"), "{:?}", d.status);
     assert_eq!((d.user.as_str(), d.machine.as_str()), ("uma", "machine-u"));
 }
