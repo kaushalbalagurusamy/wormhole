@@ -2,6 +2,7 @@
 //! share one repository. See docs/design.md.
 
 pub mod daemon;
+pub mod delegation;
 pub mod glob;
 pub mod hookcmd;
 pub mod hub;
