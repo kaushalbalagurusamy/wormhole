@@ -296,6 +296,10 @@ impl Policy {
         repo: &str,
         c: &Contract,
     ) -> Decision {
+        let mut norm = c.clone();
+        norm.paths = c.paths.iter().filter_map(|p| normalize_path(p)).collect();
+        let bad_path = norm.paths.len() != c.paths.len();
+        let c = &norm;
         let who = format!("{from_user}@{from_machine}");
         let mut hits: Vec<&Grant> = self
             .grants
@@ -322,7 +326,12 @@ impl Policy {
                 first_refusal.get_or_insert_with(|| "inform".into());
                 continue;
             }
-            match self.fits(g, c) {
+            let fit = if bad_path {
+                Err("a contract path is not valid".to_string())
+            } else {
+                self.fits(g, c)
+            };
+            match fit {
                 Ok(()) => {
                     let cap = |want: u64, max: u64| if want == 0 { max } else { want.min(max) };
                     return Decision {
@@ -368,12 +377,16 @@ impl Policy {
             return Err("a bypass level needs an exit condition".into());
         }
         if g.level == Level::ScopedBypass {
-            if let Some(x) = c
-                .commands
-                .iter()
-                .find(|x| !g.commands.iter().any(|gc| gc == "*" || gc == *x))
-            {
-                return Err(format!("command {x:?} is outside the grant"));
+            let grant: Vec<Vec<String>> =
+                g.commands.iter().filter_map(|x| tokenize(x).ok()).collect();
+            for x in &c.commands {
+                let t = tokenize(x).map_err(|e| format!("command {x:?}: {e}"))?;
+                plain_program(&t).map_err(|e| format!("command {x:?}: {e}"))?;
+                if !g.commands.iter().any(|gc| gc == "*")
+                    && !grant.iter().any(|gp| t.starts_with(gp))
+                {
+                    return Err(format!("command {x:?} is outside the grant"));
+                }
             }
         }
         if let Some(d) = &self.deny {
@@ -383,6 +396,15 @@ impl Policy {
             for p in &c.paths {
                 if let Some(hit) = self.denied_path(p) {
                     return Err(format!("path {p:?} matches denylisted glob {hit}"));
+                }
+                // A scope that starts with a wildcard reaches every denied file.
+                if p.split('/').next().is_some_and(|s| s.contains('*')) {
+                    return Err(format!("path {p:?} has no literal leading directory"));
+                }
+            }
+            for x in &c.commands {
+                if let Some(hit) = self.denied_argv(x) {
+                    return Err(format!("command {x:?} is denylisted ({hit})"));
                 }
             }
             let texts = [&c.text, &c.exit, &c.spec]
@@ -399,6 +421,22 @@ impl Policy {
         Ok(())
     }
 
+    /// Is the denylist module on?
+    pub fn denylist_on(&self) -> bool {
+        self.deny.is_some()
+    }
+
+    /// Argv-aware destructive checks (module on only); an untokenisable command is denied.
+    /// This, with `command_allowed`, is the command boundary; `denied_command` is only a
+    /// substring tripwire behind it.
+    pub fn denied_argv(&self, command: &str) -> Option<String> {
+        self.deny.as_ref()?;
+        match tokenize(command) {
+            Ok(t) => argv_hit(&t),
+            Err(e) => Some(format!("untokenisable command ({e})")),
+        }
+    }
+
     /// The denylisted kinds, empty when the module is off.
     pub fn deny_kinds(&self) -> Vec<String> {
         self.deny
@@ -407,7 +445,9 @@ impl Policy {
             .unwrap_or_default()
     }
 
-    /// The denylisted command pattern in `command`, if the module is on.
+    /// The denylisted command pattern in `command`, if the module is on. A substring match
+    /// on spelling: free text and flags can be reworded, so this is defence in depth, not a
+    /// boundary (see `denied_argv` and `command_allowed`).
     pub fn denied_command(&self, command: &str) -> Option<String> {
         let d = self.deny.as_ref()?;
         // A trailing space lets patterns such as `curl ` match a bare `curl`.
@@ -421,8 +461,263 @@ impl Policy {
     /// The denylisted path glob that matches `rel`, if the module is on.
     pub fn denied_path(&self, rel: &str) -> Option<String> {
         let d = self.deny.as_ref()?;
-        let rel = rel.to_lowercase();
+        let rel = normalize_path(rel)
+            .unwrap_or_else(|| rel.to_string())
+            .to_lowercase();
         d.paths.iter().find(|g| glob::matches(g, &rel)).cloned()
+    }
+}
+
+/// Programs that run another command line, so a prefix match on them proves nothing.
+const WRAPPERS: &[&str] = &[
+    "sh",
+    "bash",
+    "zsh",
+    "dash",
+    "ksh",
+    "fish",
+    "csh",
+    "tcsh",
+    "eval",
+    "exec",
+    "env",
+    "xargs",
+    "sudo",
+    "doas",
+    "su",
+    "nohup",
+    "time",
+    "command",
+    "builtin",
+    "source",
+    ".",
+    "nice",
+    "timeout",
+    "watch",
+    "script",
+    "parallel",
+    "python",
+    "python3",
+    "perl",
+    "ruby",
+    "node",
+    "osascript",
+];
+
+/// Strip `./`, collapse `//` and refuse `..`, an absolute path or an empty result. Keeps a
+/// trailing `/` (a directory scope).
+pub fn normalize_path(p: &str) -> Option<String> {
+    if p.starts_with('/') {
+        return None;
+    }
+    let dir = p.ends_with('/');
+    let parts: Vec<&str> = p
+        .split('/')
+        .filter(|s| !s.is_empty() && *s != ".")
+        .collect();
+    if parts.is_empty() || parts.contains(&"..") {
+        return None;
+    }
+    Some(format!("{}{}", parts.join("/"), if dir { "/" } else { "" }))
+}
+
+/// Split a command line into words by POSIX shell rules for whitespace and quotes. Anything
+/// that would make the shell run something else (separators, redirections, substitution,
+/// grouping, line breaks) is an error, so the words are exactly what runs.
+pub fn tokenize(command: &str) -> Result<Vec<String>, String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut in_tok = false;
+    let mut it = command.chars();
+    while let Some(c) = it.next() {
+        match c {
+            '\n' | '\r' | '\u{0085}' | '\u{2028}' | '\u{2029}' => return Err("line break".into()),
+            ' ' | '\t' => {
+                if in_tok {
+                    out.push(std::mem::take(&mut cur));
+                    in_tok = false;
+                }
+            }
+            '\'' => {
+                in_tok = true;
+                loop {
+                    match it.next() {
+                        None => return Err("unterminated quote".into()),
+                        Some('\'') => break,
+                        Some('\n' | '\r') => return Err("line break".into()),
+                        Some(x) => cur.push(x),
+                    }
+                }
+            }
+            '"' => {
+                in_tok = true;
+                loop {
+                    match it.next() {
+                        None => return Err("unterminated quote".into()),
+                        Some('"') => break,
+                        Some('$' | '`') => return Err("substitution".into()),
+                        Some('\n' | '\r') => return Err("line break".into()),
+                        Some('\\') => match it.next() {
+                            None => return Err("unterminated quote".into()),
+                            Some(x @ ('"' | '\\' | '$' | '`')) => cur.push(x),
+                            Some('\n' | '\r') => return Err("line break".into()),
+                            Some(x) => {
+                                cur.push('\\');
+                                cur.push(x);
+                            }
+                        },
+                        Some(x) => cur.push(x),
+                    }
+                }
+            }
+            '\\' => {
+                in_tok = true;
+                match it.next() {
+                    None => return Err("trailing backslash".into()),
+                    Some('\n' | '\r') => return Err("line break".into()),
+                    Some(x) => cur.push(x),
+                }
+            }
+            ';' | '&' | '|' | '<' | '>' | '(' | ')' | '`' | '$' | '{' | '}' => {
+                return Err(format!("shell syntax {c:?}"))
+            }
+            x if x.is_whitespace() || x.is_control() => return Err("unusual whitespace".into()),
+            x => {
+                in_tok = true;
+                cur.push(x);
+            }
+        }
+    }
+    if in_tok {
+        out.push(cur);
+    }
+    if out.is_empty() {
+        return Err("empty command".into());
+    }
+    Ok(out)
+}
+
+fn base_name(program: &str) -> &str {
+    program.rsplit('/').next().unwrap_or(program)
+}
+
+/// A runnable program: no environment prefix and not a wrapper around another command.
+fn plain_program(tokens: &[String]) -> Result<(), String> {
+    let first = &tokens[0];
+    if first.contains('=') {
+        return Err("environment prefix".into());
+    }
+    if WRAPPERS.contains(&base_name(first)) {
+        return Err(format!("{} runs other commands", base_name(first)));
+    }
+    Ok(())
+}
+
+/// Does `command` read as one plain program invocation (no wrapper, no environment prefix)?
+pub fn runnable(command: &str) -> Result<(), String> {
+    plain_program(&tokenize(command)?)
+}
+
+/// Is `command` one of the argv prefixes `prefixes` allow? It must tokenise cleanly, start
+/// with a plain program, and begin with the words of one prefix.
+pub fn command_allowed(prefixes: &[String], command: &str) -> Result<(), String> {
+    let t = tokenize(command)?;
+    plain_program(&t)?;
+    let hit = prefixes
+        .iter()
+        .filter_map(|p| tokenize(p).ok())
+        .any(|p| t.starts_with(&p));
+    if hit {
+        Ok(())
+    } else {
+        Err("no allowed command prefix matches".into())
+    }
+}
+
+fn cluster(a: &str, set: &str) -> bool {
+    a.len() > 1
+        && a.starts_with('-')
+        && !a.starts_with("--")
+        && a[1..].chars().any(|c| set.contains(c))
+}
+
+/// Destructive or outward-facing use of a program, read from its words, not its spelling.
+fn argv_hit(t: &[String]) -> Option<String> {
+    let prog = base_name(&t[0]).to_lowercase();
+    let hit = |what: &str| Some(format!("{prog} {what}").trim().to_string());
+    let rest = |i: usize| t.get(i..).unwrap_or(&[]);
+    match prog.as_str() {
+        "git" => {
+            let mut i = 1;
+            while let Some(a) = t.get(i) {
+                match a.as_str() {
+                    "-C" | "-c" | "--git-dir" | "--work-tree" => i += 2,
+                    x if x.starts_with('-') => i += 1,
+                    _ => break,
+                }
+            }
+            let sub = t.get(i)?.as_str();
+            let args = rest(i + 1);
+            let any = |f: &dyn Fn(&str) -> bool| args.iter().any(|a| f(a));
+            let bad = match sub {
+                "push" => any(&|a| {
+                    matches!(
+                        a,
+                        "-f" | "--force"
+                            | "--delete"
+                            | "-d"
+                            | "--mirror"
+                            | "--prune"
+                            | "--force-if-includes"
+                    ) || a.starts_with("--force-with-lease")
+                        || cluster(a, "fd")
+                        || (!a.starts_with('-') && (a.starts_with('+') || a.starts_with(':')))
+                }),
+                "branch" => any(&|a| a == "--delete" || cluster(a, "dD")),
+                "reset" => any(&|a| a == "--hard"),
+                "clean" => any(&|a| a == "--force" || cluster(a, "f")),
+                "merge" | "filter-branch" => true,
+                "update-ref" => any(&|a| a == "-d"),
+                _ => false,
+            };
+            bad.then(|| format!("git {sub}"))
+        }
+        "gh" => {
+            let pos: Vec<&str> = t[1..]
+                .iter()
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .collect();
+            match pos.as_slice() {
+                ["pr", "merge", ..] => hit("pr merge"),
+                ["release", ..] => hit("release"),
+                ["repo", "delete", ..] => hit("repo delete"),
+                _ => None,
+            }
+        }
+        "rm" => {
+            let a = rest(1);
+            let r = a
+                .iter()
+                .any(|x| matches!(x.as_str(), "-r" | "-R" | "--recursive") || cluster(x, "rR"));
+            let f = a.iter().any(|x| x == "--force" || cluster(x, "f"));
+            (r && f).then(|| "rm -rf".to_string())
+        }
+        "kubectl" | "terraform" | "helm" | "curl" | "wget" | "ssh" | "scp" | "sendmail"
+        | "mail" | "printenv" | "security" => hit(""),
+        "npm" => rest(1)
+            .iter()
+            .any(|a| a == "publish")
+            .then(|| "npm publish".to_string()),
+        "cargo" => rest(1)
+            .iter()
+            .any(|a| a == "publish")
+            .then(|| "cargo publish".to_string()),
+        "twine" => rest(1)
+            .iter()
+            .any(|a| a == "upload")
+            .then(|| "twine upload".to_string()),
+        _ => None,
     }
 }
 
@@ -498,7 +793,7 @@ mod tests {
     const POLICY: &str = r#"{"grants": [
       {"from": ["alice@machine-a"], "repos": ["example.com/team/proj"], "task_ids": ["T-*"],
        "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["tests", "fix"],
-       "commands": ["cargo test*"], "max_ttl_secs": 600, "max_steps": 5},
+       "commands": ["cargo test"], "max_ttl_secs": 600, "max_steps": 5},
       {"from": ["alice"], "repos": ["*"], "level": "scoped-instruction",
        "paths": ["src/**", "docs/"], "kinds": ["*"]},
       {"from": ["carol"], "repos": ["*"], "level": "inform"},
@@ -511,7 +806,7 @@ mod tests {
             task_id: "T-12".into(),
             kind: "tests".into(),
             paths: vec!["src/glob.rs".into()],
-            commands: vec!["cargo test*".into()],
+            commands: vec!["cargo test".into()],
             exit: "tests pass".into(),
             text: "add tests".into(),
             ..Default::default()
@@ -618,6 +913,117 @@ mod tests {
         assert!(!err("not json").is_empty());
         assert!(!err(r#"{"grants":[],"extra":1}"#).is_empty());
         assert!(Policy::parse(r#"{"grants":[]}"#).is_ok());
+    }
+
+    #[test]
+    fn tokenizer_reads_words_and_refuses_shell_syntax() {
+        let t = |c: &str| tokenize(c).unwrap();
+        assert_eq!(t("cargo test --lib"), ["cargo", "test", "--lib"]);
+        assert_eq!(
+            t(r#""git" push 'a b' c\ d """#),
+            ["git", "push", "a b", "c d", ""]
+        );
+        assert_eq!(t(r#"echo "a\"b\$c""#), ["echo", r#"a"b$c"#]);
+        for bad in [
+            "a; b",
+            "a && b",
+            "a | b",
+            "a > f",
+            "a < f",
+            "(a)",
+            "a `b`",
+            "a $B",
+            "a ${B}",
+            "a\nb",
+            "echo \"$HOME\"",
+            "echo \"`x`\"",
+            "echo 'x",
+            "echo \"x",
+            "",
+            "  ",
+            "a\\",
+        ] {
+            assert!(tokenize(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn command_prefixes_wrappers_and_argv_checks() {
+        let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let ok = p(&["cargo test"]);
+        assert!(command_allowed(&ok, "cargo test").is_ok());
+        assert!(command_allowed(&ok, "cargo test --lib").is_ok());
+        for bad in [
+            "cargo testx",
+            "cargo build",
+            "FOO=1 cargo test",
+            "/bin/sh -c ls",
+            "sh -c 'cargo test'",
+            "cargo test; ls",
+        ] {
+            assert!(command_allowed(&ok, bad).is_err(), "{bad}");
+        }
+        assert!(command_allowed(&p(&["sh -c"]), "sh -c ls").is_err());
+        let pol = Policy::parse(POLICY).unwrap();
+        for bad in [
+            "git push -f",
+            "git push --force-with-lease",
+            "git push origin +main",
+            "git push origin :main",
+            "git -C x push -fu",
+            "\"git\" push --force",
+            "git branch -D x",
+            "rm -fr x",
+            "rm -r -f x",
+            "git reset --hard",
+            "git merge x",
+            "gh pr merge 1",
+            "curl x",
+            "/usr/bin/ssh h",
+            "git push 'unterminated",
+        ] {
+            assert!(pol.denied_argv(bad).is_some(), "{bad}");
+        }
+        for fine in [
+            "git push origin main",
+            "git status",
+            "rm -r x",
+            "cargo test --lib",
+            "git branch -a",
+        ] {
+            assert!(pol.denied_argv(fine).is_none(), "{fine}");
+        }
+    }
+
+    #[test]
+    fn paths_are_normalised_and_wildcard_scopes_refused() {
+        assert_eq!(normalize_path("./src//a.rs").as_deref(), Some("src/a.rs"));
+        assert_eq!(normalize_path("src/").as_deref(), Some("src/"));
+        for bad in ["", "/", "./", "../x", "a/../b", "/etc"] {
+            assert!(normalize_path(bad).is_none(), "{bad}");
+        }
+        let p = Policy::parse(
+            r#"{"grants":[{"from":["a"],"repos":["*"],"level":"scoped-instruction","paths":["**"],"kinds":["*"]}]}"#,
+        )
+        .unwrap();
+        let mut c = contract();
+        for (path, accepted) in [
+            ("src/a.rs", true),
+            ("./src/a.rs", true),
+            ("secrets/**", false),
+            (".git/", false),
+            ("**", false),
+            ("*.rs", false),
+            ("**/x", false),
+            ("SECRETS/x", false),
+            ("src/.ENV", false),
+            ("src/*/.env", false),
+            ("src/**", true),
+        ] {
+            c.paths = vec![path.into()];
+            assert_eq!(p.evaluate("a", "m", "r", &c).accepted, accepted, "{path}");
+        }
+        assert!(p.denied_path("SRC/.Env").is_some() && p.denied_path("./src/.env").is_some());
     }
 
     #[test]

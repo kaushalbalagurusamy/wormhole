@@ -448,7 +448,7 @@ fn lease_err(e: LeaseError) -> String {
 }
 
 /// Limits on a delegated contract, checked before the hub stores or relays it.
-fn check_contract(c: &Contract) -> Result<(), String> {
+fn check_contract(c: &mut Contract) -> Result<(), String> {
     let n = c.task_id.chars().count();
     if n == 0 || n > 128 || c.task_id.chars().any(text::unsafe_in_name) {
         return Err("invalid task_id".into());
@@ -465,14 +465,11 @@ fn check_contract(c: &Contract) -> Result<(), String> {
     if c.paths.len() > MAX_PATHS {
         return Err("too many paths".into());
     }
-    for p in &c.paths {
+    for p in &mut c.paths {
         field("path", p)?;
-        if !crate::glob::valid(p)
-            || p.starts_with("area:")
-            || p.starts_with('/')
-            || p.split('/').any(|s| s == "..")
-        {
-            return Err("invalid path".into());
+        match crate::delegation::normalize_path(p) {
+            Some(n) if crate::glob::valid(&n) && !n.starts_with("area:") => *p = n,
+            _ => return Err("invalid path".into()),
         }
     }
     if c.commands.len() > 16
@@ -941,12 +938,12 @@ impl Hub {
                 session,
                 to,
                 repo,
-                contract,
+                mut contract,
             } => {
                 self.own(peer, &session)?;
                 field("to", &to)?;
                 field("repo", &repo)?;
-                check_contract(&contract)?;
+                check_contract(&mut contract)?;
                 if to == session {
                     return Err("cannot delegate to this session".into());
                 }

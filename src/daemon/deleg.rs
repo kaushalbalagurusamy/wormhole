@@ -28,8 +28,6 @@ pub(crate) struct Open {
 const TASK_CHARS: usize = 1000;
 /// Most escaped characters the daemon's own lines may take before the relayed text.
 const HEADER_BUDGET: usize = 950;
-/// A shell metacharacter, or a line break, anywhere in a command refuses the bypass answer.
-const SHELL_META: &str = ";&|`$<>()\\";
 
 fn audit(d: &Daemon, event: &str, seq: u64, session: &str, level: &str, extra: Value) {
     if let Some(p) = &d.cfg.delegation_policy {
@@ -468,19 +466,14 @@ fn permitted(
     }
     if tool == "Bash" {
         let cmd = input["tool_input"]["command"].as_str()?;
-        if policy.denied_command(cmd).is_some() {
+        let ok = if o.level == Level::ScopedBypass {
+            delegation::command_allowed(&o.contract.commands, cmd).is_ok()
+        } else {
+            // Full bypass with the denylist on still refuses what cannot be read as plain words.
+            !policy.denylist_on() || delegation::runnable(cmd).is_ok()
+        };
+        if !ok || policy.denied_argv(cmd).is_some() || policy.denied_command(cmd).is_some() {
             return None;
-        }
-        if o.level == Level::ScopedBypass {
-            let plain = !cmd.chars().any(|c| {
-                SHELL_META.contains(c)
-                    || c.is_control()
-                    || matches!(c, '\u{0085}' | '\u{2028}' | '\u{2029}')
-            });
-            let listed = o.contract.commands.iter().any(|p| glob::wildcard(p, cmd));
-            if !(plain && listed) {
-                return None;
-            }
         }
         return Some(("command", shown(cmd, 512)));
     }
