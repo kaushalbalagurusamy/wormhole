@@ -43,8 +43,9 @@ slow message bus.
    text. Page viewers are not scoped to a repository, a browser page is easier to leak (screen sharing,
    shoulder-surfing, history) than a tool answer, and agents, who need the text, get it from `wormhole_log`.
 7. **Retention.** The team log keeps at most `--log-max-entries` rows (default 10,000; at least 1) and drops
-   rows older than `--log-max-age-days` (default 30; 0 means no age limit). The event log used for replay is not
-   pruned by this; its growth is unchanged from before this ADR.
+   rows older than `--log-max-age-days` (default 30; 0 means no age limit). The limit is global across repositories,
+   so a busy repository can push out a quiet one's older rows. The event log used for replay is not pruned by
+   this; its growth is unchanged from before this ADR.
 8. **Capability.** The hub lists `team-log` in `Welcome`; a daemon lists `team-log` in `Resume`. A daemon sends
    `Log` only on a connection whose `Welcome` listed it (an old hub drops a connection on a request it cannot
    parse), and its `wormhole_log` tool otherwise fails with "does not support the team log".
