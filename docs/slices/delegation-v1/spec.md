@@ -617,3 +617,22 @@ Recorded, not changed: cargo's manifest and config discovery can climb above the
 complete).
 
 Tests (protected, written before the fix): `tests/delegation_amend8.rs`.
+
+## Amendment 9 (2026-11-15, final re-review)
+
+- **G1 (high when zsh has `EXTENDED_GLOB`) glob operators the tokenizer let through.** With `setopt extendedglob`,
+  zsh expands `^x` (everything but x) and a mid-word `#` (`cat .en#v` reads `.env`), so the operand check saw a
+  literal that the shell turned into a denied path. Fix, by character allowlist rather than by operator: at
+  `scoped-bypass` every token of a command and of a pattern (except a pattern's final whole `*`) must consist only of
+  `[A-Za-z0-9._/+@,-]`; any other character gets no `allow` (and makes a pattern invalid). This also rules out the
+  ksh-style and other shells' glob forms, which need characters outside the set.
+- **G4 (low) deny paths.** `DEFAULT_DENY_PATHS` gains `**/id_ecdsa*`, `**/id_dsa*`, `**/*.jks`, `**/*.keystore`,
+  `**/.env_*`, `**/.env-*`, `**/.pypirc`, `**/.dockercfg`, `**/*.tfstate`, `**/.htpasswd`, `**/credentials*`.
+- **G2 and G3 (by design) documented plainly.** Listing `cargo` in `safe_programs` lets the agent run code it wrote
+  in scope (`cargo test`, and `cargo check` through macros), so it is equivalent to `full-bypass` for that contract.
+  At `full-bypass`, Bash is not bounded even with the denylist on (`cat ./.env`, `cp` into `.git/hooks`). The docs
+  say both in those words.
+- **G5 (low)** a code comment claimed operands are limited to the contract paths; they are limited to the repository
+  minus denied and protected paths (as the spec says). The comment is corrected.
+
+Tests (protected): `tests/delegation_amend9.rs`.
