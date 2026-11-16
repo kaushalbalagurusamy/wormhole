@@ -213,7 +213,7 @@ mod tests {
         let a = "a".repeat(40);
         std::fs::write(floors_path(&bin), format!("junk\n{a}\n")).unwrap();
         record_floors(&bin, &[&a, "nope"]).unwrap();
-        assert_eq!(read_floors(&bin), [a.clone()]);
+        assert_eq!(read_floors(&bin), std::slice::from_ref(&a));
         for i in 0..40 {
             record_floors(&bin, &[&format!("{i:040x}")]).unwrap();
         }
