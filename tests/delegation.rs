@@ -39,7 +39,7 @@ fn grant(task: &str, level: &str, extra: Value) -> Value {
 fn default_policy() -> Value {
     json!({"grants": [
         grant("SI-*", "scoped-instruction", json!({})),
-        grant("SB-*", "scoped-bypass", json!({"commands": ["cargo test*"]})),
+        grant("SB-*", "scoped-bypass", json!({"commands": ["cargo test"]})),
         grant("SBX-*", "scoped-bypass", json!({"commands": ["*"]})),
         grant("FB-*", "full-bypass", json!({})),
         grant("IN-*", "inform", json!({})),
@@ -297,7 +297,7 @@ async fn scoped_bypass_answers_allow_inside_the_contract_only() {
         "SB-1",
         "fix",
         "fix the parser",
-        json!({"paths": ["src/**"], "commands": ["cargo test*"], "exit": "tests green"}),
+        json!({"paths": ["src/**"], "commands": ["cargo test"], "exit": "tests green"}),
     )
     .await;
     assert!(
@@ -347,6 +347,9 @@ async fn scoped_bypass_answers_allow_inside_the_contract_only() {
         "cargo test `id`",
         "cargo test > out.txt",
         "cargo test\nls",
+        "cargo testx",
+        "FOO=1 cargo test",
+        "sh -c 'cargo test'",
         "make all",
         "ls",
     ] {
@@ -365,7 +368,7 @@ async fn scoped_bypass_command_pattern_cannot_reach_a_denylisted_command() {
         "SBX-1",
         "fix",
         "run anything harmless",
-        json!({"paths": ["src/**"], "commands": ["*"], "exit": "done"}),
+        json!({"paths": ["src/**"], "commands": ["git", "rm"], "exit": "done"}),
     )
     .await;
     assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git status")).await);
@@ -520,8 +523,23 @@ async fn full_bypass_answers_allow_for_any_tool_except_denylist_hits() {
     );
     assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "ls -la")).await);
     assert!(allowed(&n.b, pre_edit(SB, &n.repo_b, "anywhere/file.rs")).await);
-    assert!(!allowed(&n.b, pre_bash(SB, &n.repo_b, "rm -rf build")).await);
-    assert!(!allowed(&n.b, pre_bash(SB, &n.repo_b, "git push --force")).await);
+    for cmd in [
+        "rm -rf build",
+        "git push --force",
+        "FOO=1 ls",
+        "sh -c ls",
+        "/bin/sh -c id",
+        "env ls",
+        "ls; id",
+        "ls $(id)",
+        "echo 'open",
+    ] {
+        assert!(
+            !allowed(&n.b, pre_bash(SB, &n.repo_b, cmd)).await,
+            "{cmd:?}"
+        );
+    }
+    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git commit -m 'two words'")).await);
     assert!(!allowed(&n.b, pre_edit(SB, &n.repo_b, "config/.env")).await);
 }
 

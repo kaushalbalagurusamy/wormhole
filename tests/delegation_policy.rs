@@ -185,7 +185,7 @@ fn an_off_grant_wins() {
 #[test]
 fn highest_fitting_grant_wins() {
     let mut bypass = grant("scoped-bypass");
-    bypass["commands"] = json!(["cargo test*"]);
+    bypass["commands"] = json!(["cargo test"]);
     let instr = {
         let mut g = grant("scoped-instruction");
         g["paths"] = json!(["src/**"]);
@@ -196,7 +196,7 @@ fn highest_fitting_grant_wins() {
     let p = policy(vec![instr, bypass, full]);
 
     let mut c = contract();
-    c.commands = vec!["cargo test*".into()];
+    c.commands = vec!["cargo test".into()];
     let d = eval(&p, &c);
     assert_eq!((d.level, d.accepted), (Level::ScopedBypass, true));
 
@@ -321,22 +321,25 @@ fn glob_coverage_is_conservative() {
 #[test]
 fn scoped_bypass_boundary() {
     let mut g = grant("scoped-bypass");
-    g["commands"] = json!(["cargo test*", "cargo fmt"]);
+    g["commands"] = json!(["cargo test", "cargo fmt"]);
     let p = policy(vec![g.clone()]);
+    // Contract commands are argv prefixes that extend or equal a grant prefix.
     let mut c = contract();
-    c.commands = vec!["cargo test*".into(), "cargo fmt".into()];
+    c.commands = vec!["cargo test --lib".into(), "cargo fmt".into()];
     let d = eval(&p, &c);
     assert_eq!((d.level, d.accepted), (Level::ScopedBypass, true));
     // No commands at all is fine.
     assert!(eval(&p, &contract()).accepted);
-    // A command not equal to a grant command.
-    c.commands = vec!["cargo test --lib".into()];
-    assert!(!eval(&p, &c).accepted);
+    // Not an extension of any grant prefix.
+    for bad in ["cargo build", "cargo testx", "cargo", "make"] {
+        c.commands = vec![bad.into()];
+        assert!(!eval(&p, &c).accepted, "{bad}");
+    }
     // No exit condition.
     let mut c = contract();
     c.exit.clear();
     assert!(!eval(&p, &c).accepted);
-    // A grant listing "*" allows any command.
+    // A grant listing "*" alone allows any contract prefix.
     g["commands"] = json!(["*"]);
     let mut c = contract();
     c.commands = vec!["make all".into()];
@@ -356,7 +359,7 @@ fn full_bypass_boundary_has_no_path_kind_or_command_limit() {
         g
     }]);
     let mut c = contract();
-    c.paths = vec!["/etc/anything".into(), "**".into()];
+    c.paths = vec!["any/where/x".into()];
     c.kind = "whatever".into();
     c.commands = vec!["make".into()];
     let d = eval(&p, &c);
