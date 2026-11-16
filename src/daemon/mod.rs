@@ -3,6 +3,7 @@
 
 mod deleg;
 mod hooks;
+mod log;
 mod shrink;
 pub use hooks::{STALE_DAEMON, STALE_HUB};
 mod sock;
@@ -106,6 +107,10 @@ pub(crate) struct Link {
     pub connected: AtomicBool,
     /// The hub's `Welcome` on the current connection listed the delegation capability.
     pub delegation: AtomicBool,
+    /// Likewise for the team-log capability.
+    pub team_log: AtomicBool,
+    /// The user the hub named in its `Welcome`, to tell which log entries are for this machine.
+    pub user: Mutex<String>,
 }
 
 pub(crate) struct Daemon {
@@ -351,21 +356,26 @@ async fn connect(d: &Daemon) -> Result<Ws, String> {
 async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     let (mut sink, mut stream) = ws.split();
     let from = d.st.lock().unwrap().last_seq;
-    let caps = if d.cfg.delegation_policy.is_some() {
-        vec![CAP_DELEGATION.to_string()]
-    } else {
-        vec![]
-    };
+    let mut caps = vec![CAP_TEAM_LOG.to_string(), CAP_UPDATE.to_string()];
+    if d.cfg.delegation_policy.is_some() {
+        caps.push(CAP_DELEGATION.to_string());
+    }
     let resume = serde_json::to_string(&Up::Resume { from, caps }).unwrap_or_default();
     if sink.send(Message::text(resume)).await.is_err() {
         return false;
     }
     match tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
         Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Down>(&t) {
-            Ok(Down::Welcome { head, caps, .. }) => {
+            Ok(Down::Welcome {
+                user, head, caps, ..
+            }) => {
                 d.link
                     .delegation
                     .store(caps.iter().any(|c| c == CAP_DELEGATION), Ordering::SeqCst);
+                d.link
+                    .team_log
+                    .store(caps.iter().any(|c| c == CAP_TEAM_LOG), Ordering::SeqCst);
+                *d.link.user.lock().unwrap() = user;
                 // A hub log behind our cursor (database reset, or commits lost on power
                 // failure) would otherwise make us drop every new event as already seen.
                 let mut st = d.st.lock().unwrap();
@@ -441,6 +451,7 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     rehello.abort();
     d.link.connected.store(false, Ordering::SeqCst);
     d.link.delegation.store(false, Ordering::SeqCst);
+    d.link.team_log.store(false, Ordering::SeqCst);
     *d.link.out.lock().unwrap() = None;
     d.link.pending.lock().unwrap().clear();
     true

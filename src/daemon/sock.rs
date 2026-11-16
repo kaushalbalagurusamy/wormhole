@@ -293,6 +293,9 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
     if matches!(name, "delegate" | "result") && !d.hub_delegates() {
         return Err("this wormhole hub does not support delegation".into());
     }
+    if name == "log" && !d.link.team_log.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err("this wormhole hub does not support the team log".into());
+    }
     let deadline = Instant::now() + Duration::from_secs(5);
     d.hello(session, deadline).await.map_err(hub_err)?;
     let req = |r: Request| d.request(r, deadline);
@@ -497,6 +500,29 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
             .map_err(hub_err)?;
             deleg::finished(d, session, request, &status);
             Ok("result posted".into())
+        }
+        "log" => {
+            let opt = |k: &str| args[k].as_str().map(str::to_string);
+            let query = LogQuery {
+                since: args["since"].as_u64(),
+                session: opt("session"),
+                user: opt("user"),
+                kind: opt("kind"),
+                task_id: opt("task_id"),
+                limit: args["limit"].as_u64().unwrap_or(0),
+            };
+            let v = req(Request::Log { session: s, query })
+                .await
+                .map_err(hub_err)?;
+            let entries: Vec<LogEntry> =
+                serde_json::from_value(v["entries"].clone()).map_err(|e| e.to_string())?;
+            let user = d.link.user.lock().unwrap().clone();
+            Ok(super::log::render(
+                &entries,
+                v["more"].as_bool().unwrap_or(false),
+                session,
+                &user,
+            ))
         }
         "set_task" => {
             let task = text::plain(arg(args, "task")?, MAX_TASK);

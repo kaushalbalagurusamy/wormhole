@@ -198,9 +198,26 @@ impl State {
                     to_desc,
                     s("body")
                 );
+                // Where the sender aimed it and whether that is this session: a session target
+                // reaches only its session, a user target every session of this user.
+                let (to_attr, for_you) = match &to {
+                    Some(Target::Session(id)) => (format!("session:{id}"), "yes"),
+                    Some(Target::User(u)) => (format!("user:{u}"), "yes"),
+                    _ => ("all".to_string(), "all"),
+                };
                 for r in recipients.into_iter().filter(|r| *r != e.session) {
-                    self.sess(&r)
-                        .notify(notice(e, "wormhole-message", "message", &body, true));
+                    let mut attrs = from_attrs(e);
+                    attrs.push(("to".into(), to_attr.clone()));
+                    attrs.push(("for_you".into(), for_you.into()));
+                    self.sess(&r).notify(notice_from(
+                        e.seq,
+                        e.ts,
+                        attrs,
+                        "wormhole-message",
+                        "message",
+                        &body,
+                        true,
+                    ));
                 }
             }
             "activity" if s("kind") == "edit" => {
