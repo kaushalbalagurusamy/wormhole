@@ -100,6 +100,16 @@ pub const DEFAULT_DENY_PATHS: &[&str] = &[
     "**/.ssh/**",
 ];
 
+/// Programs a contract command may start with, without an owner's addition. Each is here
+/// because its ordinary forms do not hand control to an arbitrary program. `git` and `cargo`
+/// still run project code (hooks, build scripts, tests): they are only as safe as the paths
+/// the contract lets the agent write.
+pub const DEFAULT_SAFE_PROGRAMS: &[&str] = &[
+    "ls", "cat", "head", "tail", "wc", "grep", "rg", "diff", "stat", "pwd", "echo", "true",
+    "false", "sort", "uniq", "cut", "tr", "basename", "dirname", "realpath", "git", "cargo",
+    "rustfmt",
+];
+
 /// Longest a contract may stay open whatever the grant says.
 const MAX_TTL_SECS: u64 = 14_400;
 
@@ -140,6 +150,8 @@ struct RawDeny {
 struct RawPolicy {
     #[serde(default)]
     grants: Vec<RawGrant>,
+    #[serde(default)]
+    safe_programs: Vec<String>,
     denylist: Option<RawDeny>,
 }
 
@@ -177,6 +189,8 @@ struct Deny {
 
 pub struct Policy {
     grants: Vec<Grant>,
+    /// Programs the owner added to `DEFAULT_SAFE_PROGRAMS`.
+    safe: Vec<String>,
     deny: Option<Deny>,
 }
 
@@ -243,6 +257,15 @@ impl Policy {
                 })
             }
         };
+        let safe = raw.safe_programs;
+        if let Some(x) = safe.iter().find(|x| {
+            x.is_empty()
+                || !x
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "._/-".contains(c))
+        }) {
+            return Err(format!("safe_programs: invalid program name {x:?}"));
+        }
         let mut grants = Vec::new();
         for (i, g) in raw.grants.into_iter().enumerate() {
             let n = i + 1;
@@ -272,6 +295,10 @@ impl Policy {
                     return Err(format!("grant {n}: denylisted kind {k:?}"));
                 }
             }
+            for x in g.commands.iter().filter(|x| *x != "*") {
+                pattern_words_with(&safe, x)
+                    .map_err(|e| format!("grant {n}: command {x:?}: {e}"))?;
+            }
             grants.push(Grant {
                 from: g.from,
                 repos: g.repos,
@@ -284,7 +311,7 @@ impl Policy {
                 max_steps: g.max_steps,
             });
         }
-        Ok(Policy { grants, deny })
+        Ok(Policy { grants, safe, deny })
     }
 
     /// Decide a request from the hub-stamped sender. The level comes from a grant, never
@@ -380,10 +407,12 @@ impl Policy {
             let grant: Vec<Vec<String>> = g
                 .commands
                 .iter()
-                .filter_map(|x| pattern_words(x).ok())
+                .filter_map(|x| self.pattern_words(x).ok())
                 .collect();
             for x in &c.commands {
-                let t = pattern_words(x).map_err(|e| format!("command {x:?}: {e}"))?;
+                let t = self
+                    .pattern_words(x)
+                    .map_err(|e| format!("command {x:?}: {e}"))?;
                 if !g.commands.iter().any(|gc| gc == "*") && !grant.contains(&t) {
                     return Err(format!("command {x:?} is outside the grant"));
                 }
@@ -419,6 +448,47 @@ impl Policy {
             }
         }
         Ok(())
+    }
+
+    /// Is `name` a program contract commands may start with? Exact, case-sensitive.
+    pub fn safe_program(&self, name: &str) -> bool {
+        DEFAULT_SAFE_PROGRAMS.contains(&name) || self.safe.iter().any(|s| s == name)
+    }
+
+    /// Words of a command pattern: literal words and an optional final `*`. Valid only for
+    /// a literal safe program with no config or exec option.
+    pub fn pattern_words(&self, pattern: &str) -> Result<Vec<String>, String> {
+        pattern_words_with(&self.safe, pattern)
+    }
+
+    /// Does `command` match one of the exact argv `patterns`, argv[0] included? The raw
+    /// command has no quote, backslash, glob or brace character or `~`; it tokenises; and some
+    /// valid pattern matches word for word, a final `*` taking one or more further words that
+    /// do not start with `-`. This allowlist is the boundary at the scoped levels.
+    pub fn command_allowed(&self, patterns: &[String], command: &str) -> Result<(), String> {
+        if command.contains(NO_RAW) {
+            return Err("quotes, backslashes, glob characters and ~ are not allowed".into());
+        }
+        let t = tokenize(command)?;
+        if let Some(o) = unsafe_option(&t) {
+            return Err(format!("unsafe option {o:?}"));
+        }
+        let hit = patterns
+            .iter()
+            .filter_map(|p| self.pattern_words(p).ok())
+            .any(|p| match p.split_last() {
+                Some((star, lits)) if star == "*" => {
+                    t.len() > lits.len()
+                        && t.starts_with(lits)
+                        && t[lits.len()..].iter().all(|w| !w.starts_with('-'))
+                }
+                _ => t == p,
+            });
+        if hit {
+            Ok(())
+        } else {
+            Err("no allowed command pattern matches".into())
+        }
     }
 
     /// Is the denylist module on?
@@ -578,9 +648,10 @@ pub fn tokenize(command: &str) -> Result<Vec<String>, String> {
                     Some(x) => cur.push(x),
                 }
             }
-            ';' | '&' | '|' | '<' | '>' | '(' | ')' | '`' | '$' | '{' | '}' => {
-                return Err(format!("shell syntax {c:?}"))
-            }
+            ';' | '&' | '|' | '<' | '>' | '(' | ')' | '`' | '$' | '{' | '}' | '*' | '?' | '['
+            | ']' => return Err(format!("shell syntax {c:?}")),
+            // A comment, or a home-directory expansion, at the start of a word.
+            '#' | '~' if !in_tok => return Err(format!("shell syntax {c:?}")),
             x if x.is_whitespace() || x.is_control() => return Err("unusual whitespace".into()),
             x => {
                 in_tok = true;
@@ -607,8 +678,9 @@ fn plain_program(tokens: &[String]) -> Result<(), String> {
     if first.contains('=') {
         return Err("environment prefix".into());
     }
-    if WRAPPERS.contains(&base_name(first)) {
-        return Err(format!("{} runs other commands", base_name(first)));
+    let base = base_name(first).to_lowercase();
+    if WRAPPERS.contains(&base.as_str()) {
+        return Err(format!("{base} runs other commands"));
     }
     Ok(())
 }
@@ -619,52 +691,48 @@ pub fn runnable(command: &str) -> Result<(), String> {
 }
 
 /// Characters a command may not contain at all when matched against a pattern: quoting,
-/// escapes and glob syntax make the words differ from what the shell would run.
-const NO_RAW: &[char] = &['\'', '"', '\\', '*', '?', '[', ']'];
+/// escapes, glob and brace syntax and `~` make the words differ from what the shell runs.
+const NO_RAW: &[char] = &['\'', '"', '\\', '*', '?', '[', ']', '{', '}', '~'];
 
-/// Words of an allowed-command pattern: literals, and optionally a final `*` standing for
-/// further plain arguments. Invalid if it does not tokenise, starts with a wrapper or an
-/// environment prefix, or has a wildcard anywhere but as the whole last word.
-pub fn pattern_words(pattern: &str) -> Result<Vec<String>, String> {
-    let t = tokenize(pattern)?;
-    plain_program(&t)?;
-    let last = t.len() - 1;
-    for (i, w) in t.iter().enumerate() {
-        if w.contains(['*', '?', '[', ']']) && !(i == last && w == "*" && i > 0) {
-            return Err(format!(
-                "wildcard in {w:?}: only a final `*` word is allowed"
-            ));
-        }
+/// `git` and `cargo` run code named by their options or configuration.
+fn unsafe_option(tokens: &[String]) -> Option<&str> {
+    if !matches!(
+        base_name(&tokens[0]).to_lowercase().as_str(),
+        "git" | "cargo"
+    ) {
+        return None;
     }
-    Ok(t)
+    tokens.iter().map(String::as_str).find(|t| {
+        let t = t.to_lowercase();
+        t == "-c"
+            || ["--config", "--exec", "--upload-pack", "--receive-pack"]
+                .iter()
+                .any(|p| t.starts_with(p))
+    })
 }
 
-/// Does `command` match one of the exact argv `patterns`? The raw command has no quote,
-/// backslash or glob character; it tokenises; its program is plain; and some pattern
-/// matches word for word, a final `*` taking one or more further words that do not start
-/// with `-` and carry no glob characters.
-pub fn command_allowed(patterns: &[String], command: &str) -> Result<(), String> {
-    if command.contains(NO_RAW) {
-        return Err("quotes, backslashes and glob characters are not allowed".into());
+fn pattern_words_with(safe: &[String], pattern: &str) -> Result<Vec<String>, String> {
+    // A final whole `*` word is the one wildcard a pattern has.
+    let t = pattern.trim_end();
+    let (body, star) = match t.strip_suffix('*') {
+        Some(b) if b.ends_with([' ', '\t']) => (b, true),
+        _ => (t, false),
+    };
+    let mut w = tokenize(body)?;
+    let program = &w[0];
+    let name_ok = program
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "._/-".contains(c));
+    if !name_ok || !(DEFAULT_SAFE_PROGRAMS.contains(&program.as_str()) || safe.contains(program)) {
+        return Err(format!("{program:?} is not a safe program"));
     }
-    let t = tokenize(command)?;
-    plain_program(&t)?;
-    let hit = patterns
-        .iter()
-        .filter_map(|p| pattern_words(p).ok())
-        .any(|p| match p.split_last() {
-            Some((star, lits)) if star == "*" => {
-                t.len() > lits.len()
-                    && t.starts_with(lits)
-                    && t[lits.len()..].iter().all(|w| !w.starts_with('-'))
-            }
-            _ => t == p,
-        });
-    if hit {
-        Ok(())
-    } else {
-        Err("no allowed command pattern matches".into())
+    if let Some(o) = unsafe_option(&w) {
+        return Err(format!("unsafe option {o:?}"));
     }
+    if star {
+        w.push("*".into());
+    }
+    Ok(w)
 }
 
 fn cluster(a: &str, set: &str) -> bool {
@@ -676,6 +744,8 @@ fn cluster(a: &str, set: &str) -> bool {
 
 /// Destructive or outward-facing use of a program, read from its words, not its spelling.
 fn argv_hit(t: &[String]) -> Option<String> {
+    let lowered: Vec<String> = t.iter().map(|x| x.to_lowercase()).collect();
+    let t = &lowered[..];
     let prog = base_name(&t[0]).to_lowercase();
     let hit = |what: &str| Some(format!("{prog} {what}").trim().to_string());
     let rest = |i: usize| t.get(i..).unwrap_or(&[]);
@@ -684,7 +754,24 @@ fn argv_hit(t: &[String]) -> Option<String> {
             let mut i = 1;
             while let Some(a) = t.get(i) {
                 match a.as_str() {
-                    "-C" | "-c" | "--git-dir" | "--work-tree" => i += 2,
+                    // `-c key=value` can name a program git then runs.
+                    "-c" => {
+                        let key = t.get(i + 1)?.split('=').next().unwrap_or("");
+                        if key.starts_with("alias.")
+                            || [
+                                "core.sshcommand",
+                                "core.pager",
+                                "core.editor",
+                                "core.hookspath",
+                                "core.fsmonitor",
+                            ]
+                            .contains(&key)
+                        {
+                            return Some(format!("git -c {key}"));
+                        }
+                        i += 2
+                    }
+                    "-C" | "--git-dir" | "--work-tree" | "--namespace" | "--config-env" => i += 2,
                     x if x.starts_with('-') => i += 1,
                     _ => break,
                 }
@@ -716,11 +803,17 @@ fn argv_hit(t: &[String]) -> Option<String> {
             bad.then(|| format!("git {sub}"))
         }
         "gh" => {
-            let pos: Vec<&str> = t[1..]
-                .iter()
-                .map(String::as_str)
-                .filter(|a| !a.starts_with('-'))
-                .collect();
+            let mut pos: Vec<&str> = Vec::new();
+            let mut it = t[1..].iter().map(String::as_str);
+            while let Some(a) = it.next() {
+                match a {
+                    "-r" | "--repo" | "--hostname" => {
+                        it.next();
+                    }
+                    x if x.starts_with('-') => {}
+                    x => pos.push(x),
+                }
+            }
             match pos.as_slice() {
                 ["pr", "merge", ..] => hit("pr merge"),
                 ["release", ..] => hit("release"),
@@ -981,14 +1074,15 @@ mod tests {
     }
 
     #[test]
-    fn command_prefixes_wrappers_and_argv_checks() {
+    fn command_patterns_are_the_boundary() {
         let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let pol = Policy::parse(POLICY).unwrap();
         let ok = p(&["cargo test"]);
-        assert!(command_allowed(&ok, "cargo test").is_ok());
-        // Exact patterns: extra flags are not allowed.
-        assert!(command_allowed(&ok, "cargo test --lib").is_err());
+        assert!(pol.command_allowed(&ok, "cargo test").is_ok());
+        // Exact: extra flags are not allowed.
+        assert!(pol.command_allowed(&ok, "cargo test --lib").is_err());
         let star = p(&["cargo test *"]);
-        assert!(command_allowed(&star, "cargo test glob_tests").is_ok());
+        assert!(pol.command_allowed(&star, "cargo test glob_tests").is_ok());
         for bad in [
             "cargo test",
             "cargo test --release x",
@@ -997,22 +1091,63 @@ mod tests {
             "cargo test a\\b",
             "cargo test [a]",
             "cargo test a?",
+            "cargo test ~",
+            "cargo test {a,b}",
+            "cargo --config x test y",
+            "cargo --exec x test y",
+            "git -c core.pager=x log y",
         ] {
-            assert!(command_allowed(&star, bad).is_err(), "{bad}");
+            assert!(pol.command_allowed(&star, bad).is_err(), "{bad}");
         }
-        assert!(pattern_words("cargo te*st").is_err() && pattern_words("* x").is_err());
-        assert!(pattern_words("sh *").is_err() && pattern_words("A=1 cargo test").is_err());
         for bad in [
-            "cargo testx",
-            "cargo build",
+            "cargo te*st",
+            "* x",
+            "sh *",
+            "A=1 cargo test",
+            "find . -exec x",
+            "SH -c x",
+            "/bin/Bash x",
+            "cargo --config x",
+            "git -c x=y status",
+            "git --exec-path=x status",
+            "git push --upload-pack=x",
+        ] {
+            assert!(pol.pattern_words(bad).is_err(), "{bad}");
+        }
+        for bad in [
+            "cargo test; ls",
             "FOO=1 cargo test",
             "/bin/sh -c ls",
-            "sh -c 'cargo test'",
-            "cargo test; ls",
+            "cargo test #x",
+            "~/x",
         ] {
-            assert!(command_allowed(&ok, bad).is_err(), "{bad}");
+            assert!(pol.command_allowed(&ok, bad).is_err(), "{bad}");
         }
-        assert!(command_allowed(&p(&["sh -c"]), "sh -c ls").is_err());
+        // The owner can extend the safe list; the default list is fixed.
+        assert!(!pol.safe_program("make") && pol.safe_program("git"));
+        let more = Policy::parse(r#"{"safe_programs":["make"],"grants":[]}"#).unwrap();
+        assert!(more.safe_program("make") && !more.safe_program("MAKE"));
+        assert!(more
+            .command_allowed(&p(&["make check"]), "make check")
+            .is_ok());
+        let load = |c: &str| {
+            Policy::parse(&format!(
+                r#"{{"grants":[{{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["x"],"commands":["{c}"]}}]}}"#
+            ))
+        };
+        assert!(load("cargo test").is_ok() && load("*").is_ok());
+        assert!(load("make check")
+            .err()
+            .unwrap()
+            .contains("not a safe program"));
+        assert!(load("git -c x=y status")
+            .err()
+            .unwrap()
+            .contains("unsafe option"));
+    }
+
+    #[test]
+    fn argv_checks_are_examples_of_defence_in_depth() {
         let pol = Policy::parse(POLICY).unwrap();
         for bad in [
             "git push -f",
@@ -1027,8 +1162,12 @@ mod tests {
             "git reset --hard",
             "git merge x",
             "gh pr merge 1",
+            "gh -R o/r pr merge 1",
             "curl x",
             "/usr/bin/ssh h",
+            "/BIN/GIT push -F",
+            "git -c alias.x=!y x",
+            "git -c core.sshCommand=x fetch",
             "git push 'unterminated",
         ] {
             assert!(pol.denied_argv(bad).is_some(), "{bad}");
@@ -1039,9 +1178,18 @@ mod tests {
             "rm -r x",
             "cargo test --lib",
             "git branch -a",
+            "git -c user.name=x status",
         ] {
             assert!(pol.denied_argv(fine).is_none(), "{fine}");
         }
+        assert!(
+            tokenize("ls *").is_err() && tokenize("ls a?").is_err() && tokenize("ls #x").is_err()
+        );
+        assert!(
+            tokenize("ls ~/x").is_err()
+                && tokenize("ls a#b ~").is_err()
+                && tokenize("ls 'a*' \"~\"").is_ok()
+        );
     }
 
     #[test]

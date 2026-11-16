@@ -470,7 +470,7 @@ fn permitted(
     if tool == "Bash" {
         let cmd = input["tool_input"]["command"].as_str()?;
         let ok = if o.level == Level::ScopedBypass {
-            delegation::command_allowed(&o.contract.commands, cmd).is_ok()
+            policy.command_allowed(&o.contract.commands, cmd).is_ok()
         } else {
             // Full bypass with the denylist on still refuses what cannot be read as plain words.
             !policy.denylist_on() || delegation::runnable(cmd).is_ok()
