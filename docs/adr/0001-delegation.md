@@ -60,7 +60,10 @@ hooks page came back summarised, so the wording is not verbatim):
    scoped levels: a command runs without a prompt only if it matches a contract pattern exactly and its program
    is on a small built-in list of programs without an exec, config or alias escape (extendable in local config);
    everything else prompts. The denylist is defence in depth. Under `full-bypass` Bash is not bounded by any
-   parser: that level is a trust decision about the sender, and the denylist there is a speed bump. The user's settings deny and ask rules still win. wormhole
+   parser: that level is a trust decision about the sender, and the denylist there is a speed bump.
+   Amendment 4 (fourth review) narrowed the defaults to programs with no option that runs another program;
+   `git` and `cargo` are usable only when the owner adds them, and then only with built-in subcommand
+   allowlists and their exec-capable options refused. The user's settings deny and ask rules still win. wormhole
    forges no approval and declares no permission relay.
 7. **Contracts end.** A contract is open from the receiver's first fresh ack until its result is posted, its TTL
    passes (capped by the grant and at 4 hours), its step budget (bypass answers) is spent, or the kill switch is

@@ -458,3 +458,31 @@ tests are examples, not claims of completeness.
 
 `tests/delegation_amend3.rs`, plus updates to earlier delegation test files that used `command_allowed` as a free
 function or relied on programs or characters now refused.
+
+## Amendment 4 (2026-11-15, fourth security review; supersedes Amendment 3's safe-program list)
+
+Finding (S6, high): the safe-program check looked at argv[0] only, but listed programs have options that run other
+code: `rg --pre`/`--pre-glob`, `sort --compress-program`, `git difftool -x`/`--extcmd`, `git submodule foreach`,
+`git bisect run`, `git config` writes, `git -C`, and cargo's `--config`, `-Z`, `+toolchain`, `--manifest-path`.
+
+- `DEFAULT_SAFE_PROGRAMS` (**pinned**, replaces Amendment 3's list) holds only programs with no option that runs
+  another program: `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `diff`, `stat`, `pwd`, `echo`, `true`, `false`,
+  `uniq`, `cut`, `tr`, `basename`, `dirname`, `realpath`. Removed: `rg`, `sort`, `git`, `cargo`, `rustfmt` (which
+  writes files outside any scope).
+- `git` and `cargo` are not defaults. When the owner adds either to `safe_programs`, it is usable only with a
+  built-in subcommand allowlist (**pinned** constants): `pub const GIT_SUBCOMMANDS: &[&str] = &["status", "log",
+  "diff", "show"]` and `pub const CARGO_SUBCOMMANDS: &[&str] = &["test", "check", "build"]`. A git or cargo pattern
+  or command is valid only when its second token is one of these (no option before the subcommand) and no token
+  is refused:
+  - git: `-c`, anything starting with `-C`, `--exec`, `--ext-diff`, `--textconv`, `--output`, `--git-dir`,
+    `--work-tree`, `--config`, `--upload-pack`, `--receive-pack`;
+  - cargo: anything starting with `--config`, `-Z`, `+`, `--manifest-path`.
+  `cargo test` and `cargo build` still run project code (build scripts, tests); that is the owner's choice when they
+  add `cargo`, and it is documented beside the level risk.
+- A pattern with a trailing `*` must have no literal token starting with `-` (error at load `unsafe option`; at
+  acceptance the boundary is refused).
+- Programs the owner adds through `safe_programs`, other than `git` and `cargo`, are the owner's responsibility;
+  the docs say to add only programs with no exec, config or alias escape.
+
+Tests (protected, written before the fix): `tests/delegation_amend4.rs`, plus updates to earlier delegation test
+files whose policies or patterns use `git`, `cargo`, `rg`, `sort` or `rustfmt`.
