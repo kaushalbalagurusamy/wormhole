@@ -52,6 +52,10 @@ bounded:
   `downgrade` in the daemon's status, as a `daemon.downgrade` event on the activity page, and marked `DOWNGRADE`
   in `wormhole_who`.
 
+- The floor ratchets: a binary built at the floor commit carries an older `MIN_SAFE_COMMIT` than the floor itself
+  (a commit cannot name its own SHA), so each daemon records every minimum it has run with in `<bin>.floors` and
+  refuses targets below any of them. A hub cannot walk a machine back one hop at a time.
+
 Trade-off: an operator can still roll machines back, but no further than the newest security floor; a fix that
 must stick needs a release that raises `MIN_SAFE_COMMIT` and an update to it. Moving the floor forward is a code
 change on `main`, so it carries the same trust as any update. Future hardening, not built: accept only signed
