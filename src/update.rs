@@ -8,7 +8,7 @@ use std::time::Duration;
 
 /// The last security-relevant commit on `main` at release time. A daemon never moves to a
 /// target that is not this commit or a descendant of it. Raised when a security fix lands.
-pub const MIN_SAFE_COMMIT: &str = "949e46761e4577336cdcdacfabd221138cc25365";
+pub const MIN_SAFE_COMMIT: &str = "1608b5ad4128bfedd0177b555b7fd4acdef33377";
 
 /// What `wormhole daemon --auto-update` needs.
 #[derive(Clone, Debug)]
