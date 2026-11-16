@@ -29,8 +29,8 @@ LaunchAgent (macOS, `KeepAlive`) or a systemd user unit (`Restart=always`).
    the daemon's update status. Attempts are at most one per 5 minutes.
 6. **Rollback.** The operator writes an older SHA that is still on `main`'s history; daemons move to it the same
    way. Locally, `wormhole update --revert` swaps `<bin>.prev` back and sets a hold file (`<bin>.hold`) so the
-   daemon stops following the hub until `wormhole update --resume`. A target older than the commit that added
-   this updater leaves daemons without an updater: they need `join.sh` again.
+   daemon stops following the hub until `wormhole update --resume`. A target older than `MIN_SAFE_COMMIT` (Amendment 1)
+   is refused, so daemons cannot be moved back to a build without the updater.
 7. **Visibility.** Each daemon reports its running commit (built in by `build.rs`), the target and its status to
    the hub (`DaemonStatus`, only when the hub advertised `update`). `wormhole_who` and the activity page list them.
 8. **Permission stays local.** The updater never reads or writes the delegation policy file, its kill switch or
