@@ -172,8 +172,11 @@ fn contract_patterns_must_equal_a_grant_pattern_token_for_token() {
     }
     // The grant value "*" alone accepts any valid pattern.
     let p = policy(grant(json!(["*"])));
-    assert!(accepted(&p, &["cargo test --lib"]));
     assert!(accepted(&p, &["cargo test *"]));
+    // Option tokens are admitted only when the owner lists the pattern verbatim (amendment 8).
+    assert!(!accepted(&p, &["cargo test --lib"]));
+    let verbatim = policy(grant(json!(["cargo test --lib"])));
+    assert!(accepted(&verbatim, &["cargo test --lib"]));
     for bad in [
         "sh -c ls",
         "bash",
@@ -205,6 +208,14 @@ fn a_destructive_pattern_is_checked_again_at_runtime_by_argv() {
     )
     .unwrap();
     assert_eq!(off.denied_argv("rm -fr x"), None);
+    // The pattern has options, so the owner lists it verbatim.
+    assert!(!accepted(&off, &["rm -fr x"]));
+    let off = Policy::parse(
+        &json!({"grants": [grant(json!(["rm -fr x"]))], "safe_programs": ["rm"],
+                "denylist": {"enabled": false}})
+        .to_string(),
+    )
+    .unwrap();
     assert!(accepted(&off, &["rm -fr x"]));
 }
 

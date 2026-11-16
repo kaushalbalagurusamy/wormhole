@@ -186,7 +186,8 @@ fn refused_git_and_cargo_options_at_load_and_in_commands() {
         "cargo test --manifest-path x",
     ] {
         let e = load(json!([bad]), &["git", "cargo"]).err().unwrap();
-        assert!(e.contains("unsafe option"), "{bad}: {e}");
+        // The `=` refusal may fire first for `--x=y` forms.
+        assert!(e.contains("unsafe option") || e.contains('='), "{bad}: {e}");
     }
     // In a command: even a literal pattern for a harmless form cannot be stretched to them.
     let p = owner();
@@ -248,12 +249,32 @@ fn a_trailing_star_after_a_literal_option_is_refused() {
             },
         )
     };
-    for bad in ["cargo test --release *", "ls -la *"] {
+    // A "*" grant admits no option tokens at all (amendment 8), so "ls -la" is refused too.
+    for bad in ["cargo test --release *", "ls -la *", "ls -la"] {
         assert!(!eval(&[bad]).accepted, "{bad}");
     }
-    for good in ["cargo test *", "ls -la", "git status *"] {
+    for good in ["cargo test *", "git status *"] {
         assert!(eval(&[good]).accepted, "{good}");
     }
+    // Listed verbatim in the grant, the option pattern is accepted.
+    let v = load(json!(["ls -la"]), &["git", "cargo"]).unwrap();
+    assert!(
+        v.evaluate(
+            "alice",
+            "machine-a",
+            REPO,
+            &Contract {
+                task_id: "T-1".into(),
+                kind: "fix".into(),
+                paths: strs(&["src/a.rs"]),
+                commands: strs(&["ls -la"]),
+                exit: "done".into(),
+                text: "do it".into(),
+                ..Default::default()
+            }
+        )
+        .accepted
+    );
     // The same through the command check.
     assert!(owner()
         .command_allowed(&strs(&["ls -la *"]), "ls -la src")

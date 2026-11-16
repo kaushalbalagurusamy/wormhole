@@ -180,7 +180,8 @@ fn unsafe_options_in_git_and_cargo_grant_patterns_are_refused_at_load() {
         let e = load(vec![grant(json!([bad]))], None)
             .err()
             .unwrap_or_else(|| panic!("{bad}"));
-        assert!(e.contains("unsafe option"), "{bad}: {e}");
+        // The `=` refusal may fire first for `--x=y` forms.
+        assert!(e.contains("unsafe option") || e.contains('='), "{bad}: {e}");
     }
     // An option or toolchain before the subcommand is refused too (amendment 4).
     for bad in [

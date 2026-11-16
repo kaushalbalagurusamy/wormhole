@@ -77,9 +77,13 @@ fn repo_id() -> String {
 }
 
 async fn setup(safe: &[&str]) -> Net {
+    setup_with(safe, json!(["*"])).await
+}
+
+async fn setup_with(safe: &[&str], commands: Value) -> Net {
     let path = tmpdir().join("policy.json");
     let g = json!({"from": ["alice@machine-a"], "repos": [repo_id()], "task_ids": ["SB-*"],
-        "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["fix"], "commands": ["*"]});
+        "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["fix"], "commands": commands});
     std::fs::write(
         &path,
         json!({"grants": [g], "safe_programs": safe}).to_string(),
@@ -174,7 +178,7 @@ async fn with_no_safe_programs_no_bash_command_is_allowed() {
 
 #[tokio::test]
 async fn enabled_programs_are_allowed_with_a_path_checked_operand() {
-    let n = setup(&ENABLED).await;
+    // Option-bearing patterns are listed verbatim in the grant (amendment 8).
     let pats = [
         "grep x *",
         "grep -e x src/a.rs",
@@ -185,6 +189,7 @@ async fn enabled_programs_are_allowed_with_a_path_checked_operand() {
         "pwd",
         "git status",
     ];
+    let n = setup_with(&ENABLED, json!(pats)).await;
     let c = delegate(&n, "SB-1", &pats).await;
     assert!(c.contains("status: accepted"), "{c}");
     let r = &n.repo_b;

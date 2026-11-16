@@ -351,7 +351,8 @@ async fn git_and_cargo_option_allowlists_end_to_end() {
         "cargo test --lib",
         "cargo test *"
     ]);
-    let t = setup(json!(["*"]), &[]).await;
+    // Option-bearing patterns are listed verbatim in the grant (amendment 8).
+    let t = setup(cmds.clone(), &[]).await;
     accepted(&t, "SB-1", cmds).await;
     let (n, r) = (&t.n, &t.n.repo_b);
     for cmd in [
