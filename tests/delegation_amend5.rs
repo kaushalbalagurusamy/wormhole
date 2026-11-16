@@ -20,6 +20,12 @@ const SA: &str = "aaaaaaaa-0000-4000-8000-000000000001";
 const SB: &str = "bbbbbbbb-0000-4000-8000-000000000002";
 const NOTICE: &str = "[wormhole delegation] request";
 
+// Programs enabled by the owner besides git and cargo (none are safe by default).
+const EXTRA: [&str; 17] = [
+    "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false",
+    "cut", "tr", "basename", "dirname", "realpath",
+];
+
 fn strs(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
 }
@@ -30,11 +36,13 @@ fn grant(commands: Value) -> Value {
 }
 
 fn load(commands: Value, safe: &[&str]) -> Result<Policy, String> {
-    Policy::parse(&json!({"grants": [grant(commands)], "safe_programs": safe}).to_string())
+    let mut all: Vec<&str> = safe.to_vec();
+    all.extend(EXTRA);
+    Policy::parse(&json!({"grants": [grant(commands)], "safe_programs": all}).to_string())
 }
 
 fn owner() -> Policy {
-    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo"]}"#).unwrap()
+    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]}"#).unwrap()
 }
 
 // ---- pure ----
@@ -227,7 +235,7 @@ async fn setup_with(commands: Value, protected: &[&str], prep: impl Fn(&Path)) -
         "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["fix"], "commands": commands});
     std::fs::write(
         &policy,
-        json!({"grants": [g], "safe_programs": ["git", "cargo"]}).to_string(),
+        json!({"grants": [g], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]}).to_string(),
     )
     .unwrap();
     let n = net(Opts {

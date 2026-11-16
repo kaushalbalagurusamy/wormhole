@@ -17,6 +17,12 @@ const SA: &str = "aaaaaaaa-0000-4000-8000-000000000001";
 const SB: &str = "bbbbbbbb-0000-4000-8000-000000000002";
 const NOTICE: &str = "[wormhole delegation] request";
 
+// The programs the owner enables in these tests (none are safe by default, amendment 7).
+const ALL: [&str; 19] = [
+    "git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo",
+    "true", "false", "cut", "tr", "basename", "dirname", "realpath",
+];
+
 fn strs(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
 }
@@ -31,11 +37,11 @@ fn load(grants: Vec<Value>, safe: Option<Value>) -> Result<Policy, String> {
     // git and cargo are not defaults (amendment 4); the owner adds them here.
     p["safe_programs"] = match safe {
         Some(Value::Array(mut a)) => {
-            a.extend([json!("git"), json!("cargo")]);
+            a.extend(ALL.iter().map(|s| json!(s)));
             Value::Array(a)
         }
         Some(other) => other,
-        None => json!(["git", "cargo"]),
+        None => json!(ALL),
     };
     Policy::parse(&p.to_string())
 }
@@ -71,10 +77,7 @@ fn tokenize_refuses_unquoted_glob_brace_tilde_and_comment_characters() {
 
 #[test]
 fn safe_program_defaults_and_exact_matching() {
-    let defaults = [
-        "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false",
-        "cut", "tr", "basename", "dirname", "realpath",
-    ];
+    let defaults: [&str; 0] = []; // amendment 7: nothing is safe by default
     assert_eq!(DEFAULT_SAFE_PROGRAMS.len(), defaults.len());
     let p = Policy::parse(r#"{"grants": []}"#).unwrap();
     for d in defaults {
@@ -360,7 +363,7 @@ async fn setup(commands: Value, safe: Option<Value>) -> Net {
     let g = json!({"from": ["alice@machine-a"], "repos": [repo_id()], "task_ids": ["SB-*"],
         "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["fix"], "commands": commands});
     let mut p = json!({"grants": [g]});
-    let mut sp = vec![json!("git"), json!("cargo")];
+    let mut sp: Vec<Value> = ALL.iter().map(|s| json!(s)).collect();
     if let Some(Value::Array(a)) = safe {
         sp.extend(a);
     }

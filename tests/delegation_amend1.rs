@@ -88,7 +88,7 @@ fn tokenize_refuses_what_a_shell_would_interpret() {
 // ---- command_allowed ----
 
 fn pol() -> Policy {
-    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo"]}"#).unwrap()
+    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]}"#).unwrap()
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn grant(level: &str) -> Value {
 }
 
 fn policy(g: Value) -> Policy {
-    Policy::parse(&json!({"grants": [g], "safe_programs": ["git", "cargo"]}).to_string()).unwrap()
+    Policy::parse(&json!({"grants": [g], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]}).to_string()).unwrap()
 }
 
 #[test]
@@ -447,7 +447,7 @@ async fn setup(paths: &str, commands: Value) -> Net {
         "level": "scoped-bypass", "paths": [paths], "kinds": ["fix"], "commands": commands});
     std::fs::write(
         &path,
-        json!({"grants": [g], "safe_programs": ["git", "cargo"]}).to_string(),
+        json!({"grants": [g], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]}).to_string(),
     )
     .unwrap();
     let n = net(Opts {

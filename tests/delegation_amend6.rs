@@ -26,7 +26,7 @@ fn grant(commands: Value) -> Value {
 }
 
 fn load(commands: Value, denylist_on: bool) -> Result<Policy, String> {
-    let mut p = json!({"grants": [grant(commands)], "safe_programs": ["git"]});
+    let mut p = json!({"grants": [grant(commands)], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]});
     if !denylist_on {
         p["denylist"] = json!({"enabled": false});
     }
@@ -121,7 +121,7 @@ fn policy_json(commands: &Value, denylist_on: bool, max_steps: u64, max_ttl: u64
     let g = json!({"from": ["alice@machine-a"], "repos": [repo_id()], "task_ids": ["SB-*"],
         "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["fix"], "commands": commands,
         "max_steps": max_steps, "max_ttl_secs": max_ttl});
-    let mut p = json!({"grants": [g], "safe_programs": ["git"]});
+    let mut p = json!({"grants": [g], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]});
     if !denylist_on {
         p["denylist"] = json!({"enabled": false});
     }

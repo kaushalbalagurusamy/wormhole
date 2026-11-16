@@ -22,7 +22,7 @@ fn strs(v: &[&str]) -> Vec<String> {
 }
 
 fn ok(patterns: &[&str], cmd: &str) -> bool {
-    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo", "rm"]}"#)
+    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath", "rm"]}"#)
         .unwrap()
         .command_allowed(&strs(patterns), cmd)
         .is_ok()
@@ -130,7 +130,7 @@ fn grant(commands: Value) -> Value {
 }
 
 fn policy(g: Value) -> Policy {
-    Policy::parse(&json!({"grants": [g], "safe_programs": ["git", "cargo", "rm"]}).to_string())
+    Policy::parse(&json!({"grants": [g], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath", "rm"]}).to_string())
         .unwrap()
 }
 
@@ -217,7 +217,7 @@ fn repo_id() -> String {
 
 async fn setup(grants: Vec<Value>, denylist: Option<Value>, protected: &[&str]) -> Net {
     let path = tmpdir().join("policy.json");
-    let mut p = json!({"grants": grants, "safe_programs": ["git", "cargo", "rm"]});
+    let mut p = json!({"grants": grants, "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath", "rm"]});
     if let Some(d) = denylist {
         p["denylist"] = d;
     }

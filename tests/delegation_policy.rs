@@ -15,7 +15,7 @@ fn grant(level: &str) -> Value {
 }
 
 fn policy(grants: Vec<Value>) -> Policy {
-    Policy::parse(&json!({"grants": grants, "safe_programs": ["git", "cargo"]}).to_string())
+    Policy::parse(&json!({"grants": grants, "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]}).to_string())
         .unwrap()
 }
 

@@ -43,7 +43,7 @@ fn default_policy() -> Value {
         grant("SBX-*", "scoped-bypass", json!({"commands": ["*"]})),
         grant("FB-*", "full-bypass", json!({})),
         grant("IN-*", "inform", json!({})),
-    ], "safe_programs": ["git", "cargo"]})
+    ], "safe_programs": ["git", "cargo", "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false", "cut", "tr", "basename", "dirname", "realpath"]})
 }
 
 fn opts(policy: &Path) -> Opts {

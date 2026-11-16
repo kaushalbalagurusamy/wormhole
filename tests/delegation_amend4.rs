@@ -17,6 +17,12 @@ const SA: &str = "aaaaaaaa-0000-4000-8000-000000000001";
 const SB: &str = "bbbbbbbb-0000-4000-8000-000000000002";
 const NOTICE: &str = "[wormhole delegation] request";
 
+// Programs enabled by the owner besides git and cargo (none are safe by default).
+const EXTRA: [&str; 17] = [
+    "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false",
+    "cut", "tr", "basename", "dirname", "realpath",
+];
+
 fn strs(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
 }
@@ -27,7 +33,9 @@ fn grant(commands: Value) -> Value {
 }
 
 fn load(commands: Value, safe: &[&str]) -> Result<Policy, String> {
-    Policy::parse(&json!({"grants": [grant(commands)], "safe_programs": safe}).to_string())
+    let mut all: Vec<&str> = safe.to_vec();
+    all.extend(EXTRA);
+    Policy::parse(&json!({"grants": [grant(commands)], "safe_programs": all}).to_string())
 }
 
 fn plain() -> Policy {
@@ -35,24 +43,26 @@ fn plain() -> Policy {
 }
 
 fn owner() -> Policy {
-    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo"]}"#).unwrap()
+    Policy::parse(
+        &json!({"grants": [], "safe_programs": ["git", "cargo", "ls", "cat", "grep"]}).to_string(),
+    )
+    .unwrap()
 }
 
 // ---- constants ----
 
 #[test]
 fn default_safe_programs_exclude_programs_with_exec_or_write_options() {
-    let want = [
-        "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false",
-        "cut", "tr", "basename", "dirname", "realpath",
-    ];
+    let want: [&str; 0] = []; // amendment 7: nothing is safe by default
     assert_eq!(DEFAULT_SAFE_PROGRAMS.len(), want.len());
     let p = plain();
     for w in want {
         assert!(DEFAULT_SAFE_PROGRAMS.contains(&w), "{w}");
         assert!(p.safe_program(w), "{w}");
     }
-    for gone in ["rg", "sort", "uniq", "git", "cargo", "rustfmt"] {
+    for gone in [
+        "rg", "sort", "uniq", "git", "cargo", "rustfmt", "ls", "cat", "grep", "head",
+    ] {
         assert!(!DEFAULT_SAFE_PROGRAMS.contains(&gone), "{gone}");
         assert!(!p.safe_program(gone), "{gone}");
     }
@@ -412,7 +422,7 @@ async fn git_and_cargo_work_end_to_end_only_with_allowed_subcommands() {
 
 #[tokio::test]
 async fn without_safe_programs_a_git_contract_is_information_only() {
-    let n = setup(json!(["*"]), json!([])).await;
+    let n = setup(json!(["*"]), json!(["ls"])).await;
     let c = delegate(&n, "SB-2", json!(["git status"])).await;
     assert!(c.contains("information only"), "{c}");
     assert_eq!(verdict(&n.b, &n.repo_b, "git status").await, None);
