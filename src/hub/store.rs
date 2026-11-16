@@ -88,6 +88,72 @@ CREATE INDEX IF NOT EXISTS team_log_repo ON team_log (repo, seq);
 /// Most bytes of serialised entries in one `Log` answer.
 pub const LOG_MAX_BYTES: usize = 256 * 1024;
 
+const SEVERITIES: &[&str] = &["critical", "high", "medium", "low", "info"];
+
+/// `<path>:<line>`: a path without whitespace, then a decimal line number of at least 1.
+fn valid_location(l: &str) -> bool {
+    l.rsplit_once(':').is_some_and(|(p, n)| {
+        !p.is_empty()
+            && !p.chars().any(char::is_whitespace)
+            && !n.is_empty()
+            && n.chars().all(|c| c.is_ascii_digit())
+            && n.trim_start_matches('0') != ""
+    })
+}
+
+/// What a `done` result must carry for the two kinds with a fixed shape. The error is the
+/// text the hub answers with.
+fn check_result(kind: &str, fields: &serde_json::Map<String, Value>) -> Result<(), String> {
+    match kind {
+        "review" => {
+            let bad = |why: &str| Err(format!("invalid review result: {why}"));
+            if !["approve", "request-changes", "comment"]
+                .iter()
+                .any(|v| fields.get("verdict").and_then(Value::as_str) == Some(v))
+            {
+                return bad("verdict must be approve, request-changes or comment");
+            }
+            let Some(list) = fields.get("findings").and_then(Value::as_array) else {
+                return bad("findings must be an array");
+            };
+            for f in list {
+                let s = |k: &str| f.get(k).and_then(Value::as_str);
+                if !s("severity").is_some_and(|v| SEVERITIES.contains(&v)) {
+                    return bad("a finding's severity must be critical, high, medium, low or info");
+                }
+                if !s("location").is_some_and(valid_location) {
+                    return bad("a finding's location must be <path>:<line>");
+                }
+                if s("text").is_none_or(str::is_empty) {
+                    return bad("a finding needs text");
+                }
+            }
+            Ok(())
+        }
+        "task" => {
+            let ok = fields
+                .get("artifacts")
+                .and_then(Value::as_array)
+                .is_some_and(|a| {
+                    a.iter().all(|x| {
+                        x.as_str().is_some_and(|s| {
+                            (1..=512).contains(&s.len()) && !s.chars().any(char::is_control)
+                        })
+                    })
+                });
+            if ok {
+                Ok(())
+            } else {
+                Err(
+                    "invalid task result: artifacts must be an array of strings of 1 to 512 bytes"
+                        .into(),
+                )
+            }
+        }
+        _ => Ok(()),
+    }
+}
+
 /// A request nobody answered for this long is expired.
 pub const DELEGATION_PENDING_MS: u64 = 10 * 60 * 1000;
 
@@ -760,6 +826,9 @@ impl Store {
             return Ok(Err("invalid status".into()));
         }
         if status == "done" {
+            if let Err(e) = check_result(&d.info.kind, fields) {
+                return Ok(Err(e));
+            }
             if let Some(m) = d.result_fields.iter().find(|f| !fields.contains_key(*f)) {
                 return Ok(Err(format!("missing result field {m}")));
             }

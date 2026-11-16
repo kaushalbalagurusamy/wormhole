@@ -527,6 +527,13 @@ fn check_contract(c: &mut Contract) -> Result<(), String> {
     if c.text.trim().is_empty() || c.text.len() > MAX_BODY {
         return Err(format!("task text must be 1 to {MAX_BODY} bytes"));
     }
+    if !c.reference.is_empty()
+        && (c.reference.len() > 300
+            || !c.reference.starts_with("https://")
+            || !c.reference.chars().all(|x| x.is_ascii_graphic()))
+    {
+        return Err("invalid ref".into());
+    }
     if c.spec.chars().count() > 1000 || c.exit.chars().count() > 1000 {
         return Err("spec and exit are limited to 1000 characters".into());
     }
@@ -1451,6 +1458,56 @@ mod tests {
                 contract: c,
             },
         )
+    }
+
+    #[test]
+    fn review_and_task_results_and_ref_are_checked() {
+        let h = hub();
+        let (a, b) = (p("alice", "ma"), p("bob", "mb"));
+        h.handle(&a, hello("s1")).unwrap();
+        h.handle(&b, hello("s2")).unwrap();
+        h.delegating.lock().unwrap().insert(b.key(), 1);
+        let mut c = contract(&[]);
+        c.reference = "http://x".into();
+        assert_eq!(
+            delegate(&h, &a, "s1", "s2", c.clone()).unwrap_err(),
+            "invalid ref"
+        );
+        c.reference = "https://example.com/pr/1".into();
+        c.kind = "review".into();
+        let seq = delegate(&h, &a, "s1", "s2", c).unwrap()["seq"]
+            .as_u64()
+            .unwrap();
+        h.handle(
+            &b,
+            Request::DelegateAck {
+                session: "s2".into(),
+                request: seq,
+                accept: true,
+                level: "scoped-instruction".into(),
+                reason: String::new(),
+                ttl_ms: 60_000,
+            },
+        )
+        .unwrap();
+        let result = |fields: Value| {
+            h.handle(
+                &b,
+                Request::DelegateResult {
+                    session: "s2".into(),
+                    request: seq,
+                    status: "done".into(),
+                    summary: "ok".into(),
+                    fields: fields.as_object().unwrap().clone(),
+                },
+            )
+        };
+        let bad = result(
+            json!({"verdict": "approve", "findings": [{"severity": "high", "location": "a b:3", "text": "t"}]}),
+        );
+        assert!(bad.unwrap_err().starts_with("invalid review result"));
+        assert!(result(json!({"verdict": "ship"})).is_err());
+        assert!(result(json!({"verdict": "comment", "findings": []})).is_ok());
     }
 
     #[test]
