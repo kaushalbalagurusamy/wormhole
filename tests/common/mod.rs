@@ -45,6 +45,11 @@ pub struct Opts {
     pub reconnect_min: Duration,
     /// Delegation policy file for daemon b only.
     pub policy_b: Option<PathBuf>,
+    /// Hub team-log retention (see `hub::DEFAULT_LOG_MAX_ENTRIES`, `hub::DEFAULT_LOG_MAX_AGE_SECS`).
+    pub log_max_entries: usize,
+    pub log_max_age_secs: u64,
+    /// File the hub reads its update target from.
+    pub target_file: Option<PathBuf>,
 }
 
 impl Default for Opts {
@@ -54,6 +59,9 @@ impl Default for Opts {
             protected: vec![],
             reconnect_min: Duration::from_millis(100),
             policy_b: None,
+            log_max_entries: hub::DEFAULT_LOG_MAX_ENTRIES,
+            log_max_age_secs: hub::DEFAULT_LOG_MAX_AGE_SECS,
+            target_file: None,
         }
     }
 }
@@ -68,6 +76,10 @@ pub struct Net {
 }
 
 pub async fn start_hub(dir: &Path) -> HubHandle {
+    start_hub_with(dir, &Opts::default()).await
+}
+
+pub async fn start_hub_with(dir: &Path, opts: &Opts) -> HubHandle {
     hub::start(HubConfig {
         listen: "127.0.0.1:0".parse().unwrap(),
         db: dir.join("hub.sqlite"),
@@ -75,9 +87,46 @@ pub async fn start_hub(dir: &Path) -> HubHandle {
         hostnames: vec![],
         allow_users: vec![],
         tls: None,
+        log_max_entries: opts.log_max_entries,
+        log_max_age_secs: opts.log_max_age_secs,
+        target_file: opts.target_file.clone(),
     })
     .await
     .unwrap()
+}
+
+/// A repository whose origin differs from `make_repo`'s, so its id differs.
+pub fn make_other_repo(dir: &Path) -> PathBuf {
+    let r = make_repo(dir);
+    std::fs::write(
+        r.join(".git/config"),
+        "[remote \"origin\"]\n\turl = git@example.com:team/other.git\n",
+    )
+    .unwrap();
+    r
+}
+
+/// Another daemon on the same hub (socket and hook port are its own).
+pub async fn add_daemon(
+    n: &Net,
+    who: &str,
+    policy: Option<PathBuf>,
+    opts: &Opts,
+) -> (DaemonHandle, PathBuf) {
+    let mut c = daemon_config(&n.dir, format!("ws://{}/ws", n.hub.addr), who, opts);
+    c.delegation_policy = policy;
+    let d = daemon::start(c).await.unwrap();
+    wait_connected(&d).await;
+    let repo = make_repo(&n.dir.join(format!("{}/proj", &who[..1])));
+    (d, repo)
+}
+
+/// `GET /api/state` as a page viewer, parsed.
+pub async fn api_state(hub: &HubHandle) -> Value {
+    let id = ("x-wormhole-static-identity", "viewer@viewer-machine");
+    let (s, _, body) = http(hub.addr, "GET", "/api/state", &[id], "").await;
+    assert_eq!(s, 200, "{body}");
+    serde_json::from_str(&body).unwrap_or_else(|e| panic!("state not json ({e}): {body}"))
 }
 
 pub fn daemon_config(dir: &Path, hub_url: String, who: &str, opts: &Opts) -> DaemonConfig {
@@ -92,7 +141,7 @@ pub fn daemon_config(dir: &Path, hub_url: String, who: &str, opts: &Opts) -> Dae
 
 pub async fn net(opts: Opts) -> Net {
     let dir = tmpdir();
-    let hub = start_hub(&dir).await;
+    let hub = start_hub_with(&dir, &opts).await;
     let url = format!("ws://{}/ws", hub.addr);
     let a = daemon::start(daemon_config(&dir, url.clone(), "alice@machine-a", &opts))
         .await
@@ -363,4 +412,319 @@ pub fn leaf(ca: &Ca, names: &[&str], expired: bool, dir: &Path) -> wormhole::tls
     std::fs::write(&files.cert, cert.pem()).unwrap();
     std::fs::write(&files.key, key.serialize_pem()).unwrap();
     files
+}
+
+/// The repository id the daemons report for `make_repo` checkouts.
+pub fn proj_id() -> String {
+    wormhole::repo::find(&make_repo(&tmpdir().join("id-proj")))
+        .unwrap()
+        .id
+}
+
+/// The repository id of `make_other_repo` checkouts.
+pub fn other_id() -> String {
+    wormhole::repo::find(&make_other_repo(&tmpdir().join("id-other")))
+        .unwrap()
+        .id
+}
+
+type RawWs =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+
+/// A bare WebSocket peer speaking the wire protocol by hand, for what a real daemon would never
+/// do: an old daemon that advertises no capability, an oversized query, a malformed frame.
+pub struct Raw {
+    tx: futures_util::stream::SplitSink<RawWs, tokio_tungstenite::tungstenite::Message>,
+    rx: futures_util::stream::SplitStream<RawWs>,
+    id: u64,
+    /// The Welcome frame.
+    pub welcome: Value,
+    /// Every non-response frame seen so far.
+    pub frames: Vec<Value>,
+}
+
+impl Raw {
+    /// Connect as `who` (`user@machine`). `caps` goes in `Resume`; empty omits the field, as a
+    /// daemon from before capabilities did.
+    pub async fn connect(addr: SocketAddr, who: &str, caps: &[&str]) -> Raw {
+        use futures_util::{SinkExt, StreamExt};
+        use tokio_tungstenite::tungstenite::{client::IntoClientRequest, Message};
+        let mut req = format!("ws://{addr}/ws").into_client_request().unwrap();
+        req.headers_mut()
+            .insert(wormhole::proto::STATIC_ID_HEADER, who.parse().unwrap());
+        let (ws, _) = tokio_tungstenite::connect_async(req).await.unwrap();
+        let (mut tx, mut rx) = ws.split();
+        let resume = if caps.is_empty() {
+            json!({"op": "resume", "from": null})
+        } else {
+            json!({"op": "resume", "from": null, "caps": caps})
+        };
+        tx.send(Message::Text(resume.to_string().into()))
+            .await
+            .unwrap();
+        let mut frames = Vec::new();
+        let welcome = loop {
+            let m = tokio::time::timeout(Duration::from_secs(5), rx.next())
+                .await
+                .expect("no welcome")
+                .expect("closed before welcome")
+                .unwrap();
+            if let Message::Text(t) = m {
+                let v: Value = serde_json::from_str(&t).unwrap();
+                if v["op"] == "welcome" {
+                    break v;
+                }
+                frames.push(v);
+            }
+        };
+        Raw {
+            tx,
+            rx,
+            id: 0,
+            welcome,
+            frames,
+        }
+    }
+
+    /// Send one request and wait for its response: `Ok(data)` or `Err(error)`.
+    pub async fn req(&mut self, req: Value) -> Result<Value, String> {
+        use futures_util::{SinkExt, StreamExt};
+        use tokio_tungstenite::tungstenite::Message;
+        self.id += 1;
+        let id = self.id;
+        self.tx
+            .send(Message::Text(
+                json!({"op": "req", "id": id, "req": req})
+                    .to_string()
+                    .into(),
+            ))
+            .await
+            .unwrap();
+        loop {
+            let m = tokio::time::timeout(Duration::from_secs(5), self.rx.next())
+                .await
+                .expect("no response")
+                .expect("connection closed")
+                .unwrap();
+            let Message::Text(t) = m else { continue };
+            let v: Value = serde_json::from_str(&t).unwrap();
+            if v["op"] == "resp" && v["id"] == id {
+                return if v["ok"] == true {
+                    Ok(v["data"].clone())
+                } else {
+                    Err(v["error"].as_str().unwrap_or("").to_string())
+                };
+            }
+            self.frames.push(v);
+        }
+    }
+
+    pub async fn hello(&mut self, session: &str, repo: &str) {
+        self.req(
+            json!({"type": "hello", "session": session, "repo": repo, "branch": "main",
+                        "task": ""}),
+        )
+        .await
+        .unwrap();
+    }
+
+    /// Send a message to everyone; returns its seq.
+    pub async fn send_all(&mut self, session: &str, body: &str) -> u64 {
+        self.req(
+            json!({"type": "send", "session": session, "to": {"kind": "broadcast"},
+                        "body": body, "reply_to": null}),
+        )
+        .await
+        .unwrap()["seq"]
+            .as_u64()
+            .unwrap()
+    }
+
+    /// A `log` request for `session` (hello is the caller's business).
+    pub async fn log(&mut self, session: &str, query: Value) -> Result<Value, String> {
+        self.req(json!({"type": "log", "session": session, "query": query}))
+            .await
+    }
+
+    /// Read frames for `ms` milliseconds into `frames`.
+    pub async fn drain(&mut self, ms: u64) {
+        use futures_util::StreamExt;
+        use tokio_tungstenite::tungstenite::Message;
+        let end = Instant::now() + Duration::from_millis(ms);
+        while let Some(left) = end.checked_duration_since(Instant::now()) {
+            match tokio::time::timeout(left, self.rx.next()).await {
+                Ok(Some(Ok(Message::Text(t)))) => self
+                    .frames
+                    .push(serde_json::from_str(&t).unwrap_or_default()),
+                Ok(Some(Ok(_))) => {}
+                _ => break,
+            }
+        }
+    }
+}
+
+/// The value of `name="..."` in one tag's attribute text.
+pub fn attr_of(tag: &str, name: &str) -> Option<String> {
+    let pat = format!(" {name}=\"");
+    let i = tag.find(&pat)? + pat.len();
+    let j = tag[i..].find('"')?;
+    Some(tag[i..i + j].to_string())
+}
+
+/// Opening tags `<tag ...>` in `text`, each with the text up to its closing tag.
+pub fn tag_blocks(text: &str, tag: &str) -> Vec<(String, String)> {
+    let open = format!("<{tag}");
+    let close = format!("</{tag}>");
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(i) = rest.find(&open) {
+        let after = &rest[i..];
+        let Some(gt) = after.find(">\n") else { break };
+        let head = after[..gt].to_string();
+        let body_start = gt + 2;
+        let end = after[body_start..]
+            .find(&close)
+            .map_or(after.len(), |e| body_start + e);
+        out.push((head, after[body_start..end].to_string()));
+        rest = &after[end.min(after.len())..];
+        if rest.starts_with(&close) {
+            rest = &rest[close.len()..];
+        }
+    }
+    out
+}
+
+pub const SA: &str = "aaaaaaaa-0000-4000-8000-000000000001";
+pub const SB: &str = "bbbbbbbb-0000-4000-8000-000000000002";
+pub const SC: &str = "cccccccc-0000-4000-8000-000000000003";
+pub const NOTICE: &str = "[wormhole delegation] request";
+
+/// Next PostToolUse context for `session` that satisfies `pred`.
+pub async fn wait_ctx(
+    d: &DaemonHandle,
+    session: &str,
+    cwd: &Path,
+    pred: impl Fn(&str) -> bool,
+) -> String {
+    let t = Instant::now();
+    loop {
+        let c = ctx(&hook(d, post_bash(session, cwd)).await);
+        if pred(&c) {
+            return c;
+        }
+        assert!(
+            t.elapsed() < Duration::from_secs(5),
+            "no matching context; last: {c}"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+/// Everything `session` is told over `ms` milliseconds.
+pub async fn gather_ctx(d: &DaemonHandle, session: &str, cwd: &Path, ms: u64) -> String {
+    let t = Instant::now();
+    let mut all = String::new();
+    while t.elapsed() < Duration::from_millis(ms) {
+        all.push_str(&ctx(&hook(d, post_bash(session, cwd)).await));
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    all
+}
+
+/// A PreToolUse with an explicit `tool_use_id`.
+pub fn pre_tool(session: &str, cwd: &Path, tool: &str, input: Value, id: &str) -> Value {
+    let mut v = base("PreToolUse", session, cwd);
+    v["tool_name"] = json!(tool);
+    v["tool_input"] = input;
+    v["tool_use_id"] = json!(id);
+    v
+}
+
+/// A PostToolUse with an explicit `tool_use_id`.
+pub fn post_tool(session: &str, cwd: &Path, tool: &str, input: Value, id: &str) -> Value {
+    let mut v = base("PostToolUse", session, cwd);
+    v["tool_name"] = json!(tool);
+    v["tool_input"] = input;
+    v["tool_response"] = json!({"ok": true});
+    v["tool_use_id"] = json!(id);
+    v
+}
+
+/// A delegation policy file granting `alice@machine-a` `level` on the shared test repository
+/// for any task id and the kinds the tests use.
+pub fn grant_policy(level: &str) -> PathBuf {
+    let p = tmpdir().join("policy.json");
+    std::fs::write(
+        &p,
+        json!({"grants": [{
+            "from": ["alice@machine-a"], "repos": [proj_id()], "task_ids": ["*"],
+            "level": level, "paths": ["src/**"],
+            "kinds": ["tests", "fix", "any", "review", "task"],
+        }], "safe_programs": []})
+        .to_string(),
+    )
+    .unwrap();
+    p
+}
+
+/// The first integer after `marker` in `s` (`sent (seq 5)` gives 5).
+pub fn num_after(s: &str, marker: &str) -> u64 {
+    let i = s
+        .find(marker)
+        .unwrap_or_else(|| panic!("no {marker} in {s}"))
+        + marker.len();
+    s[i..]
+        .trim_start()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect::<String>()
+        .parse()
+        .unwrap_or_else(|_| panic!("no number after {marker} in {s}"))
+}
+
+/// Send a message through a daemon's `send` tool; returns its seq.
+pub async fn send(d: &DaemonHandle, from: &str, to: &str, body: &str) -> u64 {
+    let r = tool(d, from, "send", json!({"to": to, "body": body}))
+        .await
+        .unwrap();
+    num_after(&r, "seq")
+}
+
+/// The `delegate` tool, `extra` keys overriding the defaults.
+pub async fn delegate_tool(
+    d: &DaemonHandle,
+    from: &str,
+    to: &str,
+    task: &str,
+    kind: &str,
+    text: &str,
+    extra: Value,
+) -> Result<String, String> {
+    let mut a = json!({"to_session": to, "to": to, "task_id": task, "kind": kind, "text": text});
+    for (k, v) in extra.as_object().unwrap() {
+        a[k] = v.clone();
+    }
+    tool(d, from, "delegate", a).await
+}
+
+/// The request id in a delegation notice.
+pub fn request_id(notice: &str) -> u64 {
+    num_after(notice, NOTICE)
+}
+
+/// Everything `session` is told until every marker has appeared (across several hooks).
+pub async fn wait_all(d: &DaemonHandle, session: &str, cwd: &Path, markers: &[&str]) -> String {
+    let t = Instant::now();
+    let mut all = String::new();
+    loop {
+        all.push_str(&ctx(&hook(d, post_bash(session, cwd)).await));
+        if markers.iter().all(|m| all.contains(m)) {
+            return all;
+        }
+        assert!(
+            t.elapsed() < Duration::from_secs(5),
+            "missing markers {markers:?}; got: {all}"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
 }

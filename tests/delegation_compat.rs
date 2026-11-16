@@ -36,6 +36,7 @@ fn old_frames_parse_as_new_types_with_empty_additions() {
             machine,
             head,
             caps,
+            ..
         } => {
             assert_eq!(
                 (user.as_str(), machine.as_str(), head),
@@ -67,6 +68,7 @@ fn new_frames_with_caps_and_delegations_parse_as_old_types() {
         machine: "machine-a".into(),
         head: 4,
         caps: vec![proto::CAP_DELEGATION.to_string()],
+        target: None,
     })
     .unwrap();
     assert!(down.contains("delegation"), "{down}");

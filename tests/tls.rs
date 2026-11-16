@@ -19,6 +19,9 @@ async fn tls_hub(dir: &std::path::Path, files: wormhole::tls::TlsFiles) -> HubHa
         hostnames: vec![],
         allow_users: vec![],
         tls: Some(files),
+        log_max_entries: wormhole::hub::DEFAULT_LOG_MAX_ENTRIES,
+        log_max_age_secs: wormhole::hub::DEFAULT_LOG_MAX_AGE_SECS,
+        target_file: None,
     })
     .await
     .unwrap()
@@ -196,6 +199,9 @@ async fn plaintext_off_the_tailnet_is_refused() {
             hostnames: vec![],
             allow_users: vec![],
             tls: None,
+            log_max_entries: wormhole::hub::DEFAULT_LOG_MAX_ENTRIES,
+            log_max_age_secs: wormhole::hub::DEFAULT_LOG_MAX_AGE_SECS,
+            target_file: None,
         })
         .await;
         assert!(

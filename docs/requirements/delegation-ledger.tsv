@@ -21,3 +21,25 @@ R8	satisfied	preamble, tag naming the sender, cleaning; limits before relayed te
 R9	satisfied	recorded as future work in ADR 0001 decision 12 (does not fit cleanly), as R9 allows
 R10	satisfied	docs/design.md Trust and safety with the per-level risk table; ADR 0001
 R11	satisfied	tests first (commits 9237beb onward), blind implementer in a worktree without tests, separate runner, adversarial reviews; branch only, pushed, not merged
+S1	satisfied	TL1 to TL13 below; ADR 0002; slice team-log-v1
+TL1	satisfied	team_log table written at msg, request, ack, result (author advertised team-log): src/hub/store.rs, src/hub/mod.rs; ADR 0002 trade-off; tests/team_log.rs
+TL2	satisfied	wormhole_log (src/mcp.rs), socket tool log (src/daemon/sock.rs), Request::Log with since/session/user/kind/task_id/limit (src/hub/mod.rs); tests/team_log.rs
+TL3	satisfied	decided: page stays redacted (ADR 0002 decision 6); tests/team_log.rs page and stream checks
+TL4	satisfied	for_you addressing in src/daemon/log.rs; delegation requests still only to the target machine (Hub::visible); log path never reaches apply/on_request/bypass; tests/team_log.rs, tests/team_review_fixes.rs
+TL5	satisfied	daemon-written addressing line and tag attributes, ids via text::attr, relayed lines quoted: src/daemon/log.rs; tests/team_log.rs, tests/team_review_fixes.rs
+TL6	satisfied	--log-max-entries (10,000) and --log-max-age-days (30): src/main.rs, src/hub/store.rs; README, ADR 0002 decision 7; tests/team_log.rs
+TL7	satisfied	docs/examples/team-policy.json; full-bypass explained in README "Team policy"; tests/team_kinds.rs
+TL8	satisfied	scripts/join.sh --delegation-policy (copy 0600, local only); README; checked with bash -n (not executed)
+TL9	satisfied	review and task result schemas checked by the hub on done: src/hub/mod.rs; README; tests/team_kinds.rs
+TL10	satisfied	Contract ref (https, <=300, ASCII graphic) in hub, notice and log: src/proto.rs, src/hub/mod.rs, src/daemon/deleg.rs; tests/team_kinds.rs
+TL11	satisfied	README and docs/design.md "Which channel"
+TL12	satisfied	policy still read only from the local file; no permission relay; updater never touches the policy (ADR 0003 decision 8); tests/auto_update.rs
+TL13	satisfied	team-log and update capabilities both ways; old frames and fake old hub: tests/team_compat.rs (not run against a real old binary)
+S2	satisfied	AU1 to AU7 below; ADR 0003 with amendment; slice team-log-v1 amendments 1 to 3
+AU1	satisfied	--target-file, Welcome.target and Down::Target to update peers only: src/hub/mod.rs; tests/auto_update.rs
+AU2	satisfied	--auto-update SRC (join.sh default, --no-auto-update), fetch, origin/main ancestry, detached checkout, build, version check, swap keeping .prev, exit 75: src/update.rs, src/daemon/updater.rs; tests/auto_update.rs (exit 75 and launchd/systemd restart not exercised)
+AU3	satisfied	failures keep the binary and show in status; one attempt per 5 min; no repeat of a failed target; idle wait for in-flight tool calls; dirty clone refused: src/daemon/updater.rs; tests/auto_update.rs
+AU4	satisfied	older target on main installs as a downgrade, bounded by MIN_SAFE_COMMIT, --update-floor and the ratchet; wormhole update --revert/--resume: src/update.rs, src/main.rs; tests/auto_update_floor.rs, tests/auto_update_ratchet.rs, tests/team_review_fixes.rs
+AU5	satisfied	updater never reads or writes the policy, .revoked or audit files; ADR 0003 decision 8, README; tests/auto_update.rs
+AU6	satisfied	DaemonStatus, Snapshot.daemons, wormhole_who Daemons:, page Daemons table and daemon.downgrade events: src/hub/mod.rs, src/hub/page.rs, src/daemon/hooks.rs; tests/auto_update.rs, tests/auto_update_floor.rs
+AU7	satisfied	ADR 0003 "Trust concentration", README "Auto-update", SECURITY.md scope

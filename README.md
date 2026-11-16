@@ -87,6 +87,28 @@ A command in a contract runs without a prompt only if it matches a contract patt
 
 Bypass levels remove your prompts for the contract's life: read the risks in [docs/adr/0001-delegation.md](docs/adr/0001-delegation.md) and [SECURITY.md](SECURITY.md) before granting one.
 
+## Which channel
+
+wormhole is the live agent-to-agent channel: tasks (`wormhole_delegate`), review requests, answers and status go through it, and its team log (`wormhole_log`) is the shared record every agent in the repository can read. GitHub stays for what people read and decide: specs, pull requests, issues for humans and decisions. Link the two with a delegation's `ref` (an issue or PR URL) when a durable record helps.
+
+## Team log
+
+Every message, delegation request, answer and result sent through a current daemon is kept, with its text, in the hub's team log for the sender's repository. Any session in that repository reads it with `wormhole_log` (filters: `since`, `session`, `user`, `kind` = `msg|request|ack|result`, `task_id`, `limit` up to 200). Each entry is wrapped as relayed information, and the daemon writes who it is addressed to in front of it: "Addressed to this session", "Addressed to everyone", or "For session X, not for you: information only". Only the addressee may act on it, within its own user's instructions and local policy; a log copy of a delegation never grants anything. Anything an agent must keep from teammates does not belong in wormhole: the log is readable by every enrolled machine that works in (or claims) the repository. The activity page still shows no message or task text. The hub keeps at most `--log-max-entries` entries (default 10,000) and none older than `--log-max-age-days` (default 30; 0 for no age limit). Messages sent from daemons older than this feature are not logged. Decisions: [docs/adr/0002-team-log.md](docs/adr/0002-team-log.md).
+
+Two task kinds have result schemas the hub checks on `done`: `review` (`fields.verdict` = `approve|request-changes|comment`, `fields.findings` = `[{"severity": "critical|high|medium|low|info", "location": "src/a.rs:12", "text": "..."}]`) and `task` (`fields.artifacts` = a list of paths, commits or URLs).
+
+## Team policy
+
+`docs/examples/team-policy.json` gives named teammates `full-bypass` on one repository, with the denylist module on and no safe programs. Replace the placeholder logins (their Tailscale logins) and the repository id, then opt in on your own machine:
+
+    scripts/join.sh hub.your-tailnet.ts.net:7420 ~/code/your-repo --delegation-policy team-policy.json
+
+`full-bypass` means: while a contract from a named teammate is open (it needs a task id and an exit condition, and ends on its result, TTL, step budget or `wormhole delegation revoke`), their agent's Bash commands, edits and reads in that repository run on your machine without a permission prompt. Bash is not bounded by any parser at this level; the denylist is a speed bump, not a guarantee. Treat it as handing that teammate your keyboard for the contract's life. Your own Claude Code deny and ask rules and plan mode still win. A policy is only ever read from your machine's own file: wormhole has no way to push a policy to another machine or approve another machine's tool calls, and no update changes it.
+
+## Auto-update
+
+`join.sh` starts the daemon with `--auto-update <this clone>` unless you pass `--no-auto-update`. The hub operator writes a commit SHA from this repository's `main` into the hub's `--target-file`; each auto-updating daemon fetches its clone, refuses a commit that is not on `origin/main` or a clone with local changes, builds with `cargo build --release --locked`, keeps the previous binary as `wormhole.prev`, swaps the new one in when no tool call is running and restarts through its LaunchAgent or systemd unit. A failure keeps the old binary and shows on `wormhole_who` and the activity page, with each daemon's commit and target. Rollback is bounded: a target below the binary's built-in `MIN_SAFE_COMMIT`, below any minimum recorded in `~/.wormhole/bin/wormhole.floors` by an earlier build, or below a local `--update-floor SHA` is refused; a move to a commit that is not a descendant of the running one is a downgrade and is marked `DOWNGRADE` in `wormhole_who` and on the page. Merge releases with `--no-ff` so `MIN_SAFE_COMMIT` stays on `main`. To go back on one machine: `wormhole update --revert`, then restart the daemon's service; it stops following the hub until `wormhole update --resume`. The updater checks out the target in the clone `join.sh` ran from, so keep a separate clone for your own work on wormhole. Whoever controls this repository's `main` and the hub's target file can run code on every auto-updating machine: keep `main` protected and opt out if you do not accept that. Decisions: [docs/adr/0003-auto-update.md](docs/adr/0003-auto-update.md).
+
 ## Scope
 
 - Honest, enrolled devices on one private network (Tailscale), and their Claude Code sessions. Crashes, restarts and partitions are tolerated; dishonest participants are not. See [the fault model](docs/design.md#fault-model).

@@ -537,6 +537,9 @@ async fn hub_rejects_unidentified_and_browser_connections() {
         hostnames: vec![],
         allow_users: vec![],
         tls: None,
+        log_max_entries: wormhole::hub::DEFAULT_LOG_MAX_ENTRIES,
+        log_max_age_secs: wormhole::hub::DEFAULT_LOG_MAX_AGE_SECS,
+        target_file: None,
     })
     .await;
     assert!(r.is_err());
@@ -1013,6 +1016,9 @@ async fn daemons_follow_a_hub_whose_log_was_reset() {
         hostnames: vec![],
         allow_users: vec![],
         tls: None,
+        log_max_entries: wormhole::hub::DEFAULT_LOG_MAX_ENTRIES,
+        log_max_age_secs: wormhole::hub::DEFAULT_LOG_MAX_AGE_SECS,
+        target_file: None,
     })
     .await
     .unwrap();

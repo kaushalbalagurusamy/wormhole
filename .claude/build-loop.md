@@ -4,7 +4,7 @@ Read by the `/sf` build loop before any implementation work in this repository.
 
 | Item | Where |
 |---|---|
-| Source requirements (verbatim) | `docs/requirements/delegation.md` |
+| Source requirements (verbatim) | `docs/requirements/delegation.md`, `docs/requirements/team-log.md` |
 | Requirements ledger | `docs/requirements/delegation-ledger.tsv` (one row per source line: `satisfied`, `partial`, `blocked`, `unserved`, with the artifact or the dependency) |
 | ADRs | `docs/adr/` (numbered from 0001) |
 | Slices | `docs/slices/<id>/` (spec, research brief, review notes) |

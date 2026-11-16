@@ -13,3 +13,7 @@ pub mod proto;
 pub mod repo;
 pub mod text;
 pub mod tls;
+pub mod update;
+
+/// The commit this binary was built from, or `unknown` outside a git checkout.
+pub const COMMIT: &str = env!("WORMHOLE_COMMIT");
