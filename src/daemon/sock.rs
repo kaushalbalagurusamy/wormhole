@@ -520,6 +520,7 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
             Ok(super::log::render(
                 &entries,
                 v["more"].as_bool().unwrap_or(false),
+                args["since"].as_u64().is_some(),
                 session,
                 &user,
             ))
