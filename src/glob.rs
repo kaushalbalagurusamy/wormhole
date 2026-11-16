@@ -53,6 +53,12 @@ fn match_segment(p: &[u8], s: &[u8]) -> bool {
     p[pi..].iter().all(|&c| c == b'*')
 }
 
+/// Does `s` match `pattern`, where `*` stands for any characters, `/` included? For command
+/// patterns and task ids, which are not paths.
+pub fn wildcard(pattern: &str, s: &str) -> bool {
+    match_segment(pattern.as_bytes(), s.as_bytes())
+}
+
 /// Patterns the hub accepts: at most four `**` segments.
 pub fn valid(pattern: &str) -> bool {
     pattern.split('/').filter(|s| *s == "**").count() <= 4
@@ -162,6 +168,16 @@ mod tests {
         assert!(matches("src/*.rs", "src/lib.rs"));
         assert!(!matches("src/*.rs", "src/a/lib.rs"));
         assert!(matches("*", "README.md"));
+    }
+
+    #[test]
+    fn wildcard_crosses_slashes() {
+        assert!(wildcard("cargo test*", "cargo test --lib"));
+        assert!(wildcard("T-*", "T-12"));
+        assert!(wildcard("*", ""));
+        assert!(wildcard("a*c", "a/b/c"));
+        assert!(!wildcard("cargo test", "cargo test --lib"));
+        assert!(!wildcard("T-*", "X-1"));
     }
 
     #[test]

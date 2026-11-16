@@ -57,6 +57,36 @@ The activity page is at `http://hub.your-tailnet.ts.net:7420/` (or `https://` wi
 
 For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address, and a browser cannot open the activity page in this mode because it cannot send the identity header.
 
+## Delegation
+
+A session can hand another session a task inside a contract (paths, exact command patterns, an exit condition) with `wormhole_delegate`; the receiver posts the outcome with `wormhole_result`. The receiving owner decides, locally, how much a sender may do. Without a policy file the daemon never receives delegated tasks, and nothing changes from before.
+
+    wormhole daemon --hub ws://hub.your-tailnet.ts.net:7420/ws --delegation-policy ~/.wormhole/delegation.json
+
+A policy names senders exactly and gives each a level: `off`, `inform` (information only, as any message), `scoped-instruction` (the task is treated as your instruction inside its paths; every prompt stays), `scoped-bypass` (edits inside the paths and the listed exact command patterns run without a prompt until the contract ends) or `full-bypass` (anything except the denylist). The file is re-read on every request.
+
+    {
+      "grants": [
+        {
+          "from": ["alice@example.com"],
+          "repos": ["github.com/owner/repo"],
+          "level": "scoped-bypass",
+          "paths": ["src/**"],
+          "kinds": ["tests", "fix"],
+          "commands": ["cargo test"],
+          "max_ttl_secs": 3600,
+          "max_steps": 200
+        }
+      ]
+    }
+
+A command in a contract runs without a prompt only if it matches a contract pattern word for word, its program is one you listed in `"safe_programs"`, and every operand is a path inside the repository. Bash at `scoped-bypass` is off until you list programs. `DEFAULT_SAFE_PROGRAMS` is empty, because every program people reach for has some mode that reads or runs more than its operands name (a recursive search, a file of names, an exec option). `docs/examples/delegation-policy.json` is a valid policy listing seventeen read-only candidates (`ls cat head tail wc grep diff stat pwd echo true false cut tr basename dirname realpath`) with placeholder senders; copy only what you have checked. `git` and `cargo` are listed the same way and are usable only with a literal subcommand and a short option list (`git status` while the denylist is on, because `git log`, `git diff` and `git show` can print denied files such as `secrets/x`; those only with the denylist off; `cargo test|check|build`; a `+toolchain` token is refused). `cargo test` and `cargo build` still run project code. The options you write into a grant's patterns are your responsibility: for example `diff -l` runs `pr`, and some `grep` builds have `--filter` and `--pager`; a `"*"` grant lets a contract carry no option at all. `git log`, `git diff` and `git show` are available only when the denylist is off and the daemon has no `--protected` globs. A command containing `=` anywhere gets no allow at `scoped-bypass` (zsh expands `=cmd`), a path the text cleaner would rewrite or a blanked or doubled path key gets no allow, a Bash run in the background gets no allow, contract expiry uses wall-clock time and is checked again when a step is spent, and the acceptance is written to the audit log before it is acknowledged. Listing `cargo` in `safe_programs` makes that contract equivalent to `full-bypass`: the agent can run code it wrote in scope (`cargo test`, and `cargo check` through macros). At `full-bypass`, Bash is not bounded even with the denylist on (for example `cat ./.env`, or `cp` into `.git/hooks`). At `scoped-bypass` every word of a command and of a pattern may contain only `[A-Za-z0-9._/+@,-]` (a final whole `*` in a pattern excepted), because `^x` and a mid-word `#` are glob operators in some shells and `cat .en#v` could read `.env`. Programs you add are your responsibility. A directory operand is allowed only for `ls`, `stat`, `realpath`, `basename`, `dirname` and `git status` (a recursive read could print denied files), and tightening the policy shrinks open contracts at their next bypass answer. Anything else prompts as usual. `full-bypass` Bash is not bounded by any parser: it is a trust decision about the sender. A denylist is on by default (force pushes, deploys, publishing, secrets paths and similar) as defence in depth; every bypass answer is checked against it again per tool call. Each decision, bypass answer and contract close is appended to `delegation.json.audit.jsonl` next to the policy. To stop everything at once:
+
+    wormhole delegation revoke --policy ~/.wormhole/delegation.json
+    wormhole delegation resume --policy ~/.wormhole/delegation.json
+
+Bypass levels remove your prompts for the contract's life: read the risks in [docs/adr/0001-delegation.md](docs/adr/0001-delegation.md) and [SECURITY.md](SECURITY.md) before granting one.
+
 ## Scope
 
 - Honest, enrolled devices on one private network (Tailscale), and their Claude Code sessions. Crashes, restarts and partitions are tolerated; dishonest participants are not. See [the fault model](docs/design.md#fault-model).

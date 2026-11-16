@@ -1,6 +1,7 @@
 //! The daemon: one per machine. Keeps one WebSocket to the hub and serves local sessions
 //! over a Unix socket and HTTP hooks on loopback.
 
+mod deleg;
 mod hooks;
 mod shrink;
 pub use hooks::{STALE_DAEMON, STALE_HUB};
@@ -40,6 +41,9 @@ pub struct DaemonConfig {
     /// PEM CA certificates trusted for a wss:// hub in addition to the system roots, for a
     /// private CA or tests. Certificates are always verified.
     pub extra_roots: Vec<PathBuf>,
+    /// Delegation policy file. With one the daemon advertises the delegation capability and
+    /// decides delegated tasks from it; without, delegated tasks never reach it.
+    pub delegation_policy: Option<PathBuf>,
 }
 
 impl DaemonConfig {
@@ -54,6 +58,7 @@ impl DaemonConfig {
             hub_deadline: Duration::from_millis(800),
             reconnect_min: Duration::from_millis(250),
             extra_roots: Vec::new(),
+            delegation_policy: None,
         }
     }
 }
@@ -99,6 +104,8 @@ pub(crate) struct Link {
     next_id: AtomicU64,
     pub generation: AtomicU64,
     pub connected: AtomicBool,
+    /// The hub's `Welcome` on the current connection listed the delegation capability.
+    pub delegation: AtomicBool,
 }
 
 pub(crate) struct Daemon {
@@ -107,11 +114,18 @@ pub(crate) struct Daemon {
     pub link: Link,
     pub http_port: AtomicU64,
     pub hook_token: String,
+    /// Open delegation contracts by session. In memory only, so a restart closes them.
+    pub deleg: Mutex<HashMap<String, Vec<deleg::Open>>>,
     /// Verified TLS client config for a wss:// hub.
     tls_client: Option<Arc<rustls::ClientConfig>>,
 }
 
 impl Daemon {
+    /// Did the hub's `Welcome` on the current connection list the delegation capability?
+    pub(crate) fn hub_delegates(&self) -> bool {
+        self.link.delegation.load(Ordering::SeqCst)
+    }
+
     /// One request to the hub, answered by `deadline` or `Unavailable`. If the hub has
     /// forgotten the session (it timed out while idle), register it again and retry once.
     pub async fn request(&self, req: Request, deadline: Instant) -> Result<Value, HubError> {
@@ -209,7 +223,10 @@ fn request_session(r: &Request) -> Option<String> {
         | LeaseRelease { session, .. }
         | LeaseRequestTransfer { session, .. }
         | LeaseGrant { session, .. }
-        | LeaseDeny { session, .. } => Some(session.clone()),
+        | LeaseDeny { session, .. }
+        | Delegate { session, .. }
+        | DelegateAck { session, .. }
+        | DelegateResult { session, .. } => Some(session.clone()),
     }
 }
 
@@ -238,6 +255,9 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         return Err("the hook HTTP endpoint must listen on loopback".into());
     }
     let tls_client = hub_transport(&cfg)?;
+    if let Some(p) = &cfg.delegation_policy {
+        crate::delegation::Policy::load(p).map_err(|e| format!("delegation policy: {e}"))?;
+    }
     let unix = sock::bind(&cfg.socket_path)?;
     let hook_token = sock::hook_token(
         cfg.socket_path
@@ -250,6 +270,7 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         link: Link::default(),
         http_port: AtomicU64::new(0),
         hook_token: hook_token.clone(),
+        deleg: Mutex::new(HashMap::new()),
         tls_client,
     });
     let http = tokio::net::TcpListener::bind(cfg.http_listen)
@@ -257,12 +278,15 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         .map_err(|e| format!("bind {}: {e}", cfg.http_listen))?;
     let http_addr = http.local_addr().map_err(|e| e.to_string())?;
     d.http_port.store(http_addr.port() as u64, Ordering::SeqCst);
-    let tasks = vec![
+    let mut tasks = vec![
         tokio::spawn(link_loop(d.clone())),
         tokio::spawn(heartbeat(d.clone())),
         tokio::spawn(sock::serve(d.clone(), unix)),
         tokio::spawn(hooks::serve_http(d.clone(), http)),
     ];
+    if cfg.delegation_policy.is_some() {
+        tasks.push(tokio::spawn(deleg::sweep(d.clone())));
+    }
     Ok(DaemonHandle {
         http_addr,
         socket_path: cfg.socket_path,
@@ -326,13 +350,21 @@ async fn connect(d: &Daemon) -> Result<Ws, String> {
 async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     let (mut sink, mut stream) = ws.split();
     let from = d.st.lock().unwrap().last_seq;
-    let resume = serde_json::to_string(&Up::Resume { from }).unwrap_or_default();
+    let caps = if d.cfg.delegation_policy.is_some() {
+        vec![CAP_DELEGATION.to_string()]
+    } else {
+        vec![]
+    };
+    let resume = serde_json::to_string(&Up::Resume { from, caps }).unwrap_or_default();
     if sink.send(Message::text(resume)).await.is_err() {
         return false;
     }
     match tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
         Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Down>(&t) {
-            Ok(Down::Welcome { head, .. }) => {
+            Ok(Down::Welcome { head, caps, .. }) => {
+                d.link
+                    .delegation
+                    .store(caps.iter().any(|c| c == CAP_DELEGATION), Ordering::SeqCst);
                 // A hub log behind our cursor (database reset, or commits lost on power
                 // failure) would otherwise make us drop every new event as already seen.
                 let mut st = d.st.lock().unwrap();
@@ -376,13 +408,16 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
                 match frame {
                     Some(Ok(Message::Text(t))) => match serde_json::from_str::<Down>(&t) {
                         Ok(Down::Event { event }) => {
-                            let ack = {
+                            let (fresh, ack) = {
                                 let mut st = d.st.lock().unwrap();
-                                st.apply(&event);
-                                st.ack_point()
+                                (st.apply(&event), st.ack_point())
                             };
                             if let Some(seq) = ack {
                                 d.send_up(Up::Ack { seq });
+                            }
+                            // Answering needs the hub's reply, which this loop delivers.
+                            if fresh && event.kind == "delegation.request" {
+                                tokio::spawn(deleg::on_request(d.clone(), event));
                             }
                         }
                         Ok(Down::Resp { id, ok, data, error }) => {
@@ -404,6 +439,7 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     }
     rehello.abort();
     d.link.connected.store(false, Ordering::SeqCst);
+    d.link.delegation.store(false, Ordering::SeqCst);
     *d.link.out.lock().unwrap() = None;
     d.link.pending.lock().unwrap().clear();
     true

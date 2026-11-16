@@ -1,0 +1,18 @@
+{
+  "safe_programs": [
+    "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo",
+    "true", "false", "cut", "tr", "basename", "dirname", "realpath"
+  ],
+  "grants": [
+    {
+      "from": ["alice@example.com"],
+      "repos": ["github.com/owner/repo"],
+      "level": "scoped-bypass",
+      "paths": ["src/**"],
+      "kinds": ["tests", "fix"],
+      "commands": ["ls *", "cat *", "grep *", "wc *", "pwd"],
+      "max_ttl_secs": 3600,
+      "max_steps": 200
+    }
+  ]
+}

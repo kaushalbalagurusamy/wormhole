@@ -64,6 +64,15 @@ enum Cmd {
         /// certificate is always verified. Repeatable.
         #[arg(long)]
         tls_ca: Vec<PathBuf>,
+        /// Delegation policy (JSON): who may hand this machine's sessions tasks, and how much
+        /// each may do. Without it the daemon never receives delegated tasks.
+        #[arg(long)]
+        delegation_policy: Option<PathBuf>,
+    },
+    /// The delegation kill switch.
+    Delegation {
+        #[command(subcommand)]
+        cmd: DelegationCmd,
     },
     /// Stdio MCP server for one Claude Code session (tools and channel push).
     McpChannel {
@@ -83,6 +92,23 @@ enum Cmd {
         port: u16,
         #[arg(long)]
         socket: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum DelegationCmd {
+    /// Refuse every delegated task and close the open contracts until `resume`.
+    Revoke {
+        #[arg(long)]
+        policy: PathBuf,
+        /// Daemon socket, to close contracts at once instead of at their next check.
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Lift the kill switch.
+    Resume {
+        #[arg(long)]
+        policy: PathBuf,
     },
 }
 
@@ -144,6 +170,7 @@ async fn main() {
             protected,
             lease_ttl_secs,
             tls_ca,
+            delegation_policy,
         } => {
             let mut c = daemon::DaemonConfig::new(hub, socket.unwrap_or_else(default_socket));
             c.http_listen = http;
@@ -151,6 +178,7 @@ async fn main() {
             c.protected = protected;
             c.lease_ttl = Duration::from_secs(lease_ttl_secs);
             c.extra_roots = tls_ca;
+            c.delegation_policy = delegation_policy;
             match daemon::start(c).await {
                 Ok(d) => {
                     eprintln!(
@@ -165,6 +193,27 @@ async fn main() {
                 Err(e) => Err(e),
             }
         }
+        Cmd::Delegation {
+            cmd: DelegationCmd::Revoke { policy, socket },
+        } => match wormhole::delegation::revoke(&policy) {
+            Err(e) => Err(e),
+            Ok(()) => {
+                eprintln!("wormhole: kill switch set; delegated tasks are refused until `wormhole delegation resume`");
+                // Best effort: without it the daemon closes contracts at its next check.
+                let socket = socket.unwrap_or_else(default_socket);
+                let closed = match wormhole::local::LocalClient::connect(&socket).await {
+                    Ok(mut c) => c.call("revoke", serde_json::json!({})).await.is_ok(),
+                    Err(_) => false,
+                };
+                if !closed {
+                    eprintln!("wormhole: the daemon was not told; it will close open contracts when it next checks");
+                }
+                Ok(())
+            }
+        },
+        Cmd::Delegation {
+            cmd: DelegationCmd::Resume { policy },
+        } => wormhole::delegation::resume(&policy),
         Cmd::McpChannel { socket } => mcp::serve(socket.unwrap_or_else(default_socket)).await,
         Cmd::Hook { socket } => {
             let mut input = String::new();

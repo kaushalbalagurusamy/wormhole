@@ -1,0 +1,23 @@
+id	status	artifact_or_dependency
+G1	satisfied	request/result kinds with contract boundaries and leases: src/proto.rs, src/hub/mod.rs, src/daemon/deleg.rs; end to end in tests/delegation.rs
+C1	satisfied	local policy file on the receiving daemon (--delegation-policy), default off (no capability without it): src/delegation.rs, src/daemon/mod.rs; tests/delegation_compat.rs
+C2	satisfied	Request::Delegate, DelegateAck, DelegateResult and delegation.* events: src/proto.rs, src/hub/mod.rs
+C3	satisfied	boundary = paths, task id, kind (Policy::evaluate); inside: daemon-written acceptance; outside: information only: src/delegation.rs, src/daemon/deleg.rs; tests/delegation.rs, tests/delegation_policy.rs
+C4	satisfied	hub obtains leases atomically at acceptance, hands off the sender's, releases on result: src/hub/store.rs; tests/delegation.rs
+C5	satisfied	ack and result notices to the sender; Delegations section in wormhole_who; wormhole_delegate and wormhole_result tools: src/daemon/state.rs, src/daemon/hooks.rs, src/mcp.rs
+H1	superseded	replaced by R1, R3, R4 (owner revision 2026-11-15)
+H2	superseded	replaced by R2 (owner revision 2026-11-15)
+H3	satisfied	explicit senders (no wildcard), narrow exact command patterns, wrapping kept on every notice: src/delegation.rs, src/daemon/deleg.rs; ADR 0001 risk table
+H4	satisfied	capability flags both ways, gated sends, hub refuses sessions without the capability; frozen old protocol and fake old hub in tests/delegation_compat.rs (not run against a real old binary)
+R0	satisfied	five independent levels in local config including full-bypass: src/delegation.rs; docs/adr/0001-delegation.md
+R1	satisfied	off, inform, scoped-instruction, scoped-bypass, full-bypass; bypass as a PreToolUse allow inside an open contract: src/daemon/deleg.rs; tests/delegation*.rs
+R2	satisfied	denylist module on by default, editable, can be switched off; documented as defence in depth: src/delegation.rs; tests/delegation_policy.rs
+R3	satisfied	Contract carries spec, paths, commands, exit, ttl, steps, result_fields: src/proto.rs; hub validates result fields
+R4	satisfied	contract closes on result, TTL (wall clock), steps, kill switch, policy tightening; restart never reopens: src/daemon/deleg.rs; tests/delegation.rs, tests/delegation_amend6.rs
+R5	satisfied	level only from the local file and hub-stamped sender; re-read per call: src/daemon/deleg.rs
+R6	satisfied	JSONL audit log, mode 0600, fails closed for acceptance and allow: src/delegation.rs, src/daemon/deleg.rs; tests/delegation_amend5.rs
+R7	satisfied	wormhole delegation revoke / resume: src/main.rs, src/delegation.rs; tests/delegation.rs
+R8	satisfied	preamble, tag naming the sender, cleaning; limits before relayed text: src/daemon/deleg.rs
+R9	satisfied	recorded as future work in ADR 0001 decision 12 (does not fit cleanly), as R9 allows
+R10	satisfied	docs/design.md Trust and safety with the per-level risk table; ADR 0001
+R11	satisfied	tests first (commits 9237beb onward), blind implementer in a worktree without tests, separate runner, adversarial reviews; branch only, pushed, not merged

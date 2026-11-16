@@ -110,22 +110,35 @@ fn from_attrs(e: &Event) -> Vec<(String, String)> {
     ]
 }
 
-fn notice(e: &Event, tag: &str, kind: &str, body: &str, msg: bool) -> Notice {
+pub(crate) fn notice(e: &Event, tag: &str, kind: &str, body: &str, msg: bool) -> Notice {
+    notice_from(e.seq, e.ts, from_attrs(e), tag, kind, body, msg)
+}
+
+/// A notice with explicit attributes, for ones the daemon raises itself.
+pub(crate) fn notice_from(
+    seq: u64,
+    ts: u64,
+    attrs: Vec<(String, String)>,
+    tag: &str,
+    kind: &str,
+    body: &str,
+    msg: bool,
+) -> Notice {
     let mut meta = vec![("kind".to_string(), kind.to_string())];
-    meta.extend(from_attrs(e));
+    meta.extend(attrs);
     let attrs: Vec<(&str, &str)> = meta[1..]
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
         .collect();
     Notice {
-        seq: e.seq,
-        ts: e.ts,
+        seq,
+        ts,
         block: text::block(tag, &attrs, body),
         meta: meta
             .iter()
             .map(|(k, v)| (k.clone(), text::attr(v)))
             .collect(),
-        msg_seq: msg.then_some(e.seq),
+        msg_seq: msg.then_some(seq),
     }
 }
 
@@ -246,6 +259,35 @@ impl State {
                         );
                         sess.notify(notice(e, "wormhole-lease", "lease_granted", &body, false));
                     }
+                }
+            }
+            // Answers to a task this machine's session handed out. Kept until delivered, like a
+            // message, because they say whether the work was accepted and under what limits.
+            "delegation.ack" | "delegation.result" => {
+                if let Some(sess) = self.sessions.get_mut(&s("to")) {
+                    let ack = e.kind == "delegation.ack";
+                    let head = format!(
+                        "Delegation request {} (task {}) {} session {from} ({user}@{machine}): status: {}",
+                        d["request"],
+                        p("task_id"),
+                        if ack { "answered by" } else { "result from" },
+                        p("status")
+                    );
+                    let body = if ack {
+                        format!("{head}; level: {}; reason: {}", p("level"), p("reason"))
+                    } else {
+                        format!(
+                            "{head}; summary: {}; fields: {}",
+                            text::plain(&s("summary"), 600),
+                            text::plain(&d["fields"].to_string(), 500)
+                        )
+                    };
+                    let kind = if ack {
+                        "delegation_ack"
+                    } else {
+                        "delegation_result"
+                    };
+                    sess.notify(notice(e, "wormhole-delegation", kind, &body, true));
                 }
             }
             "lease.denied" => {
