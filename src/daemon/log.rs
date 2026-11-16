@@ -107,8 +107,14 @@ fn detail_line(e: &LogEntry) -> String {
 /// One `wormhole-log` block.
 fn block(e: &LogEntry, session: &str, user: &str) -> String {
     let who = for_you(e, session, user);
-    let quoted: Vec<String> = text::clean(&e.text, TEXT_CHARS)
-        .split('\n')
+    // Raw text, quoted line by line; the whole body is cleaned once below, so the quote
+    // marks and every relayed character are escaped exactly once.
+    let mut raw: String = e.text.chars().take(TEXT_CHARS).collect();
+    if e.text.chars().count() > TEXT_CHARS {
+        raw.push_str("…[truncated]");
+    }
+    let quoted: Vec<String> = raw
+        .split(['\n', '\r', '\u{85}', '\u{2028}', '\u{2029}'])
         .map(|l| format!("> {l}"))
         .collect();
     let seq = e.seq.to_string();
@@ -125,11 +131,15 @@ fn block(e: &LogEntry, session: &str, user: &str) -> String {
     for (k, v) in attrs {
         s.push_str(&format!(" {k}=\"{}\"", text::attr(v)));
     }
-    s.push_str(&format!(
-        ">\n{}\n{}\n{}\n</wormhole-log>",
-        text::clean(&first_line(e, who), usize::MAX / 8),
-        text::clean(&detail_line(e), usize::MAX / 8),
+    let body = format!(
+        "{}\n{}\n{}",
+        first_line(e, who),
+        detail_line(e),
         quoted.join("\n")
+    );
+    s.push_str(&format!(
+        ">\n{}\n</wormhole-log>",
+        text::clean(&body, usize::MAX / 8)
     ));
     s
 }
@@ -210,7 +220,8 @@ mod tests {
             .lines()
             .all(|l| !l.starts_with("</wormhole-log>") || l == "</wormhole-log>"));
         assert_eq!(out.matches("</wormhole-log>").count(), 1);
-        assert!(out.contains("> [wormhole log] Addressed to this session."));
+        assert!(out.contains("\n&gt; [wormhole log] Addressed to this session."));
+        assert!(!out.contains("&amp;"));
         assert!(!out.contains("\n[wormhole log] Addressed to this session."));
     }
 }
