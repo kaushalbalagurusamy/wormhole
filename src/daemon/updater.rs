@@ -80,6 +80,15 @@ impl Daemon {
         self.upd.lock().unwrap().target = t;
     }
 
+    /// The commit this daemon counts as running.
+    fn running(&self) -> String {
+        self.cfg
+            .auto_update
+            .as_ref()
+            .and_then(|u| u.running.clone())
+            .unwrap_or_else(|| crate::COMMIT.to_string())
+    }
+
     fn target(&self) -> String {
         self.upd.lock().unwrap().target.clone()
     }
@@ -124,7 +133,7 @@ impl Daemon {
         self.send_up(Up::Req {
             id: u64::MAX,
             req: Request::DaemonStatus {
-                commit: crate::COMMIT.to_string(),
+                commit: self.running(),
                 target,
                 status,
                 downgrade,
@@ -147,7 +156,7 @@ pub(crate) async fn run(d: Arc<Daemon>) {
             d.set_status("disabled");
             continue;
         };
-        if target.is_empty() || target == crate::COMMIT {
+        if target.is_empty() || target == d.running() {
             d.upd.lock().unwrap().downgrade = false;
             d.set_status("current");
             continue;
@@ -176,9 +185,14 @@ pub(crate) async fn run(d: Arc<Daemon>) {
             {
                 let mut u = d.upd.lock().unwrap();
                 u.last_attempt = Some(Instant::now());
-                u.last_target = Some(target.clone());
             }
             attempt(&d, &cfg, &target).await;
+            // Only a refusal or a failure marks the target as not to be tried again; an
+            // attempt cut short by a new target does not.
+            let mut u = d.upd.lock().unwrap();
+            if u.status.starts_with("refused:") || u.status.starts_with("failed:") {
+                u.last_target = Some(target.clone());
+            }
         }
     }
 }
@@ -223,7 +237,12 @@ async fn attempt(d: &Arc<Daemon>, cfg: &UpdateConfig, target: &str) {
     if !ok(&update::git(&cfg.src, &["cat-file", "-e", &commit], GIT_TIMEOUT).await)
         || !ok(&update::git(
             &cfg.src,
-            &["merge-base", "--is-ancestor", target, "origin/main"],
+            &[
+                "merge-base",
+                "--is-ancestor",
+                target,
+                "refs/remotes/origin/main",
+            ],
             GIT_TIMEOUT,
         )
         .await)
@@ -244,7 +263,7 @@ async fn attempt(d: &Arc<Daemon>, cfg: &UpdateConfig, target: &str) {
         }
     }
     // A target that does not contain the running commit is a downgrade; say so from here on.
-    if !descends(&cfg.src, crate::COMMIT, target).await {
+    if !descends(&cfg.src, &d.running(), target).await {
         d.upd.lock().unwrap().downgrade = true;
     }
     if !ok(&update::git(
