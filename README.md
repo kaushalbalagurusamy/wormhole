@@ -57,6 +57,36 @@ The activity page is at `http://hub.your-tailnet.ts.net:7420/` (or `https://` wi
 
 For a single machine without Tailscale, run the hub with `--identity static` on 127.0.0.1 and pass `--static-identity you@this-machine` to the daemon. Static identity is refused on any other address, and a browser cannot open the activity page in this mode because it cannot send the identity header.
 
+## Delegation
+
+A session can hand another session a task inside a contract (paths, command prefixes, an exit condition) with `wormhole_delegate`; the receiver posts the outcome with `wormhole_result`. The receiving owner decides, locally, how much a sender may do. Without a policy file the daemon never receives delegated tasks, and nothing changes from before.
+
+    wormhole daemon --hub ws://hub.your-tailnet.ts.net:7420/ws --delegation-policy ~/.wormhole/delegation.json
+
+A policy names senders exactly and gives each a level: `off`, `inform` (information only, as any message), `scoped-instruction` (the task is treated as your instruction inside its paths; every prompt stays), `scoped-bypass` (edits inside the paths and the listed command prefixes run without a prompt until the contract ends) or `full-bypass` (anything except the denylist). The file is re-read on every request.
+
+    {
+      "grants": [
+        {
+          "from": ["alice@example.com"],
+          "repos": ["github.com/owner/repo"],
+          "level": "scoped-bypass",
+          "paths": ["src/**"],
+          "kinds": ["tests", "fix"],
+          "commands": ["cargo test"],
+          "max_ttl_secs": 3600,
+          "max_steps": 200
+        }
+      ]
+    }
+
+A denylist is on by default (force pushes, deploys, publishing, secrets paths and similar); every bypass answer is checked against it again per tool call. Each decision, bypass answer and contract close is appended to `delegation.json.audit.jsonl` next to the policy. To stop everything at once:
+
+    wormhole delegation revoke --policy ~/.wormhole/delegation.json
+    wormhole delegation resume --policy ~/.wormhole/delegation.json
+
+Bypass levels remove your prompts for the contract's life: read the risks in [docs/adr/0001-delegation.md](docs/adr/0001-delegation.md) and [SECURITY.md](SECURITY.md) before granting one.
+
 ## Scope
 
 - Honest, enrolled devices on one private network (Tailscale), and their Claude Code sessions. Crashes, restarts and partitions are tolerated; dishonest participants are not. See [the fault model](docs/design.md#fault-model).
