@@ -2,6 +2,12 @@
 
 Status: first slice built and tested on one machine (2026-11-14). Numbers marked "estimate" are not measured. Localhost measurements are under "Measured"; cross-machine numbers are not yet measured.
 
+## Which channel
+
+wormhole carries live agent-to-agent work: tasks, review requests, answers and status, with the team log as the
+shared record for the repository. GitHub carries what people read and decide: specs, pull requests and decisions.
+A delegation's optional `ref` links the two.
+
 ## Problem
 
 Agents in separate sessions act on a stale view of the repo. A 2026 study of independent coding agents with no coordinator (ParallACT, see related-work.md) found that on conflicting tasks Claude Code's pass rate fell from 62% to 16%, and that only 21–23% of messages between agents were read before the recipient's first edit. When agents knew each other's tasks and agreed who owned the contested code, conflicts fell from 67% to 18%. The failure is timing, so delivery has to happen at edit time, not in an inbox the agent might check later.
@@ -46,7 +52,8 @@ All messages are JSON and carry a hub-assigned sequence number. Each daemon rece
 | `blob.offer`, `blob.fetch` | content hash, size, name | file passing |
 | `patch.propose` | base ref, diff, target session | proposing a change to another session |
 | `watch`, `unwatch` | session id, detail level | supervision subscription |
-| `delegation.request`, `delegation.ack`, `delegation.result` | contract (paths, exact command patterns, exit condition, text), status, level, summary | delegating work (built; see "Delegation") |
+| `delegation.request`, `delegation.ack`, `delegation.result` | contract (paths, exact command patterns, exit condition, text, ref), status, level, summary | delegating work (built; see "Delegation") |
+| team log (`Log` request) | since, session, user, kind, task id, limit | reading every message and delegation in the repository (built; see "Team log") |
 
 Built in the first slice: presence, `event`, `msg` and the `lease.*` kinds. Delegation (`delegation.*`) is built in the delegation slice. Blobs, patches and supervision are later.
 
@@ -119,10 +126,39 @@ The options you write into a grant's patterns are your responsibility: for examp
 
 Decisions: docs/adr/0001-delegation.md; contract: docs/slices/delegation-v1/spec.md. Built and tested in the delegation slice (2026-11-15).
 
-- A session sends `Delegate` (to one session in the same repository) with a contract. The hub stores it in a `delegations` table, emits `delegation.request`, and shows it only to the sender's and target's machines; the activity page shows ids, kind, status, level and paths, never text, summaries, commands or result fields. A request to a session whose daemon did not advertise the `delegation` capability is refused, and a daemon sends delegation frames only on a connection whose `Welcome` listed it, so old hubs and daemons behave as before.
+- A session sends `Delegate` (to one session in the same repository) with a contract. The hub stores it in a `delegations` table, emits `delegation.request`, and pushes it only to the sender's and target's machines (its text is also in the repository's team log, ADR 0002); the activity page shows ids, kind, status, level and paths, never text, summaries, commands or result fields. A request to a session whose daemon did not advertise the `delegation` capability is refused, and a daemon sends delegation frames only on a connection whose `Welcome` listed it, so old hubs and daemons behave as before.
 - The target daemon decides from its local policy file (re-read per request) using the hub-stamped sender, never payload fields. Acceptance goes through the hub (`DelegateAck`), which in one transaction releases the sender's own leases the contract paths cover and leases the paths to the target; a conflict, or a hub that does not answer, means the request is not accepted. A replayed request never reopens a contract. Contracts live in daemon memory and end on result, TTL, step budget or the kill switch.
 - Notices to the receiving session put the daemon's status line, limits and denylisted kinds before the relayed text, which is capped so the block cap cannot remove them. Every notice keeps the preamble.
 - Decisions, bypass answers, closes, revokes and results are appended to a JSONL audit log (0600) beside the policy.
+
+## Team log
+
+Decisions: docs/adr/0002-team-log.md; contract: docs/slices/team-log-v1/spec.md.
+
+- The hub writes every `msg`, delegation request, fresh ack and result authored through a daemon that advertised
+  `team-log` into a `team_log` table under the author session's repository, with its text. Live routing is
+  unchanged: messages and delegation events are still pushed only to the machines they are addressed to.
+- `wormhole_log` (socket tool `log`, hub request `Log`) reads the asking session's repository, as the hub records
+  it. The repository is self-reported in `Hello`, so it scopes the log; the hub's identity allowlist is the
+  access boundary. Replies are capped at 256 KiB.
+- The daemon writes each entry's addressing (`to`, `for_you` attributes and a first line) from hub-stamped fields;
+  relayed lines are quoted with `> `. Only the addressee is told it may act. Log entries never pass through the
+  event path, so they cannot open a contract, answer `allow` or enter an inbox; delegation requests still reach
+  only the target daemon, which alone applies its policy.
+- Retention: `--log-max-entries` (default 10,000) and `--log-max-age-days` (default 30). The event log used for
+  replay is not pruned.
+- The activity page stays redacted (decision 6 of ADR 0002).
+- `review` and `task` results have hub-checked schemas; contracts carry an optional `ref` URL.
+
+## Auto-update
+
+Decisions: docs/adr/0003-auto-update.md. The hub reads a target commit from `--target-file` and announces it in
+`Welcome` and a `Target` frame to daemons that advertised `update`. A daemon started with `--auto-update SRC`
+verifies the commit is on its clone's `origin/main`, refuses a dirty clone, builds, checks the new binary's
+`wormhole version`, keeps `<bin>.prev`, swaps atomically when idle and exits 75 for its service manager to restart
+it; at most one attempt per 5 minutes. Every daemon reports its commit, target and status (`DaemonStatus`), shown
+by `wormhole_who` and the page. The updater never touches the delegation policy. Trust concentration: whoever
+controls `main` and the target file can run code on every auto-updating machine.
 
 ## Failure behaviour
 
