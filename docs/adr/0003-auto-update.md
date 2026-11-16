@@ -55,10 +55,9 @@ bounded:
 - The floor ratchets: a binary built at the floor commit carries an older `MIN_SAFE_COMMIT` than the floor itself
   (a commit cannot name its own SHA), so each daemon records every minimum it has run with in `<bin>.floors` and
   refuses targets below any of them. A hub cannot walk a machine back one hop at a time.
-  Only local config and the binary's own constant feed that file, never the hub. A wrong `--update-floor` (a typo,
-  an unpushed or side-branch commit) is recorded there too and then refuses every target as below the minimum
-  safe commit; to recover, stop the daemon, remove that line from `<bin>.floors` (or the file), fix the flag and
-  restart. Merge this repository's releases with `--no-ff` (never squash or rebase), so the commit named by
+  Only the binary's own constant feeds that file, never the hub or the local `--update-floor` (which applies from
+  config only, so a wrong floor is fixed by changing the flag). To clear a recorded minimum on purpose, stop the
+  daemon, edit `<bin>.floors` and restart. Merge this repository's releases with `--no-ff` (never squash or rebase), so the commit named by
   `MIN_SAFE_COMMIT` stays on `main`.
 
 Trade-off: an operator can still roll machines back, but no further than the newest security floor; a fix that
