@@ -490,7 +490,7 @@ fn session_repo(
 
 /// May the Bash operand `tok` be touched? It is read as a path: inside the repository after
 /// symlinks are followed, not dangling, not protected, not denylisted.
-fn operand_ok(d: &Daemon, session: &str, policy: &Policy, prog: &str, tok: &str) -> bool {
+fn operand_ok(d: &Daemon, session: &str, policy: &Policy, dir_ok: bool, tok: &str) -> bool {
     let Some((_, root, cwd)) = session_repo(d, session) else {
         return false;
     };
@@ -501,9 +501,7 @@ fn operand_ok(d: &Daemon, session: &str, policy: &Policy, prog: &str, tok: &str)
         return false;
     }
     // A directory can hold denied files that a recursive read would print.
-    if cwd.join(tok).is_dir()
-        && !matches!(prog, "ls" | "stat" | "realpath" | "basename" | "dirname")
-    {
+    if cwd.join(tok).is_dir() && !dir_ok {
         return false;
     }
     match crate::repo::canonical_relative(&root, &cwd, tok) {
@@ -574,10 +572,15 @@ fn permitted(
                 let prog = t[0].rsplit('/').next().unwrap_or("").to_lowercase();
                 // Plain options only, nothing recursive, and every operand a path inside the
                 // contract's reach; a command with no operand would read the working directory.
+                // `git status` reports names only, so like these it may take a directory.
+                let dir_ok = matches!(
+                    prog.as_str(),
+                    "ls" | "stat" | "realpath" | "basename" | "dirname"
+                ) || (prog == "git" && t.get(1).is_some_and(|s| s == "status"));
                 delegation::command_operands(&t)
                     .ok()?
                     .iter()
-                    .all(|x| operand_ok(d, session, policy, &prog, x))
+                    .all(|x| operand_ok(d, session, policy, dir_ok, x))
             }
         } else {
             // Full bypass with the denylist on still refuses what cannot be read as plain words.
