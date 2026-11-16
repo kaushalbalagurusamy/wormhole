@@ -599,7 +599,7 @@ fn permitted(
         }
         let ok = if o.level == Level::ScopedBypass {
             policy.command_allowed(&o.contract.commands, cmd).is_ok() && {
-                // Every operand is a path the contract could have named; options carry no `=`.
+                // Every operand is a path inside the repository that is not denied or protected; the contract paths limit edits, not Bash operands.
                 let t = delegation::tokenize(cmd).ok()?;
                 let prog = t[0].rsplit('/').next().unwrap_or("").to_lowercase();
                 // Plain options only, nothing recursive, and every operand a path inside the

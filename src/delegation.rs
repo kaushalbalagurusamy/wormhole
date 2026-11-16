@@ -112,6 +112,17 @@ pub const DEFAULT_DENY_PATHS: &[&str] = &[
     "**/.pgpass",
     "**/.docker/config.json",
     "**/.gnupg/**",
+    "**/id_ecdsa*",
+    "**/id_dsa*",
+    "**/*.jks",
+    "**/*.keystore",
+    "**/.env_*",
+    "**/.env-*",
+    "**/.pypirc",
+    "**/.dockercfg",
+    "**/*.tfstate",
+    "**/.htpasswd",
+    "**/credentials*",
 ];
 
 /// Programs a contract command may start with, without an owner's addition: none. Every
@@ -547,6 +558,9 @@ impl Policy {
             return Err("quotes, backslashes, glob characters and ~ are not allowed".into());
         }
         let t = tokenize(command)?;
+        if let Some(x) = t.iter().find(|x| !plain_word(x)) {
+            return Err(format!("{x:?} has characters outside [A-Za-z0-9._/+@,-]"));
+        }
         if let Some(o) = unsafe_option(&t, self.git_status_only()) {
             return Err(format!("unsafe option or subcommand: {o}"));
         }
@@ -800,6 +814,15 @@ fn unsafe_option(tokens: &[String], deny_on: bool) -> Option<String> {
         .cloned()
 }
 
+/// Characters a word may contain at `scoped-bypass`. Anything else (`^`, a mid-word `#`, `!`,
+/// `%`, `:`, `=`, quotes) is an operator in some shell, so the words the checks see could differ
+/// from the ones that run.
+fn plain_word(w: &str) -> bool {
+    !w.is_empty()
+        && w.chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._/+@,-".contains(c))
+}
+
 fn pattern_words_with(
     safe: &[String],
     deny_on: bool,
@@ -815,6 +838,9 @@ fn pattern_words_with(
         _ => (t, false),
     };
     let mut w = tokenize(body)?;
+    if let Some(x) = w.iter().find(|x| !plain_word(x)) {
+        return Err(format!("{x:?} has characters outside [A-Za-z0-9._/+@,-]"));
+    }
     let program = &w[0];
     let name_ok = program
         .chars()
@@ -1478,6 +1504,36 @@ mod tests {
             "a/.pgpass",
             "a/.docker/config.json",
             "a/.gnupg/k",
+        ] {
+            assert!(pol.denied_path(d).is_some(), "{d}");
+        }
+    }
+
+    #[test]
+    fn words_are_limited_to_a_plain_character_set() {
+        let pol = Policy::parse(POLICY).unwrap();
+        let star = vec!["ls *".to_string()];
+        assert!(pol.command_allowed(&star, "ls src/a_b-c.rs").is_ok());
+        for bad in [
+            "ls ^zzz",
+            "ls .en#v",
+            "ls a:b",
+            "ls a%b",
+            "ls a!b",
+            "ls @(a|b)",
+            "ls \u{e9}",
+        ] {
+            assert!(pol.command_allowed(&star, bad).is_err(), "{bad}");
+        }
+        assert!(pol.pattern_words("ls ^x").is_err() && pol.pattern_words("ls a#b").is_err());
+        assert!(pol.pattern_words("ls a/b.c *").is_ok());
+        for d in [
+            "a/id_ecdsa",
+            "a/x.jks",
+            "a/.env_prod",
+            "a/.pypirc",
+            "a/x.tfstate",
+            "a/credentials.json",
         ] {
             assert!(pol.denied_path(d).is_some(), "{d}");
         }
