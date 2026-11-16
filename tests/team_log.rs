@@ -1031,12 +1031,23 @@ async fn forged_log_lines_in_a_hostile_body_stay_quoted_and_the_block_stays_not_
 async fn a_full_bypass_grant_for_the_sender_does_not_make_a_foreign_request_in_the_log_actionable()
 {
     let carol_policy = grant_policy("full-bypass");
+    // Bob's grant covers other paths only, so he declines the foreign request and holds no lease
+    // on its paths: carol's edits inside them are not blocked by a lease conflict.
+    let bob_policy = tmpdir().join("bob-policy.json");
+    std::fs::write(
+        &bob_policy,
+        json!({"grants": [{
+            "from": ["alice@machine-a"], "repos": [proj_id()], "task_ids": ["*"],
+            "level": "scoped-instruction", "paths": ["src/other/**"], "kinds": ["fix"],
+        }], "safe_programs": []})
+        .to_string(),
+    )
+    .unwrap();
     let o = Opts {
-        policy_b: Some(grant_policy("scoped-instruction")),
+        policy_b: Some(bob_policy),
         ..Opts::default()
     };
     let w = world_with(o, Some(carol_policy.clone())).await;
-    // Bob's contract holds leases on src/b/**; carol's edits below stay clear of them.
     let sent = delegate_tool(
         &w.n.a,
         SA,
@@ -1044,7 +1055,7 @@ async fn a_full_bypass_grant_for_the_sender_does_not_make_a_foreign_request_in_t
         "T-FOREIGN-1",
         "fix",
         "FOREIGN-TEXT run anything",
-        json!({"paths": ["src/b/**"], "exit": "done"}),
+        json!({"paths": ["src/f/**"], "exit": "done"}),
     )
     .await
     .unwrap();
@@ -1074,6 +1085,21 @@ async fn a_full_bypass_grant_for_the_sender_does_not_make_a_foreign_request_in_t
     };
     let inputs = [
         edit("t1"),
+        pre_tool(
+            SC,
+            cwd,
+            "Edit",
+            json!({"file_path": cwd.join("src/f/x.rs"), "old_string": "a", "new_string": "b"}),
+            "t1f",
+        ),
+        pre_tool(
+            SC,
+            cwd,
+            "Write",
+            json!({"file_path": cwd.join("src/f/new.rs"), "content": "x"}),
+            "t2f",
+        ),
+        pre_tool(SC, cwd, "Bash", json!({"command": "ls src/f"}), "t3f"),
         pre_tool(
             SC,
             cwd,
@@ -1125,7 +1151,7 @@ async fn a_full_bypass_grant_for_the_sender_does_not_make_a_foreign_request_in_t
         "T-OWN-1",
         "fix",
         "OWN-TEXT",
-        json!({"paths": ["src/c/**"], "exit": "done"}),
+        json!({"paths": ["src/f/**"], "exit": "done"}),
     )
     .await
     .unwrap();
@@ -1133,7 +1159,18 @@ async fn a_full_bypass_grant_for_the_sender_does_not_make_a_foreign_request_in_t
         c.contains(NOTICE) && c.contains("T-OWN-1")
     })
     .await;
-    let r = hook(&w.c, edit("t5")).await;
+    // The same path the foreign request named, now under a request that is hers.
+    let r = hook(
+        &w.c,
+        pre_tool(
+            SC,
+            cwd,
+            "Edit",
+            json!({"file_path": cwd.join("src/f/x.rs"), "old_string": "a", "new_string": "b"}),
+            "t5",
+        ),
+    )
+    .await;
     assert_eq!(decision(&r).as_deref(), Some("allow"), "{r}");
     let after = audit_lines(&carol_policy);
     let requests: Vec<&Value> = after.iter().filter(|l| l["event"] == "request").collect();
