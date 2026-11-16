@@ -33,6 +33,9 @@ pub struct UpdateConfig {
     pub min_safe: String,
     /// A local minimum on top of `min_safe`: both always apply.
     pub floor: Option<String>,
+    /// The commit treated as running for the downgrade decision and `current`; `None` is
+    /// `crate::COMMIT`. Not settable from the CLI.
+    pub running: Option<String>,
 }
 
 impl UpdateConfig {
@@ -48,6 +51,7 @@ impl UpdateConfig {
             exit_after_install: true,
             min_safe: MIN_SAFE_COMMIT.to_string(),
             floor: None,
+            running: None,
         }
     }
 }
