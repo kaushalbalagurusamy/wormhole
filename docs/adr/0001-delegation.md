@@ -50,7 +50,13 @@ hooks page came back summarised, so the wording is not verbatim):
    protected and not leased by another session, or for a `Bash` command matching one of the contract's command
    patterns with no shell control characters and no denylist match. Under `full-bypass` it answers `allow` for
    any tool call except denylist matches and lease or protected-path conflicts. Everything else gets the
-   existing behaviour, so the user's prompt appears. The user's settings deny and ask rules still win. wormhole
+   existing behaviour, so the user's prompt appears. Amended twice after security review (slice spec,
+   amendments 1 and 2): scoped-bypass commands are exact argv patterns (literal tokens, with an optional final
+   `*` for plain positional arguments), matched on tokenised commands that contain no quotes, backslashes or
+   glob characters; wrapper programs (`sh`, `env`, `xargs`, interpreters and the like) are never allowed;
+   full-bypass allows only `Bash`, the edit tools and `Read`, with path, protected-path and denylist checks on
+   every call while those modules are on. Exact patterns were chosen over argv prefixes because a prefix lets
+   the agent add flags the owner never saw. The user's settings deny and ask rules still win. wormhole
    forges no approval and declares no permission relay.
 7. **Contracts end.** A contract is open from the receiver's first fresh ack until its result is posted, its TTL
    passes (capped by the grant and at 4 hours), its step budget (bypass answers) is spent, or the kill switch is

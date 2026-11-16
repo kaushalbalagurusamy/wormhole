@@ -345,3 +345,51 @@ base name such as `/bin/sh -c`, `sh -c '…'`); `denied_argv` (`git push -f`, `g
 `rm -fr x`, `rm -r -f x`); `denied_path` and acceptance with `secrets/**`, `.git/`, `**`, `*.rs`, `./`, `SECRETS/x`,
 `src/.ENV`; end to end: under scoped-bypass with a `src/**` contract the hook gives no `allow` for `src/secrets/a.rs`
 and `src/.ENV`, and none for `git push -f` even with grant and contract prefix `git push`.
+
+## Amendment 2 (2026-11-15, second security review; supersedes Amendment 1's prefix semantics and the D tool rules it names)
+
+Findings: (S3, high) the runtime Bash check relied on the substring list; (S4, medium) allowlist entries matched as
+a wildcard over the raw string, so `git status *` absorbed `; rm -rf …` or extra flags; (S5, medium) under
+`full-bypass` any other tool was allowed without a path check.
+
+### S4: scoped-bypass commands are exact argv patterns (replaces "argv prefixes")
+
+- A command pattern is tokenised with `tokenize`. Each token is a literal, except that the **last** token may be
+  `*`, meaning one or more further arguments, none starting with `-` and none containing `*`, `?`, `[` or `]`.
+  No other wildcard exists. A pattern whose first token is a wrapper, has an environment prefix, or does not
+  tokenise is invalid (refused at acceptance).
+- `command_allowed(patterns, command)` returns `Ok` only when: the raw command contains no quote (`'`, `"`),
+  backslash, `*`, `?`, `[` or `]`; `tokenize` succeeds; the first token has no `=` and is not a wrapper (by base
+  name); and some pattern matches token by token: same count with every literal equal, or, for a trailing `*`,
+  the literal tokens equal and at least one further token, each satisfying the `*` rule. `cargo test` matches only
+  `cargo test`; `cargo test *` matches `cargo test glob_tests` but not `cargo test --release x` or
+  `cargo test`.
+- At acceptance each contract pattern must equal a grant pattern token for token, or the grant lists `"*"` alone.
+
+### S3: every Bash allow at a bypass level
+
+- `scoped-bypass`: `allow` only when `command_allowed(contract patterns, cmd)` is `Ok` and, with the denylist on,
+  `denied_argv` and `denied_command` both return `None`.
+- `full-bypass`, denylist on: `allow` only when `tokenize` succeeds, the program is not a wrapper, the first token
+  has no `=`, and `denied_argv` and `denied_command` both return `None`.
+- `full-bypass`, denylist off: any command (the owner switched the module off).
+
+### S5: tools under full-bypass
+
+- `full-bypass` answers `allow` only for this pinned tool list: `Bash`, `Edit`, `Write`, `MultiEdit`,
+  `NotebookEdit`, `Read`. Every other tool, MCP tools included, gets the ordinary prompt.
+- For `Edit`, `Write`, `MultiEdit`, `NotebookEdit` and `Read` the path (`file_path` or `notebook_path`) must
+  resolve inside the session's repository; it is refused if it is a `--protected` path, if `denied_path` hits
+  (denylist on), or, for edits, if the lease step did not end granted. `scoped-bypass` keeps its edit rule and
+  never allows `Read` or other tools.
+
+### What still applies under full-bypass with the denylist module off
+
+The tool list above; paths inside the repository; `--protected` paths; another session's lease on the path; a
+stale or unreachable hub (no `allow`); the contract's TTL, step budget, result and the kill switch; and the
+user's own Claude Code settings deny and ask rules and plan mode, which win over any hook `allow`.
+
+### Tests for this amendment (protected, written before the fix)
+
+`tests/delegation_amend2.rs`, plus updates to the earlier delegation test files where they relied on prefix
+semantics.
