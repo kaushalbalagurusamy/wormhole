@@ -271,7 +271,7 @@ pub struct DaemonInfo {
     pub target: String,
     pub status: String,
     pub ts: u64,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[serde(default)]
     pub downgrade: bool,
 }
 
