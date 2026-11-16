@@ -113,7 +113,7 @@ fn update_config(w: &World, min_safe: &str, floor: Option<&str>) -> UpdateConfig
         "sh".into(),
         "-c".into(),
         format!(
-            "echo built >> '{log}' && mkdir -p target/release && c=$(git rev-parse HEAD) && \
+            "echo \"built $(git rev-parse HEAD)\" >> '{log}' && mkdir -p target/release && c=$(git rev-parse HEAD) && \
              printf '#!/bin/sh\\necho \"wormhole %s\"\\n' \"$c\" > target/release/wormhole && \
              chmod 755 target/release/wormhole"
         ),
@@ -326,14 +326,18 @@ async fn the_ratchet_stops_a_floor_binary_walking_the_hub_back_a_hop_at_a_time()
     hub.shutdown().await;
 
     // Hop two: that binary's own built-in minimum is older (c[0]), but the file remembers c[1].
-    let hub = start_hub(&w).await;
+    // The target is written before the hub starts, so its Welcome cannot announce c[1] again.
     set_target(&w, &w.c[0]);
+    let hub = start_hub(&w).await;
     let _a = start_daemon(&w, &hub, update_config(&w, &w.c[0], None)).await;
     wait_status(&hub, BELOW_MIN).await;
     tokio::time::sleep(Duration::from_millis(700)).await;
     assert_eq!(std::fs::read(&w.bin).unwrap(), installed);
     assert!(floors(&w).contains(&w.c[1]));
     assert_eq!(build_count(&w), 1, "built the refused target");
+    let log = std::fs::read_to_string(&w.build_log).unwrap();
+    assert_eq!(log.trim(), format!("built {}", w.c[1]), "{log}");
+    assert!(!log.contains(&w.c[0]), "built the refused target: {log}");
 }
 
 #[test]
