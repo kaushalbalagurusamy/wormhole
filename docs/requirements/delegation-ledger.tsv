@@ -1,0 +1,23 @@
+id	status	artifact_or_dependency
+G1	unserved	slice delegation-v1
+C1	unserved	slice delegation-v1
+C2	unserved	slice delegation-v1
+C3	unserved	slice delegation-v1
+C4	unserved	slice delegation-v1
+C5	unserved	slice delegation-v1
+H1	superseded	replaced by R1 R3 R4
+H2	superseded	replaced by R2
+H3	unserved	slice delegation-v1
+H4	unserved	slice delegation-v1
+R0	unserved	slice delegation-v1
+R1	unserved	slice delegation-v1
+R2	unserved	slice delegation-v1
+R3	unserved	slice delegation-v1
+R4	unserved	slice delegation-v1
+R5	unserved	slice delegation-v1
+R6	unserved	slice delegation-v1
+R7	unserved	slice delegation-v1
+R8	unserved	slice delegation-v1
+R9	unserved	slice delegation-v1
+R10	unserved	slice delegation-v1
+R11	unserved	slice delegation-v1
