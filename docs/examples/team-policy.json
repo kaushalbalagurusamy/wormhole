@@ -1,0 +1,15 @@
+{
+  "safe_programs": [],
+  "denylist": {
+    "enabled": true
+  },
+  "grants": [
+    {
+      "from": ["teammate-one@example.com", "teammate-two@example.com"],
+      "repos": ["github.com/your-org/your-repo"],
+      "level": "full-bypass",
+      "max_ttl_secs": 3600,
+      "max_steps": 500
+    }
+  ]
+}
