@@ -215,7 +215,10 @@ fn request_session(r: &Request) -> Option<String> {
         | LeaseRelease { session, .. }
         | LeaseRequestTransfer { session, .. }
         | LeaseGrant { session, .. }
-        | LeaseDeny { session, .. } => Some(session.clone()),
+        | LeaseDeny { session, .. }
+        | Delegate { session, .. }
+        | DelegateAck { session, .. }
+        | DelegateResult { session, .. } => Some(session.clone()),
     }
 }
 

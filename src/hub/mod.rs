@@ -19,7 +19,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use store::{Acquired, Holder, LeaseError, Store};
+use store::{AckError, Acquired, Delegation, Holder, LeaseError, Store};
 use tokio::sync::{broadcast, mpsc};
 
 #[derive(Clone, Debug)]
@@ -42,6 +42,7 @@ pub struct HubConfig {
 const PRESENCE_TIMEOUT_MS: u64 = 120_000;
 /// Lease length after a transfer; the recipient's daemon renews it on its next edit.
 const TRANSFER_TTL_MS: u64 = 600_000;
+const MAX_SNAPSHOT_DELEGATIONS: usize = 50;
 const REPLAY_BATCH: usize = 500;
 const ACTIVITY_KINDS: &[&str] = &["edit", "command", "commit", "push", "pr"];
 
@@ -446,6 +447,60 @@ fn lease_err(e: LeaseError) -> String {
     }
 }
 
+/// Limits on a delegated contract, checked before the hub stores or relays it.
+fn check_contract(c: &Contract) -> Result<(), String> {
+    let n = c.task_id.chars().count();
+    if n == 0 || n > 128 || c.task_id.chars().any(text::unsafe_in_name) {
+        return Err("invalid task_id".into());
+    }
+    if c.kind.is_empty()
+        || c.kind.len() > 64
+        || !c
+            .kind
+            .chars()
+            .all(|x| x.is_ascii_lowercase() || x.is_ascii_digit() || x == '-')
+    {
+        return Err("invalid kind".into());
+    }
+    if c.paths.len() > MAX_PATHS {
+        return Err("too many paths".into());
+    }
+    for p in &c.paths {
+        field("path", p)?;
+        if !crate::glob::valid(p)
+            || p.starts_with("area:")
+            || p.starts_with('/')
+            || p.split('/').any(|s| s == "..")
+        {
+            return Err("invalid path".into());
+        }
+    }
+    if c.commands.len() > 16
+        || c.commands
+            .iter()
+            .any(|x| x.is_empty() || x.len() > 512 || x.chars().any(char::is_control))
+    {
+        return Err("invalid commands".into());
+    }
+    if c.text.trim().is_empty() || c.text.len() > MAX_BODY {
+        return Err(format!("task text must be 1 to {MAX_BODY} bytes"));
+    }
+    if c.spec.chars().count() > 1000 || c.exit.chars().count() > 1000 {
+        return Err("spec and exit are limited to 1000 characters".into());
+    }
+    if c.ttl_secs > 14_400 {
+        return Err("ttl_secs is limited to 14400".into());
+    }
+    if c.result_fields.len() > 16
+        || c.result_fields
+            .iter()
+            .any(|f| f.is_empty() || f.len() > 128 || f.chars().any(text::unsafe_in_name))
+    {
+        return Err("invalid result_fields".into());
+    }
+    Ok(())
+}
+
 fn db<T>(r: rusqlite::Result<T>) -> Result<T, String> {
     r.map_err(|e| {
         eprintln!("wormhole hub: database error: {e}");
@@ -471,6 +526,7 @@ impl Hub {
 
     /// Expire leases and presence as of `t`.
     fn sweep_once(&self, t: u64) {
+        let _ = self.store.lock().unwrap().expire_delegations(t);
         let expired = self.store.lock().unwrap().expire(t).unwrap_or_default();
         for l in expired {
             let _ = self.emit_lease("lease.expired", &l, json!({}));
@@ -532,6 +588,15 @@ impl Hub {
 
     /// Messages go only to the machines they are addressed to; everything else to all.
     fn visible(&self, e: &Event, peer: &Peer) -> bool {
+        // A delegation concerns the two machines involved, nobody else.
+        if e.kind.starts_with("delegation.") {
+            let is = |u: &str, m: &str| peer.user == u && peer.machine == m;
+            return is(&e.user, &e.machine)
+                || is(
+                    e.data["to_user"].as_str().unwrap_or(""),
+                    e.data["to_machine"].as_str().unwrap_or(""),
+                );
+        }
         if e.kind != "msg" {
             return true;
         }
@@ -549,7 +614,7 @@ impl Hub {
 
     /// Append to the log and fan out, in sequence order.
     fn emit(&self, kind: &str, peer: &Peer, session: &str, data: Value) -> Result<Event, String> {
-        let mut st = self.store.lock().unwrap();
+        let st = self.store.lock().unwrap();
         let e = db(st.append(now(), kind, &peer.user, &peer.machine, session, data))?;
         let _ = self.tx.send(e.clone());
         Ok(e)
@@ -872,8 +937,160 @@ impl Hub {
                 )?;
                 Ok(json!({}))
             }
+            Request::Delegate {
+                session,
+                to,
+                repo,
+                contract,
+            } => {
+                self.own(peer, &session)?;
+                field("to", &to)?;
+                field("repo", &repo)?;
+                check_contract(&contract)?;
+                if to == session {
+                    return Err("cannot delegate to this session".into());
+                }
+                let (owner, target_repo) = self
+                    .sessions
+                    .lock()
+                    .unwrap()
+                    .get(&to)
+                    .map(|s| (s.owner.clone(), s.info.repo.clone()))
+                    .ok_or("no such session")?;
+                if !self.delegating.lock().unwrap().contains_key(&owner.key()) {
+                    return Err("that session's daemon does not accept delegated tasks".into());
+                }
+                if target_repo != repo {
+                    return Err("the target session is in a different repository".into());
+                }
+                let data = json!({"to": to, "to_user": owner.user, "to_machine": owner.machine,
+                    "repo": repo, "contract": contract});
+                let row = Delegation {
+                    info: DelegationInfo {
+                        from_session: session.clone(),
+                        from_user: peer.user.clone(),
+                        from_machine: peer.machine.clone(),
+                        to_session: to,
+                        to_user: owner.user,
+                        to_machine: owner.machine,
+                        repo,
+                        task_id: contract.task_id.clone(),
+                        kind: contract.kind.clone(),
+                        status: "pending".into(),
+                        ..Default::default()
+                    },
+                    paths: contract.paths.clone(),
+                    result_fields: contract.result_fields.clone(),
+                };
+                let mut st = self.store.lock().unwrap();
+                let (e, _) = db(st.delegate(t, &peer.user, &peer.machine, &session, data, row))?;
+                let _ = self.tx.send(e.clone());
+                Ok(json!({"seq": e.seq}))
+            }
+            Request::DelegateAck {
+                session,
+                request,
+                accept,
+                level,
+                reason,
+                ttl_ms,
+            } => {
+                self.own(peer, &session)?;
+                let allowed: &[&str] = if accept {
+                    &["scoped-instruction", "scoped-bypass", "full-bypass"]
+                } else {
+                    &["off", "inform"]
+                };
+                if !allowed.contains(&level.as_str()) {
+                    return Err("invalid level".into());
+                }
+                let r = db(self
+                    .store
+                    .lock()
+                    .unwrap()
+                    .ack_delegation(t, &session, request, accept, &level, ttl_ms))?;
+                let a = r.map_err(|e| match e {
+                    AckError::NoSuchRequest => "no such request".to_string(),
+                    AckError::NotRecipient => "not the recipient".to_string(),
+                    AckError::Expired => "expired: pending for more than 10 minutes".to_string(),
+                    AckError::Conflict(m) => m,
+                })?;
+                if !a.fresh {
+                    return Ok(json!({"fresh": false, "status": a.info.status,
+                        "level": a.info.level, "leases": []}));
+                }
+                for l in &a.released {
+                    self.emit_lease("lease.released", l, json!({"reason": "delegated"}))?;
+                }
+                for l in &a.granted {
+                    self.emit_lease(
+                        "lease.granted",
+                        l,
+                        json!({"via": "delegation", "from": a.info.from_session}),
+                    )?;
+                }
+                self.emit(
+                    "delegation.ack",
+                    peer,
+                    &session,
+                    json!({"request": request, "to": a.info.from_session,
+                        "to_user": a.info.from_user, "to_machine": a.info.from_machine,
+                        "task_id": a.info.task_id, "accept": accept, "status": a.info.status,
+                        "level": a.info.level, "reason": text::plain(&reason, MAX_SUMMARY),
+                        "scopes": a.paths}),
+                )?;
+                Ok(
+                    json!({"fresh": true, "status": a.info.status, "level": a.info.level,
+                    "leases": a.granted}),
+                )
+            }
+            Request::DelegateResult {
+                session,
+                request,
+                status,
+                summary,
+                fields,
+            } => {
+                self.own(peer, &session)?;
+                if summary.trim().is_empty() {
+                    return Err("empty summary".into());
+                }
+                if summary.len() > MAX_BODY {
+                    return Err(format!("summary too large (max {MAX_BODY} bytes)"));
+                }
+                if serde_json::to_string(&fields).map_or(0, |s| s.len()) > MAX_BODY {
+                    return Err(format!("fields too large (max {MAX_BODY} bytes)"));
+                }
+                let (d, released) = db(self
+                    .store
+                    .lock()
+                    .unwrap()
+                    .finish_delegation(&session, request, &status, &summary, &fields))??;
+                for l in &released {
+                    self.emit_lease(
+                        "lease.released",
+                        l,
+                        json!({"reason": "delegation finished"}),
+                    )?;
+                }
+                self.emit(
+                    "delegation.result",
+                    peer,
+                    &session,
+                    json!({"request": request, "to": d.info.from_session,
+                        "to_user": d.info.from_user, "to_machine": d.info.from_machine,
+                        "task_id": d.info.task_id, "status": status, "summary": summary,
+                        "fields": fields}),
+                )?;
+                Ok(json!({}))
+            }
             Request::Snapshot => {
                 let mut snap = self.snapshot()?;
+                snap.delegations = db(self.store.lock().unwrap().delegations_for(
+                    &peer.user,
+                    &peer.machine,
+                    MAX_SNAPSHOT_DELEGATIONS,
+                ))?;
                 // Newest first, capped so the reply fits in one frame.
                 snap.sessions.reverse();
                 snap.sessions.truncate(MAX_SNAPSHOT_SESSIONS);
@@ -1040,6 +1257,67 @@ mod tests {
         // After expiry the recipient can still replay it and nobody else can.
         assert!(h.visible(&e, &a));
         assert!(!h.visible(&e, &b));
+    }
+
+    fn contract(paths: &[&str]) -> Contract {
+        Contract {
+            task_id: "T-1".into(),
+            kind: "tests".into(),
+            paths: paths.iter().map(|p| p.to_string()).collect(),
+            text: "do it".into(),
+            ..Default::default()
+        }
+    }
+
+    fn delegate(
+        h: &Hub,
+        from: &Peer,
+        session: &str,
+        to: &str,
+        c: Contract,
+    ) -> Result<Value, String> {
+        h.handle(
+            from,
+            Request::Delegate {
+                session: session.into(),
+                to: to.into(),
+                repo: "r".into(),
+                contract: c,
+            },
+        )
+    }
+
+    #[test]
+    fn delegation_needs_the_targets_capability_and_stays_between_two_machines() {
+        let h = hub();
+        let (a, b, c) = (p("alice", "ma"), p("bob", "mb"), p("carol", "mc"));
+        h.handle(&a, hello("s1")).unwrap();
+        h.handle(&b, hello("s2")).unwrap();
+        h.handle(&c, hello("s3")).unwrap();
+        let err = |r: Result<Value, String>| r.unwrap_err();
+        assert!(err(delegate(&h, &a, "s1", "nope", contract(&[]))).contains("no such session"));
+        assert!(err(delegate(&h, &a, "s1", "s1", contract(&[])))
+            .contains("cannot delegate to this session"));
+        assert!(err(delegate(&h, &a, "s1", "s2", contract(&[])))
+            .contains("does not accept delegated tasks"));
+        h.delegating.lock().unwrap().insert(b.key(), 1);
+        assert!(err(delegate(&h, &a, "s1", "s2", contract(&["../x"]))).contains("invalid path"));
+        let seq = delegate(&h, &a, "s1", "s2", contract(&["src/**"])).unwrap()["seq"]
+            .as_u64()
+            .unwrap();
+        let e = last_event(&h);
+        assert_eq!((e.seq, e.kind.as_str()), (seq, "delegation.request"));
+        assert!(h.visible(&e, &a) && h.visible(&e, &b) && !h.visible(&e, &c));
+        let snap = |p: &Peer| match h.handle(p, Request::Snapshot).unwrap() {
+            v => serde_json::from_value::<Snapshot>(v).unwrap(),
+        };
+        assert_eq!(snap(&a).delegations.len(), 1);
+        assert_eq!(snap(&b).delegations[0].status, "pending");
+        assert!(snap(&c).delegations.is_empty());
+        // The page shows the id and paths, never the task text.
+        let shown = page::redact(&e).to_string();
+        assert!(shown.contains("T-1") && shown.contains("src/**"), "{shown}");
+        assert!(!shown.contains("do it"), "{shown}");
     }
 
     #[test]

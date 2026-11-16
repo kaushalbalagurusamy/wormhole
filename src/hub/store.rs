@@ -1,7 +1,7 @@
 //! The hub's durable state in SQLite: the ordered event log, leases with fencing tokens,
 //! and per-machine delivery cursors. Times are passed in so tests control the clock.
 
-use crate::proto::{Event, LeaseInfo};
+use crate::proto::{DelegationInfo, Event, LeaseInfo};
 use serde_json::Value;
 use std::path::Path;
 
@@ -66,7 +66,46 @@ CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER NOT NU
 INSERT OR IGNORE INTO counters (name, value) VALUES ('token', 0);
 CREATE TABLE IF NOT EXISTS cursors (key TEXT PRIMARY KEY, seq INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS session_owners (session TEXT PRIMARY KEY, user TEXT NOT NULL, machine TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS delegations (
+    seq INTEGER PRIMARY KEY,
+    from_session TEXT NOT NULL, from_user TEXT NOT NULL, from_machine TEXT NOT NULL,
+    to_session TEXT NOT NULL, to_user TEXT NOT NULL, to_machine TEXT NOT NULL,
+    repo TEXT NOT NULL, task_id TEXT NOT NULL, kind TEXT NOT NULL,
+    paths TEXT NOT NULL, result_fields TEXT NOT NULL,
+    status TEXT NOT NULL, level TEXT NOT NULL, summary TEXT NOT NULL, ts INTEGER NOT NULL
+);
 ";
+
+/// A request nobody answered for this long is expired.
+pub const DELEGATION_PENDING_MS: u64 = 10 * 60 * 1000;
+
+/// A delegated task: what the hub reports plus what it needs to hand off leases and check
+/// the result.
+#[derive(Clone, Debug, Default)]
+pub struct Delegation {
+    pub info: DelegationInfo,
+    pub paths: Vec<String>,
+    pub result_fields: Vec<String>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AckError {
+    NoSuchRequest,
+    NotRecipient,
+    Expired,
+    /// The hand-off would break mutual exclusion; the message starts with `conflict:`.
+    Conflict(String),
+}
+
+#[derive(Debug)]
+pub struct Acked {
+    /// False when the request had already been answered; nothing changed.
+    pub fresh: bool,
+    pub info: DelegationInfo,
+    pub paths: Vec<String>,
+    pub released: Vec<LeaseInfo>,
+    pub granted: Vec<LeaseInfo>,
+}
 
 /// Shortest and longest lease a client can ask for; requests outside are clamped.
 pub const MIN_TTL_MS: u64 = 100;
@@ -82,6 +121,27 @@ fn clamp_now(now: u64) -> u64 {
 fn expiry(now: u64, ttl_ms: u64) -> u64 {
     now.saturating_add(ttl_ms.clamp(MIN_TTL_MS, MAX_TTL_MS))
         .min(MAX_TIME)
+}
+
+const DELEG_COLS: &str = "seq, from_session, from_user, from_machine, to_session, to_user, to_machine, repo, task_id, kind, status, level, summary, ts";
+
+fn deleg_info(r: &rusqlite::Row) -> rusqlite::Result<DelegationInfo> {
+    Ok(DelegationInfo {
+        seq: r.get::<_, i64>(0)? as u64,
+        from_session: r.get(1)?,
+        from_user: r.get(2)?,
+        from_machine: r.get(3)?,
+        to_session: r.get(4)?,
+        to_user: r.get(5)?,
+        to_machine: r.get(6)?,
+        repo: r.get(7)?,
+        task_id: r.get(8)?,
+        kind: r.get(9)?,
+        status: r.get(10)?,
+        level: r.get(11)?,
+        summary: r.get(12)?,
+        ts: r.get::<_, i64>(13)? as u64,
+    })
 }
 
 const LEASE_COLS: &str = "repo, scope, session, user, machine, token, since, expires";
@@ -173,7 +233,7 @@ impl Store {
     }
 
     pub fn append(
-        &mut self,
+        &self,
         ts: u64,
         kind: &str,
         user: &str,
@@ -480,6 +540,237 @@ impl Store {
         Ok(Ok((lease, released)))
     }
 
+    /// Append the request event and store its row in one step, so the target's ack can
+    /// never arrive before the row exists. The request id is the event's seq.
+    pub fn delegate(
+        &mut self,
+        ts: u64,
+        user: &str,
+        machine: &str,
+        session: &str,
+        data: Value,
+        mut d: Delegation,
+    ) -> rusqlite::Result<(Event, Delegation)> {
+        let tx = self.conn.unchecked_transaction()?;
+        let e = self.append(ts, "delegation.request", user, machine, session, data)?;
+        d.info.seq = e.seq;
+        d.info.ts = ts;
+        let i = &d.info;
+        self.conn.execute(
+            &format!("INSERT INTO delegations ({DELEG_COLS}, paths, result_fields) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"),
+            rusqlite::params![
+                i.seq as i64, i.from_session, i.from_user, i.from_machine, i.to_session, i.to_user,
+                i.to_machine, i.repo, i.task_id, i.kind, i.status, i.level, i.summary, i.ts as i64,
+                serde_json::to_string(&d.paths).unwrap_or_default(),
+                serde_json::to_string(&d.result_fields).unwrap_or_default()
+            ],
+        )?;
+        tx.commit()?;
+        Ok((e, d))
+    }
+
+    pub fn delegation(&self, seq: u64) -> rusqlite::Result<Option<Delegation>> {
+        use rusqlite::OptionalExtension;
+        self.conn
+            .query_row(
+                &format!(
+                    "SELECT {DELEG_COLS}, paths, result_fields FROM delegations WHERE seq = ?1"
+                ),
+                [seq as i64],
+                |r| {
+                    let list = |i| -> rusqlite::Result<Vec<String>> {
+                        Ok(serde_json::from_str(&r.get::<_, String>(i)?).unwrap_or_default())
+                    };
+                    Ok(Delegation {
+                        info: deleg_info(r)?,
+                        paths: list(14)?,
+                        result_fields: list(15)?,
+                    })
+                },
+            )
+            .optional()
+    }
+
+    /// The newest `limit` requests sent from or to `user@machine`, newest first.
+    pub fn delegations_for(
+        &self,
+        user: &str,
+        machine: &str,
+        limit: usize,
+    ) -> rusqlite::Result<Vec<DelegationInfo>> {
+        let mut st = self.conn.prepare(&format!(
+            "SELECT {DELEG_COLS} FROM delegations WHERE (from_user = ?1 AND from_machine = ?2) OR (to_user = ?1 AND to_machine = ?2) ORDER BY seq DESC LIMIT ?3"
+        ))?;
+        let rows = st.query_map(rusqlite::params![user, machine, limit as i64], deleg_info)?;
+        rows.collect()
+    }
+
+    /// Mark requests still pending after `DELEGATION_PENDING_MS` as expired.
+    pub fn expire_delegations(&mut self, now: u64) -> rusqlite::Result<usize> {
+        let cutoff = clamp_now(now).saturating_sub(DELEGATION_PENDING_MS);
+        self.conn.execute(
+            "UPDATE delegations SET status = 'expired' WHERE status = 'pending' AND ts < ?1",
+            [cutoff as i64],
+        )
+    }
+
+    /// The target's answer to a request. An acceptance releases the sender's own leases
+    /// that the contract paths cover and grants the target a lease on each path, in one
+    /// transaction: any overlap with a third session's lease, or a sender lease broader
+    /// than the path, changes nothing. An answer to a request no longer pending returns
+    /// the stored outcome with `fresh: false`.
+    pub fn ack_delegation(
+        &mut self,
+        now: u64,
+        session: &str,
+        request: u64,
+        accept: bool,
+        level: &str,
+        ttl_ms: u64,
+    ) -> rusqlite::Result<Result<Acked, AckError>> {
+        let now = clamp_now(now);
+        let tx = self.conn.unchecked_transaction()?;
+        let Some(d) = self.delegation(request)? else {
+            return Ok(Err(AckError::NoSuchRequest));
+        };
+        if d.info.to_session != session {
+            return Ok(Err(AckError::NotRecipient));
+        }
+        let mut acked = Acked {
+            fresh: false,
+            info: d.info.clone(),
+            paths: d.paths.clone(),
+            released: vec![],
+            granted: vec![],
+        };
+        if d.info.status != "pending" {
+            return Ok(Ok(acked));
+        }
+        if now.saturating_sub(d.info.ts) > DELEGATION_PENDING_MS {
+            self.conn.execute(
+                "UPDATE delegations SET status = 'expired' WHERE seq = ?1",
+                [request as i64],
+            )?;
+            tx.commit()?;
+            return Ok(Err(AckError::Expired));
+        }
+        let status = if accept {
+            let repo = &d.info.repo;
+            let live = self.query_leases(
+                "repo = ?1 AND expires > ?2",
+                rusqlite::params![repo, now as i64],
+            )?;
+            let mut released: Vec<LeaseInfo> = Vec::new();
+            for p in &d.paths {
+                for l in live.iter().filter(|l| crate::glob::overlaps(&l.scope, p)) {
+                    if l.session == session {
+                        continue;
+                    }
+                    if l.session == d.info.from_session && crate::glob::covers(p, &l.scope) {
+                        if !released.iter().any(|r| r.scope == l.scope) {
+                            released.push(l.clone());
+                        }
+                        continue;
+                    }
+                    let why = if l.session == d.info.from_session {
+                        format!("the sender's lease on {} is broader than {p}", l.scope)
+                    } else {
+                        format!("session {} holds overlapping scope {}", l.session, l.scope)
+                    };
+                    return Ok(Err(AckError::Conflict(format!("conflict: {why}"))));
+                }
+            }
+            for l in &released {
+                self.delete(&l.repo, &l.scope)?;
+            }
+            for p in &d.paths {
+                let own = live
+                    .iter()
+                    .find(|l| l.session == session && &l.scope == p)
+                    .cloned();
+                let lease = match own {
+                    Some(mut l) => {
+                        l.expires = expiry(now, ttl_ms);
+                        l
+                    }
+                    None => LeaseInfo {
+                        repo: repo.clone(),
+                        scope: p.clone(),
+                        session: session.into(),
+                        user: d.info.to_user.clone(),
+                        machine: d.info.to_machine.clone(),
+                        token: self.next_token()?,
+                        since: now,
+                        expires: expiry(now, ttl_ms),
+                    },
+                };
+                self.put(&lease)?;
+                acked.granted.push(lease);
+            }
+            acked.released = released;
+            "accepted"
+        } else if level == "off" {
+            "declined"
+        } else {
+            "informed"
+        };
+        self.conn.execute(
+            "UPDATE delegations SET status = ?2, level = ?3 WHERE seq = ?1",
+            rusqlite::params![request as i64, status, level],
+        )?;
+        tx.commit()?;
+        acked.fresh = true;
+        acked.info.status = status.into();
+        acked.info.level = level.into();
+        Ok(Ok(acked))
+    }
+
+    /// Record the outcome of an accepted or informed request and release the target's
+    /// leases that its contract paths cover. The error is a message for the caller.
+    pub fn finish_delegation(
+        &mut self,
+        session: &str,
+        request: u64,
+        status: &str,
+        summary: &str,
+        fields: &serde_json::Map<String, Value>,
+    ) -> rusqlite::Result<Result<(Delegation, Vec<LeaseInfo>), String>> {
+        let tx = self.conn.unchecked_transaction()?;
+        let d = match self.delegation(request)? {
+            Some(d) if d.info.to_session == session => d,
+            Some(_) => return Ok(Err("not the recipient".into())),
+            None => return Ok(Err("no such request".into())),
+        };
+        if d.info.status != "accepted" && d.info.status != "informed" {
+            return Ok(Err("no open request".into()));
+        }
+        if !["done", "failed", "partial", "revoked"].contains(&status) {
+            return Ok(Err("invalid status".into()));
+        }
+        if status == "done" {
+            if let Some(m) = d.result_fields.iter().find(|f| !fields.contains_key(*f)) {
+                return Ok(Err(format!("missing result field {m}")));
+            }
+        }
+        let mut info = d.info.clone();
+        info.status = status.into();
+        info.summary = summary.into();
+        self.conn.execute(
+            "UPDATE delegations SET status = ?2, summary = ?3 WHERE seq = ?1",
+            rusqlite::params![request as i64, status, summary],
+        )?;
+        let mine = self.query_leases("session = ?1 AND repo = ?2", [session, &d.info.repo])?;
+        let mut released = Vec::new();
+        for l in mine {
+            if d.paths.iter().any(|p| crate::glob::covers(p, &l.scope)) {
+                self.delete(&l.repo, &l.scope)?;
+                released.push(l);
+            }
+        }
+        tx.commit()?;
+        Ok(Ok((Delegation { info, ..d }, released)))
+    }
+
     /// The live lease on exactly `scope`, if any.
     pub fn lease(&self, now: u64, repo: &str, scope: &str) -> rusqlite::Result<Option<LeaseInfo>> {
         let now = clamp_now(now);
@@ -665,6 +956,112 @@ mod tests {
         assert_eq!(released.len(), 1);
         assert_eq!(released[0].scope, "src/hub/a.rs");
         assert_eq!(s.lease(10, "r", "src/hub/a.rs").unwrap(), None);
+    }
+
+    fn pending(s: &mut Store, paths: &[&str]) -> u64 {
+        let d = Delegation {
+            info: DelegationInfo {
+                from_session: "A".into(),
+                from_user: "u".into(),
+                from_machine: "m".into(),
+                to_session: "B".into(),
+                to_user: "u".into(),
+                to_machine: "m".into(),
+                repo: "r".into(),
+                task_id: "T".into(),
+                kind: "tests".into(),
+                status: "pending".into(),
+                ..Default::default()
+            },
+            paths: paths.iter().map(|p| p.to_string()).collect(),
+            result_fields: vec!["sha".into()],
+        };
+        s.delegate(100, "u", "m", "A", json!({}), d).unwrap().0.seq
+    }
+
+    #[test]
+    fn accepting_hands_leases_off_atomically() {
+        let mut s = Store::open_memory().unwrap();
+        granted(s.acquire(0, &h("A"), "r", "src/a.rs", 100_000).unwrap());
+        let req = pending(&mut s, &["src/**"]);
+        let a = s
+            .ack_delegation(1000, "B", req, true, "scoped-bypass", 5000)
+            .unwrap()
+            .unwrap();
+        assert!(a.fresh);
+        assert_eq!(a.released.len(), 1);
+        assert_eq!(a.granted.len(), 1);
+        assert_eq!(s.lease(1000, "r", "src/a.rs").unwrap(), None);
+        assert_eq!(s.lease(1000, "r", "src/**").unwrap().unwrap().session, "B");
+        // A second ack returns the stored outcome and changes nothing.
+        let again = s
+            .ack_delegation(1001, "B", req, false, "inform", 0)
+            .unwrap()
+            .unwrap();
+        assert!(!again.fresh);
+        assert_eq!(again.info.status, "accepted");
+        assert_eq!(
+            s.ack_delegation(1001, "A", req, true, "scoped-bypass", 0)
+                .unwrap()
+                .unwrap_err(),
+            AckError::NotRecipient
+        );
+        // The result needs every required field and gives the leases back.
+        let none = serde_json::Map::new();
+        assert!(s
+            .finish_delegation("B", req, "done", "ok", &none)
+            .unwrap()
+            .unwrap_err()
+            .contains("missing result field sha"));
+        let mut f = serde_json::Map::new();
+        f.insert("sha".into(), json!("abc"));
+        let (d, released) = s
+            .finish_delegation("B", req, "done", "ok", &f)
+            .unwrap()
+            .unwrap();
+        assert_eq!(d.info.status, "done");
+        assert_eq!(released.len(), 1);
+        assert_eq!(s.lease(1002, "r", "src/**").unwrap(), None);
+        assert!(s
+            .finish_delegation("B", req, "done", "ok", &f)
+            .unwrap()
+            .unwrap_err()
+            .contains("no open request"));
+    }
+
+    #[test]
+    fn a_conflicting_hand_off_changes_nothing() {
+        let mut s = Store::open_memory().unwrap();
+        granted(s.acquire(0, &h("C"), "r", "src/b.rs", 100_000).unwrap());
+        // A third session overlaps the scope.
+        let req = pending(&mut s, &["src/**"]);
+        let e = s
+            .ack_delegation(10, "B", req, true, "scoped-instruction", 5000)
+            .unwrap()
+            .unwrap_err();
+        assert!(
+            matches!(e, AckError::Conflict(ref m) if m.starts_with("conflict:")),
+            "{e:?}"
+        );
+        // The sender's lease is broader than the path: also refused, nothing released.
+        s.release_session("C").unwrap();
+        granted(s.acquire(0, &h("A"), "r", "src/", 100_000).unwrap());
+        let req2 = pending(&mut s, &["src/a.rs"]);
+        let e = s
+            .ack_delegation(10, "B", req2, true, "scoped-instruction", 5000)
+            .unwrap()
+            .unwrap_err();
+        assert!(matches!(e, AckError::Conflict(_)), "{e:?}");
+        assert_eq!(s.lease(10, "r", "src/").unwrap().unwrap().session, "A");
+        assert_eq!(s.delegation(req2).unwrap().unwrap().info.status, "pending");
+        // Unanswered for too long: expired.
+        assert_eq!(
+            s.ack_delegation(100 + DELEGATION_PENDING_MS + 1, "B", req2, false, "off", 0)
+                .unwrap()
+                .unwrap_err(),
+            AckError::Expired
+        );
+        assert_eq!(s.delegation(req2).unwrap().unwrap().info.status, "expired");
     }
 
     #[test]

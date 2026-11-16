@@ -25,10 +25,26 @@ pub(super) fn routes() -> axum::Router<Arc<Hub>> {
 }
 
 /// What the page may show of an event: no message bodies, no fencing tokens.
-fn redact(e: &Event) -> Value {
+pub(super) fn redact(e: &Event) -> Value {
     let mut v = serde_json::to_value(e).unwrap_or(Value::Null);
     if let Some(d) = v["data"].as_object_mut() {
         d.remove("token");
+    }
+    if e.kind.starts_with("delegation.") {
+        // Ids, kind, status, level, paths and sizes only: no task text, summary, spec,
+        // exit condition, commands or result fields.
+        let d = &e.data;
+        let c = &d["contract"];
+        v["data"] = json!({
+            "request": d["request"], "task_id": d["task_id"].as_str().or(c["task_id"].as_str()),
+            "kind": c["kind"], "repo": d["repo"], "status": d["status"], "level": d["level"],
+            "accept": d["accept"],
+            "paths": d.get("scopes").or(c.get("paths")),
+            "bytes": c["text"].as_str().or(d["summary"].as_str()).map(str::len),
+        });
+        if let Some(o) = v["data"].as_object_mut() {
+            o.retain(|_, x| !x.is_null());
+        }
     }
     if e.kind == "msg" {
         v["data"] = json!({
@@ -195,7 +211,7 @@ function describe(e) {
     case "msg": return "message to " + (d.to && d.to.kind) + (d.to && d.to.id ? " " + d.to.id : "") + " (" + d.bytes + " bytes)";
     case "hello": return "joined " + d.repo + " on " + d.branch + (d.task ? ": " + d.task : "");
     case "bye": return "left (" + d.reason + ")";
-    default: return [d.repo, d.scope, d.reason].filter(Boolean).join(" ");
+    default: return [d.repo, d.scope, d.reason, d.task_id, d.status, d.level].filter(Boolean).join(" ");
   }
 }
 let events = $("events");

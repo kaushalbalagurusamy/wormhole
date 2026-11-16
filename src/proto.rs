@@ -127,6 +127,30 @@ pub enum Request {
         reason: String,
     },
     Snapshot,
+    /// Hand a task to another session. Sent only when the hub advertised the capability.
+    Delegate {
+        session: String,
+        to: String,
+        repo: String,
+        contract: Contract,
+    },
+    /// The target session's answer to a delegated task.
+    DelegateAck {
+        session: String,
+        request: u64,
+        accept: bool,
+        level: String,
+        reason: String,
+        ttl_ms: u64,
+    },
+    DelegateResult {
+        session: String,
+        request: u64,
+        status: String,
+        summary: String,
+        #[serde(default)]
+        fields: serde_json::Map<String, Value>,
+    },
 }
 
 /// Frames the hub sends.
