@@ -486,3 +486,48 @@ code: `rg --pre`/`--pre-glob`, `sort --compress-program`, `git difftool -x`/`--e
 
 Tests (protected, written before the fix): `tests/delegation_amend4.rs`, plus updates to earlier delegation test
 files whose policies or patterns use `git`, `cargo`, `rg`, `sort` or `rustfmt`.
+
+## Amendment 5 (2026-11-15, adversarial review of the amendment-3 code; adds to Amendment 4)
+
+Findings R1 to R6 confirmed by the slice reviewer, plus suspicions accepted as cheap to close.
+
+- **R1 (high) Bash operands.** Under `scoped-bypass`, every argument token of an allowed command other than argv[0],
+  the git or cargo subcommand, and allowlisted option tokens is treated as a path: it is refused (no `allow`) if
+  it is absolute, contains a `..` segment, or, resolved against the session's cwd with the same rules as edit
+  paths (symlinks followed), falls outside the repository, is a `--protected` path, or is matched by a deny glob.
+  Option tokens containing `=` are refused. `uniq` is removed from `DEFAULT_SAFE_PROGRAMS` (it writes its second
+  operand).
+- **R2 and R3 (high, medium) git and cargo options.** Amendment 4's refused-option lists are replaced by option
+  allowlists (**pinned**): `pub const GIT_OPTIONS: &[&str] = &["--oneline", "--stat", "--name-only",
+  "--name-status", "--short", "--porcelain", "--cached", "--staged", "--no-color"]` and `pub const CARGO_OPTIONS:
+  &[&str] = &["--lib", "--bins", "--tests", "--doc", "--all-targets", "--workspace", "--release", "--locked",
+  "--offline", "--quiet", "-q", "--no-fail-fast"]`. Any other token starting with `-` in a git or cargo pattern
+  or command is refused (this covers abbreviations such as `--ha`, valued globals such as `--attr-source`, and
+  `--`). Subcommands remain `GIT_SUBCOMMANDS` and `CARGO_SUBCOMMANDS`, which must be literal in the pattern (a
+  pattern `git *` or `cargo *` is invalid).
+- **R4 (medium) audit fails closed.** Writing an audit line returns a `Result`. If the line for a bypass answer
+  cannot be written, no `allow` is given; if the line for an acceptance cannot be written, the request is not
+  accepted (`inform`, reason `audit log unavailable`). An existing audit file that is not a regular file owned by
+  this user with no group or other access is refused the same way.
+- **R5 (medium) repository.** A Bash `allow` also requires the session's current repository id to equal the
+  contract's.
+- **R6 (medium) symlinks.** Under either bypass level, an edit or `Read` path (or a Bash operand) whose final
+  component, or first existing ancestor, is a symlink that does not resolve gets no `allow`.
+- **Star patterns with the denylist on.** The acceptance-time denylist screen of a contract pattern ignores a
+  trailing `*` token, so `ls *` and `cargo test *` can be accepted.
+- **Tool input keys.** The path key is chosen by tool (`notebook_path` for `NotebookEdit`, `file_path` for the
+  others); an input carrying both keys gets no `allow`. A `Bash` input with `dangerouslyDisableSandbox: true` gets
+  no `allow`.
+- **Capability on every send.** `DelegateResult` from the kill switch and the result tool is sent only while the
+  hub advertises the capability (else the tool fails with `does not support delegation`).
+- **Policy narrowing.** Before each bypass answer the contract is re-evaluated against the current policy file;
+  if it is no longer accepted at the same or a higher level, the contract closes (audited) and no `allow` is
+  given.
+- **Deny paths.** `DEFAULT_DENY_PATHS` gains `**/.aws/**`, `**/.kube/**`, `**/.npmrc`, `**/.netrc`,
+  `**/.git-credentials`, `**/.envrc`, `**/*.p12`, `**/*.pfx`.
+
+Not done here (recorded for the owner): a per-sender rate limit on `Delegate`; posting a result when a contract
+closes on TTL or steps (the leases expire with the contract TTL); `lease.*` events from a hand-off are visible to
+all machines like every lease event; a login containing `@` makes `user@machine` grants ambiguous.
+
+Tests (protected, written before the fix): `tests/delegation_amend5.rs`, plus updates to earlier files.
