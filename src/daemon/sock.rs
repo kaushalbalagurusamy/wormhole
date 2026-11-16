@@ -460,6 +460,7 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
                 ttl_secs: args["ttl_seconds"].as_u64().unwrap_or(0),
                 max_steps: args["max_steps"].as_u64().unwrap_or(0),
                 result_fields: strings(args, "result_fields")?,
+                reference: String::new(),
                 text: arg(args, "text")?.to_string(),
             };
             let v = req(Request::Delegate {

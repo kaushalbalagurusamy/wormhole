@@ -212,7 +212,7 @@ pub fn read_hook_token(socket_path: &std::path::Path) -> Result<Option<String>, 
 fn request_session(r: &Request) -> Option<String> {
     use Request::*;
     match r {
-        Hello { .. } | Snapshot => None,
+        Hello { .. } | Snapshot | DaemonStatus { .. } => None,
         Heartbeat { session }
         | Bye { session }
         | Activity { session, .. }
@@ -224,6 +224,7 @@ fn request_session(r: &Request) -> Option<String> {
         | LeaseRequestTransfer { session, .. }
         | LeaseGrant { session, .. }
         | LeaseDeny { session, .. }
+        | Log { session, .. }
         | Delegate { session, .. }
         | DelegateAck { session, .. }
         | DelegateResult { session, .. } => Some(session.clone()),

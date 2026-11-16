@@ -41,6 +41,15 @@ enum Cmd {
         /// TLS private key (PEM).
         #[arg(long, requires = "tls_cert")]
         tls_key: Option<PathBuf>,
+        /// Most team log rows kept (at least 1).
+        #[arg(long, default_value_t = hub::DEFAULT_LOG_MAX_ENTRIES)]
+        log_max_entries: usize,
+        /// Team log rows older than this many days are dropped; 0 keeps them.
+        #[arg(long, default_value_t = hub::DEFAULT_LOG_MAX_AGE_SECS / 86_400)]
+        log_max_age_days: u64,
+        /// File holding the commit SHA daemons are told to run. Re-read about twice a second.
+        #[arg(long)]
+        target_file: Option<PathBuf>,
     },
     /// Run the per-machine daemon.
     Daemon {
@@ -132,6 +141,9 @@ async fn main() {
             allow,
             tls_cert,
             tls_key,
+            log_max_entries,
+            log_max_age_days,
+            target_file,
         } => {
             let identity = match identity.as_str() {
                 "tailscale" => hub::identity::IdentityConfig::Tailscale { bin: tailscale_bin },
@@ -150,6 +162,9 @@ async fn main() {
                 tls: tls_cert
                     .zip(tls_key)
                     .map(|(cert, key)| wormhole::tls::TlsFiles { cert, key }),
+                log_max_entries,
+                log_max_age_secs: log_max_age_days.saturating_mul(86_400),
+                target_file,
             })
             .await
             {
