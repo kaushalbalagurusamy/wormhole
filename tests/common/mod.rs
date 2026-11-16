@@ -43,6 +43,8 @@ pub struct Opts {
     pub lease_ttl: Duration,
     pub protected: Vec<String>,
     pub reconnect_min: Duration,
+    /// Delegation policy file for daemon b only.
+    pub policy_b: Option<PathBuf>,
 }
 
 impl Default for Opts {
@@ -51,6 +53,7 @@ impl Default for Opts {
             lease_ttl: Duration::from_secs(60),
             protected: vec![],
             reconnect_min: Duration::from_millis(100),
+            policy_b: None,
         }
     }
 }
@@ -94,9 +97,9 @@ pub async fn net(opts: Opts) -> Net {
     let a = daemon::start(daemon_config(&dir, url.clone(), "alice@machine-a", &opts))
         .await
         .unwrap();
-    let b = daemon::start(daemon_config(&dir, url, "bob@machine-b", &opts))
-        .await
-        .unwrap();
+    let mut cb = daemon_config(&dir, url, "bob@machine-b", &opts);
+    cb.delegation_policy = opts.policy_b.clone();
+    let b = daemon::start(cb).await.unwrap();
     wait_connected(&a).await;
     wait_connected(&b).await;
     let repo_a = make_repo(&dir.join("a/proj"));
