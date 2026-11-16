@@ -584,3 +584,5 @@ working directory, denied paths included; the directory-operand check never sees
 
 Tests (protected, written before the fix): `tests/delegation_amend7.rs`, plus updates to earlier files that rely
 on default safe programs (they must now list programs in `safe_programs`).
+- Clarification (third separate run): `git status` may take a directory operand (for example `git status src`);
+  it reports names only, so it joins the programs that may take a directory under Amendment 6.
