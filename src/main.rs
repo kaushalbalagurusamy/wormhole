@@ -273,7 +273,7 @@ async fn main() {
             });
             if revert {
                 wormhole::update::revert(&bin).map(|()| {
-                    eprintln!("wormhole: swapped in the previous binary and set the hold file. A running daemon keeps the current build until its service restarts:");
+                    eprintln!("wormhole: swapped in the previous binary and set the hold file. The daemon keeps running the current build until its service restarts:");
                     eprintln!("  macOS:  launchctl kickstart -k gui/$(id -u)/dev.wormhole.daemon");
                     eprintln!("  Linux:  systemctl --user restart wormhole-daemon");
                     eprintln!("Run `wormhole update --resume` to follow the hub again.");
