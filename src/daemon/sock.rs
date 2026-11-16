@@ -290,7 +290,7 @@ fn strings(args: &Value, k: &str) -> Result<Vec<String>, String> {
 async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<String, String> {
     // Checked before anything is sent: a hub that did not advertise delegation must never
     // see a delegation frame.
-    if name == "delegate" && !d.hub_delegates() {
+    if matches!(name, "delegate" | "result") && !d.hub_delegates() {
         return Err("this wormhole hub does not support delegation".into());
     }
     let deadline = Instant::now() + Duration::from_secs(5);

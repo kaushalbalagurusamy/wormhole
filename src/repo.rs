@@ -189,6 +189,21 @@ pub fn canonical_relative(root: &Path, cwd: &Path, file: &str) -> Option<String>
     (!parts.is_empty()).then(|| parts.join("/"))
 }
 
+/// Does `file` (against `cwd`) end in, or pass through, a symlink that does not resolve?
+/// `canonical_relative` cannot see through one, so a path like that is never trusted.
+pub fn dangling_symlink(cwd: &Path, file: &str) -> bool {
+    let mut cur = cwd.join(file);
+    loop {
+        if let Ok(m) = std::fs::symlink_metadata(&cur) {
+            return m.file_type().is_symlink() && std::fs::metadata(&cur).is_err();
+        }
+        match cur.parent() {
+            Some(p) => cur = p.to_path_buf(),
+            None => return false,
+        }
+    }
+}
+
 /// Does the filesystem holding `root` ignore case? (macOS and Windows defaults do.)
 pub fn case_insensitive(root: &Path) -> bool {
     use std::os::unix::fs::MetadataExt;

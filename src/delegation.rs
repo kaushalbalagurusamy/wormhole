@@ -98,16 +98,54 @@ pub const DEFAULT_DENY_PATHS: &[&str] = &[
     "**/secrets/**",
     "**/.git/**",
     "**/.ssh/**",
+    "**/.aws/**",
+    "**/.kube/**",
+    "**/.npmrc",
+    "**/.netrc",
+    "**/.git-credentials",
+    "**/.envrc",
+    "**/*.p12",
+    "**/*.pfx",
 ];
 
-/// Programs a contract command may start with, without an owner's addition. Each is here
-/// because its ordinary forms do not hand control to an arbitrary program. `git` and `cargo`
-/// still run project code (hooks, build scripts, tests): they are only as safe as the paths
-/// the contract lets the agent write.
+/// Programs a contract command may start with, without an owner's addition: none has an
+/// option that runs another program, and each only reads (or prints). `rg`, `sort`,
+/// `rustfmt`, `uniq`, `git` and `cargo` are left out because an option or an operand makes them
+/// run code or write files; the owner may add `git` and `cargo` (with the subcommand and option
+/// lists below) or any other program they have checked, through `safe_programs`.
 pub const DEFAULT_SAFE_PROGRAMS: &[&str] = &[
-    "ls", "cat", "head", "tail", "wc", "grep", "rg", "diff", "stat", "pwd", "echo", "true",
-    "false", "sort", "uniq", "cut", "tr", "basename", "dirname", "realpath", "git", "cargo",
-    "rustfmt",
+    "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false",
+    "cut", "tr", "basename", "dirname", "realpath",
+];
+
+/// The only git subcommands a pattern may name, and the only options a git command may carry.
+pub const GIT_SUBCOMMANDS: &[&str] = &["status", "log", "diff", "show"];
+pub const GIT_OPTIONS: &[&str] = &[
+    "--oneline",
+    "--stat",
+    "--name-only",
+    "--name-status",
+    "--short",
+    "--porcelain",
+    "--cached",
+    "--staged",
+    "--no-color",
+];
+/// The same for cargo. `test` and `build` still run project code (tests, build scripts).
+pub const CARGO_SUBCOMMANDS: &[&str] = &["test", "check", "build"];
+pub const CARGO_OPTIONS: &[&str] = &[
+    "--lib",
+    "--bins",
+    "--tests",
+    "--doc",
+    "--all-targets",
+    "--workspace",
+    "--release",
+    "--locked",
+    "--offline",
+    "--quiet",
+    "-q",
+    "--no-fail-fast",
 ];
 
 /// Longest a contract may stay open whatever the grant says.
@@ -432,6 +470,9 @@ impl Policy {
                 }
             }
             for x in &c.commands {
+                // A trailing `*` is a pattern word, not shell syntax.
+                let x = x.trim_end();
+                let x = x.strip_suffix('*').map_or(x, str::trim_end);
                 if let Some(hit) = self.denied_argv(x) {
                     return Err(format!("command {x:?} is denylisted ({hit})"));
                 }
@@ -471,7 +512,7 @@ impl Policy {
         }
         let t = tokenize(command)?;
         if let Some(o) = unsafe_option(&t) {
-            return Err(format!("unsafe option {o:?}"));
+            return Err(format!("unsafe option or subcommand: {o}"));
         }
         let hit = patterns
             .iter()
@@ -694,21 +735,26 @@ pub fn runnable(command: &str) -> Result<(), String> {
 /// escapes, glob and brace syntax and `~` make the words differ from what the shell runs.
 const NO_RAW: &[char] = &['\'', '"', '\\', '*', '?', '[', ']', '{', '}', '~'];
 
-/// `git` and `cargo` run code named by their options or configuration.
-fn unsafe_option(tokens: &[String]) -> Option<&str> {
-    if !matches!(
-        base_name(&tokens[0]).to_lowercase().as_str(),
-        "git" | "cargo"
-    ) {
-        return None;
+/// `git` and `cargo` run code named by their options and configuration, so they are usable
+/// only as `<program> <literal subcommand> [listed options]...`.
+fn unsafe_option(tokens: &[String]) -> Option<String> {
+    let (subs, opts) = match base_name(&tokens[0]).to_lowercase().as_str() {
+        "git" => (GIT_SUBCOMMANDS, GIT_OPTIONS),
+        "cargo" => (CARGO_SUBCOMMANDS, CARGO_OPTIONS),
+        _ => return None,
+    };
+    match tokens.get(1) {
+        Some(sub) if subs.contains(&sub.as_str()) => {}
+        _ => {
+            return Some(format!(
+                "a literal subcommand, one of {subs:?}, must follow the program"
+            ))
+        }
     }
-    tokens.iter().map(String::as_str).find(|t| {
-        let t = t.to_lowercase();
-        t == "-c"
-            || ["--config", "--exec", "--upload-pack", "--receive-pack"]
-                .iter()
-                .any(|p| t.starts_with(p))
-    })
+    tokens[2..]
+        .iter()
+        .find(|t| t.starts_with('-') && !opts.contains(&t.as_str()))
+        .cloned()
 }
 
 fn pattern_words_with(safe: &[String], pattern: &str) -> Result<Vec<String>, String> {
@@ -727,9 +773,12 @@ fn pattern_words_with(safe: &[String], pattern: &str) -> Result<Vec<String>, Str
         return Err(format!("{program:?} is not a safe program"));
     }
     if let Some(o) = unsafe_option(&w) {
-        return Err(format!("unsafe option {o:?}"));
+        return Err(format!("unsafe option or subcommand: {o}"));
     }
     if star {
+        if let Some(o) = w[1..].iter().find(|t| t.starts_with('-')) {
+            return Err(format!("unsafe option {o:?} before a trailing `*`"));
+        }
         w.push("*".into());
     }
     Ok(w)
@@ -747,6 +796,9 @@ fn argv_hit(t: &[String]) -> Option<String> {
     let lowered: Vec<String> = t.iter().map(|x| x.to_lowercase()).collect();
     let t = &lowered[..];
     let prog = base_name(&t[0]).to_lowercase();
+    if WRAPPERS.contains(&prog.as_str()) {
+        return Some(format!("{prog} runs other commands"));
+    }
     let hit = |what: &str| Some(format!("{prog} {what}").trim().to_string());
     let rest = |i: usize| t.get(i..).unwrap_or(&[]);
     match prog.as_str() {
@@ -888,11 +940,47 @@ pub fn revoked(policy: &Path) -> bool {
     std::fs::symlink_metadata(kill_path(policy)).is_ok()
 }
 
-/// Append one JSON line to the audit log (mode 0600). Best effort: a full disk must not
-/// turn a refusal into an allow, and an allow is only given after this runs.
-pub fn audit(policy: &Path, event: &str, seq: u64, session: &str, level: &str, extra: Value) {
+/// Open the audit log for appending (mode 0600, not following a symlink). An existing file
+/// that is not a regular file owned by this user with no group or other access is refused.
+fn audit_file(policy: &Path) -> Result<std::fs::File, String> {
+    use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+    let p = audit_path(policy);
+    match std::fs::symlink_metadata(&p) {
+        Ok(m) => {
+            // SAFETY: geteuid takes no arguments and cannot fail.
+            let me = unsafe { libc::geteuid() };
+            if !m.file_type().is_file() || m.uid() != me || m.mode() & 0o077 != 0 {
+                return Err(format!("{} is not a private regular file", p.display()));
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(format!("{}: {e}", p.display())),
+    }
+    std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&p)
+        .map_err(|e| format!("{}: {e}", p.display()))
+}
+
+/// Can the audit log be appended to? Checked before an acceptance, which is refused if not.
+pub fn audit_ready(policy: &Path) -> Result<(), String> {
+    audit_file(policy).map(|_| ())
+}
+
+/// Append one JSON line to the audit log. A bypass answer or an acceptance is given only
+/// after this returns `Ok`.
+pub fn audit(
+    policy: &Path,
+    event: &str,
+    seq: u64,
+    session: &str,
+    level: &str,
+    extra: Value,
+) -> Result<(), String> {
     use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
     let mut line = json!({
         "ts": crate::proto::now_ms(), "event": event, "seq": seq,
         "session": session, "level": level,
@@ -900,23 +988,15 @@ pub fn audit(policy: &Path, event: &str, seq: u64, session: &str, level: &str, e
     if let (Some(l), Value::Object(x)) = (line.as_object_mut(), extra) {
         l.extend(x);
     }
-    let Ok(mut f) = std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .mode(0o600)
-        .custom_flags(libc::O_NOFOLLOW)
-        .open(audit_path(policy))
-    else {
-        return;
-    };
-    let _ = writeln!(f, "{line}");
+    let mut f = audit_file(policy)?;
+    writeln!(f, "{line}").map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const POLICY: &str = r#"{"grants": [
+    const POLICY: &str = r#"{"safe_programs": ["cargo"], "grants": [
       {"from": ["alice@machine-a"], "repos": ["example.com/team/proj"], "task_ids": ["T-*"],
        "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["tests", "fix"],
        "commands": ["cargo test"], "max_ttl_secs": 600, "max_steps": 5},
@@ -1077,10 +1157,21 @@ mod tests {
     fn command_patterns_are_the_boundary() {
         let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let pol = Policy::parse(POLICY).unwrap();
+        // Defaults hold only programs with no option that runs another program.
+        assert!(pol.safe_program("ls") && !pol.safe_program("git") && !pol.safe_program("sort"));
+        assert!(
+            !pol.safe_program("uniq") && !pol.safe_program("rg") && !pol.safe_program("rustfmt")
+        );
         let ok = p(&["cargo test"]);
         assert!(pol.command_allowed(&ok, "cargo test").is_ok());
-        // Exact: extra flags are not allowed.
+        // Exact: extra options are not allowed unless the pattern lists them.
         assert!(pol.command_allowed(&ok, "cargo test --lib").is_err());
+        assert!(pol
+            .command_allowed(&p(&["cargo test --lib"]), "cargo test --lib")
+            .is_ok());
+        assert!(pol
+            .command_allowed(&p(&["cargo test --lib"]), "cargo test --lib --ha")
+            .is_err());
         let star = p(&["cargo test *"]);
         assert!(pol.command_allowed(&star, "cargo test glob_tests").is_ok());
         for bad in [
@@ -1094,7 +1185,9 @@ mod tests {
             "cargo test ~",
             "cargo test {a,b}",
             "cargo --config x test y",
-            "cargo --exec x test y",
+            "cargo +nightly test y",
+            "cargo -Z x test y",
+            "cargo test --manifest-path x y",
             "git -c core.pager=x log y",
         ] {
             assert!(pol.command_allowed(&star, bad).is_err(), "{bad}");
@@ -1108,9 +1201,16 @@ mod tests {
             "SH -c x",
             "/bin/Bash x",
             "cargo --config x",
+            "cargo *",
+            "git *",
             "git -c x=y status",
-            "git --exec-path=x status",
-            "git push --upload-pack=x",
+            "git push",
+            "cargo test --lib *",
+            "cargo test --manifest-path x",
+            "git log --ha",
+            "git log --",
+            "ls -a *",
+            "make check",
         ] {
             assert!(pol.pattern_words(bad).is_err(), "{bad}");
         }
@@ -1123,8 +1223,12 @@ mod tests {
         ] {
             assert!(pol.command_allowed(&ok, bad).is_err(), "{bad}");
         }
-        // The owner can extend the safe list; the default list is fixed.
-        assert!(!pol.safe_program("make") && pol.safe_program("git"));
+        // git is usable only when the owner adds it, and only with listed subcommands and options.
+        assert!(pol.pattern_words("git status").is_err());
+        let git = Policy::parse(r#"{"safe_programs":["git"],"grants":[]}"#).unwrap();
+        assert!(git.pattern_words("git log --oneline").is_ok());
+        assert!(git.pattern_words("git log --attr-source").is_err());
+        assert!(git.pattern_words("git log *").is_ok());
         let more = Policy::parse(r#"{"safe_programs":["make"],"grants":[]}"#).unwrap();
         assert!(more.safe_program("make") && !more.safe_program("MAKE"));
         assert!(more
@@ -1132,18 +1236,39 @@ mod tests {
             .is_ok());
         let load = |c: &str| {
             Policy::parse(&format!(
-                r#"{{"grants":[{{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["x"],"commands":["{c}"]}}]}}"#
+                r#"{{"safe_programs":["cargo"],"grants":[{{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["x"],"commands":["{c}"]}}]}}"#
             ))
         };
-        assert!(load("cargo test").is_ok() && load("*").is_ok());
+        assert!(load("cargo test").is_ok() && load("*").is_ok() && load("ls *").is_ok());
         assert!(load("make check")
             .err()
             .unwrap()
             .contains("not a safe program"));
-        assert!(load("git -c x=y status")
+        assert!(load("cargo --config x test")
             .err()
             .unwrap()
             .contains("unsafe option"));
+        assert!(load("ls -l *").err().unwrap().contains("unsafe option"));
+    }
+
+    #[test]
+    fn star_patterns_are_accepted_with_the_denylist_on_and_wrappers_are_denied() {
+        let pol = Policy::parse(POLICY).unwrap();
+        let p = Policy::parse(
+            r#"{"safe_programs":["cargo"],"grants":[{"from":["a"],"repos":["*"],"level":"scoped-bypass","paths":["src/**"],"kinds":["*"],"commands":["ls *","cargo check *"]}]}"#,
+        )
+        .unwrap();
+        let mut c = contract();
+        c.commands = vec!["ls *".into(), "cargo check *".into()];
+        assert!(p.evaluate("a", "m", "r", &c).accepted);
+        assert!(pol.denied_argv("/bin/Bash -c x").is_some() && pol.denied_argv("env x").is_some());
+        for d in DEFAULT_DENY_PATHS.iter().skip(9) {
+            assert!(
+                pol.denied_path(&d.replace("**/", "a/").replace('*', "x"))
+                    .is_some(),
+                "{d}"
+            );
+        }
     }
 
     #[test]
@@ -1237,8 +1362,8 @@ mod tests {
         resume(&p).unwrap();
         resume(&p).unwrap();
         assert!(!revoked(&p));
-        audit(&p, "request", 7, "s", "inform", json!({"accepted": false}));
-        audit(&p, "close", 7, "s", "inform", json!({"reason": "ttl"}));
+        audit(&p, "request", 7, "s", "inform", json!({"accepted": false})).unwrap();
+        audit(&p, "close", 7, "s", "inform", json!({"reason": "ttl"})).unwrap();
         let a = audit_path(&p);
         assert_eq!(a, dir.join("policy.json.audit.jsonl"));
         assert_eq!(

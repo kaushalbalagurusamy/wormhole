@@ -21,6 +21,9 @@ pub(crate) struct Open {
     pub repo: String,
     pub expires: Instant,
     pub steps_left: u64,
+    /// The hub-stamped sender, to re-evaluate the policy before each bypass answer.
+    pub from_user: String,
+    pub from_machine: String,
 }
 
 /// Most characters of the sender's task text in a notice; the daemon's own lines come first
@@ -29,9 +32,24 @@ const TASK_CHARS: usize = 1000;
 /// Most escaped characters the daemon's own lines may take before the relayed text.
 const HEADER_BUDGET: usize = 950;
 
+/// Best effort: closes, revokes and results are recorded when they can be.
 fn audit(d: &Daemon, event: &str, seq: u64, session: &str, level: &str, extra: Value) {
-    if let Some(p) = &d.cfg.delegation_policy {
-        delegation::audit(p, event, seq, session, level, extra);
+    let _ = audit_strict(d, event, seq, session, level, extra);
+}
+
+/// For what grants authority (an acceptance, a bypass answer): if this fails, the authority
+/// is not given.
+fn audit_strict(
+    d: &Daemon,
+    event: &str,
+    seq: u64,
+    session: &str,
+    level: &str,
+    extra: Value,
+) -> Result<(), String> {
+    match &d.cfg.delegation_policy {
+        Some(p) => delegation::audit(p, event, seq, session, level, extra),
+        None => Err("no delegation policy".into()),
     }
 }
 
@@ -94,6 +112,10 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
     let repo = e.data["repo"].as_str().unwrap_or("").to_string();
     let policy = Policy::load(&path).ok();
     let mut dec = decide(&d, policy.as_ref(), &to, &e, &repo, &c);
+    // Nothing is accepted that cannot be audited.
+    if dec.accepted && delegation::audit_ready(&path).is_err() {
+        dec = no(Level::Inform, "audit log unavailable");
+    }
     let deadline = || Instant::now() + Duration::from_secs(5);
     let ack = |accept: bool, level: &str, reason: &str, ttl_ms: u64| Request::DelegateAck {
         session: to.clone(),
@@ -141,7 +163,7 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
             .request(ack(false, dec.level.as_str(), &dec.reason, 0), deadline())
             .await;
     }
-    audit(
+    let logged = audit_strict(
         &d,
         "request",
         e.seq,
@@ -150,6 +172,9 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
         json!({"accepted": dec.accepted, "reason": dec.reason, "from_user": e.user,
             "from_machine": e.machine, "task_id": c.task_id, "kind": c.kind}),
     );
+    if dec.accepted && logged.is_err() {
+        dec = no(Level::Inform, "audit log unavailable");
+    }
     if dec.accepted {
         let o = Open {
             seq: e.seq,
@@ -158,6 +183,8 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
             repo: repo.clone(),
             expires: Instant::now() + Duration::from_secs(dec.ttl_secs),
             steps_left: dec.max_steps,
+            from_user: e.user.clone(),
+            from_machine: e.machine.clone(),
         };
         d.deleg
             .lock()
@@ -232,13 +259,15 @@ fn request_body(
     };
     let header = |div: usize| {
         let mut h = format!(
-            "[wormhole delegation] request {} from session {} ({}@{}): status: {status}; level: {}; reason: {}\n",
+            "[wormhole delegation] request {} from session {} ({}@{}): status: {status}; level: {}; reason: {}; task {}; kind {}\n",
             e.seq,
             shown(&e.session, 64 / div),
             shown(&e.user, 64 / div),
             shown(&e.machine, 64 / div),
             dec.level.as_str(),
-            shown(&dec.reason, 160 / div)
+            shown(&dec.reason, 160 / div),
+            shown(&c.task_id, 40 / div),
+            shown(&c.kind, 40 / div)
         );
         if dec.accepted {
             h.push_str(&format!(
@@ -384,7 +413,10 @@ pub(crate) async fn kill(d: &Daemon) {
             summary: "revoked by the receiving machine's owner".into(),
             fields: Default::default(),
         };
-        let _ = d.request(r, Instant::now() + Duration::from_secs(3)).await;
+        // Only while the hub advertises delegation: an old hub must never see the frame.
+        if d.hub_delegates() {
+            let _ = d.request(r, Instant::now() + Duration::from_secs(3)).await;
+        }
     }
 }
 
@@ -439,6 +471,36 @@ pub(crate) fn finished(d: &Daemon, session: &str, request: u64, status: &str) {
     }
 }
 
+/// The session's repository id and the working directory its paths are resolved against.
+fn session_repo(
+    d: &Daemon,
+    session: &str,
+) -> Option<(String, std::path::PathBuf, std::path::PathBuf)> {
+    let st = d.st.lock().unwrap();
+    let s = st.sessions.get(session)?;
+    let r = s.repo.as_ref()?;
+    Some((r.id.clone(), r.root.clone(), s.cwd.clone()?))
+}
+
+/// May the Bash operand `tok` be touched? It is read as a path: inside the repository after
+/// symlinks are followed, not dangling, not protected, not denylisted.
+fn operand_ok(d: &Daemon, session: &str, policy: &Policy, tok: &str) -> bool {
+    let Some((_, root, cwd)) = session_repo(d, session) else {
+        return false;
+    };
+    if tok.starts_with('/')
+        || tok.split('/').any(|x| x == "..")
+        || crate::repo::dangling_symlink(&cwd, tok)
+    {
+        return false;
+    }
+    match crate::repo::canonical_relative(&root, &cwd, tok) {
+        Some(rel) => policy.denied_path(&rel).is_none() && !hooks::is_protected(d, session, &rel),
+        // `.` or the root itself names the repository, which no scope covers.
+        None => false,
+    }
+}
+
 /// Why `tool` with `input` may be answered `allow` under `o`, as the audit key and value.
 fn permitted(
     d: &Daemon,
@@ -449,9 +511,24 @@ fn permitted(
     input: &Value,
     granted: bool,
 ) -> Option<(&'static str, String)> {
+    let ti = &input["tool_input"];
     let edit = hooks::EDIT_TOOLS.contains(&tool);
     // Full bypass covers exactly Bash, the edit tools and Read; scoped bypass never Read.
     if edit || (tool == "Read" && o.level == Level::FullBypass) {
+        // The path key is the tool's own, and only that one: two keys could name two files.
+        let (want, other) = if tool == "NotebookEdit" {
+            ("notebook_path", "file_path")
+        } else {
+            ("file_path", "notebook_path")
+        };
+        let file = ti[want].as_str()?;
+        if !ti[other].is_null() {
+            return None;
+        }
+        let (_, _, cwd) = session_repo(d, session)?;
+        if crate::repo::dangling_symlink(&cwd, file) {
+            return None;
+        }
         // Edits need the lease step to have ended with this session holding the path: a held
         // lease, a protected path or an unchecked path never gets `allow`. Every path is
         // resolved inside the repository and checked against the denylist and --protected.
@@ -468,9 +545,36 @@ fn permitted(
         return ok.then_some(("path", rel));
     }
     if tool == "Bash" {
-        let cmd = input["tool_input"]["command"].as_str()?;
+        // An unsandboxed command is never answered for.
+        if !ti["dangerouslyDisableSandbox"].is_null()
+            && ti["dangerouslyDisableSandbox"] != json!(false)
+        {
+            return None;
+        }
+        let cmd = ti["command"].as_str()?;
+        if session_repo(d, session)?.0 != o.repo {
+            return None;
+        }
         let ok = if o.level == Level::ScopedBypass {
-            policy.command_allowed(&o.contract.commands, cmd).is_ok()
+            policy.command_allowed(&o.contract.commands, cmd).is_ok() && {
+                // Every operand is a path the contract could have named; options carry no `=`.
+                let t = delegation::tokenize(cmd).ok()?;
+                let first = usize::from(matches!(
+                    t[0].rsplit('/')
+                        .next()
+                        .unwrap_or("")
+                        .to_lowercase()
+                        .as_str(),
+                    "git" | "cargo"
+                )) + 1;
+                t[first.min(t.len())..].iter().all(|x| {
+                    if x.starts_with('-') {
+                        !x.contains('=')
+                    } else {
+                        operand_ok(d, session, policy, x)
+                    }
+                })
+            }
         } else {
             // Full bypass with the denylist on still refuses what cannot be read as plain words.
             !policy.denylist_on() || delegation::runnable(cmd).is_ok()
@@ -501,6 +605,43 @@ pub(crate) async fn bypass(
     let Some(path) = d.cfg.delegation_policy.as_deref() else {
         return out;
     };
+    // The existing behaviour wins: a deny stays a deny, a stale hub gives no allow.
+    if !hub_ok || out["hookSpecificOutput"]["permissionDecision"] == "deny" {
+        return out;
+    }
+    let Ok(policy) = Policy::load(path) else {
+        return out;
+    };
+    // The owner may have narrowed the policy since acceptance: a contract the file no longer
+    // grants at its level closes now.
+    let stale: Vec<Open> = d
+        .deleg
+        .lock()
+        .unwrap()
+        .get(session)
+        .map(|v| {
+            v.iter()
+                .filter(|o| {
+                    let dec = policy.evaluate(&o.from_user, &o.from_machine, &o.repo, &o.contract);
+                    !(dec.accepted && dec.level >= o.level)
+                })
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default();
+    for o in &stale {
+        let gone = {
+            let mut m = d.deleg.lock().unwrap();
+            let g = m
+                .get_mut(session)
+                .and_then(|v| v.iter().position(|x| x.seq == o.seq).map(|i| v.remove(i)));
+            remove_if_empty(&mut m, session);
+            g
+        };
+        if let Some(g) = gone {
+            closed(d, session, &g, "the policy no longer grants it");
+        }
+    }
     let open: Vec<Open> = d
         .deleg
         .lock()
@@ -513,13 +654,9 @@ pub(crate) async fn bypass(
                 .collect()
         })
         .unwrap_or_default();
-    // The existing behaviour wins: a deny stays a deny, a stale hub gives no allow.
-    if open.is_empty() || !hub_ok || out["hookSpecificOutput"]["permissionDecision"] == "deny" {
+    if open.is_empty() {
         return out;
     }
-    let Ok(policy) = Policy::load(path) else {
-        return out;
-    };
     let tool = input["tool_name"].as_str().unwrap_or("");
     let Some((o, key, val)) = open.iter().find_map(|o| {
         permitted(d, session, &policy, o, tool, input, granted).map(|(k, v)| (o, k, v))
@@ -542,14 +679,19 @@ pub(crate) async fn bypass(
     let Some(left) = left else {
         return out;
     };
-    delegation::audit(
-        path,
+    // No audit line, no allow.
+    if audit_strict(
+        d,
         "allow",
         o.seq,
         session,
         o.level.as_str(),
         json!({"tool": tool, key: val}),
-    );
+    )
+    .is_err()
+    {
+        return out;
+    }
     if left == 0 {
         let gone = {
             let mut m = d.deleg.lock().unwrap();
@@ -630,6 +772,7 @@ mod tests {
         let body = request_body(&event(), &c, "r", &no, None);
         assert!(body.starts_with("[wormhole delegation] request 7"));
         assert!(body.contains("information only") && !body.contains("Boundary"));
+        assert!(body.contains("task T-1; kind tests"), "{body}");
     }
 
     #[test]
