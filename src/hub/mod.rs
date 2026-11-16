@@ -60,6 +60,28 @@ pub(crate) struct Hub {
     endpoint: std::sync::OnceLock<(SocketAddr, Vec<String>)>,
     /// The server certificate when TLS is on; its names are also accepted as Host.
     tls: Option<Arc<crate::tls::ServerTls>>,
+    /// Open connections per `user@machine` whose daemon advertised the delegation capability.
+    delegating: Mutex<HashMap<String, usize>>,
+}
+
+/// Counts a connection as delegation-capable for as long as it lives.
+struct CapGuard {
+    hub: Arc<Hub>,
+    key: Option<String>,
+}
+
+impl Drop for CapGuard {
+    fn drop(&mut self) {
+        if let Some(k) = &self.key {
+            let mut m = self.hub.delegating.lock().unwrap();
+            if let Some(n) = m.get_mut(k) {
+                *n -= 1;
+                if *n == 0 {
+                    m.remove(k);
+                }
+            }
+        }
+    }
 }
 
 /// Frames queued per connection before a slow consumer is dropped.
@@ -277,9 +299,9 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
     let mut kick = hub.kick.subscribe();
 
     // First frame must be Resume.
-    let from = match tokio::time::timeout(Duration::from_secs(10), stream.next()).await {
+    let (from, caps) = match tokio::time::timeout(Duration::from_secs(10), stream.next()).await {
         Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Up>(&t) {
-            Ok(Up::Resume { from }) => from,
+            Ok(Up::Resume { from, caps }) => (from, caps),
             _ => {
                 writer.abort();
                 return;
@@ -289,6 +311,17 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
             writer.abort();
             return;
         }
+    };
+    let _caps = CapGuard {
+        hub: hub.clone(),
+        key: caps.iter().any(|c| c == CAP_DELEGATION).then(|| {
+            *hub.delegating
+                .lock()
+                .unwrap()
+                .entry(peer.key())
+                .or_default() += 1;
+            peer.key()
+        }),
     };
     // Subscribe before reading the log so nothing falls between replay and live.
     let mut rx = hub.tx.subscribe();
@@ -305,6 +338,7 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
             user: peer.user.clone(),
             machine: peer.machine.clone(),
             head,
+            caps: vec![CAP_DELEGATION.to_string()],
         },
     );
     let mut last = resume_point(from, cursor, head);
@@ -431,6 +465,7 @@ impl Hub {
             kick,
             endpoint: std::sync::OnceLock::new(),
             tls: None,
+            delegating: Mutex::new(HashMap::new()),
         }
     }
 
@@ -859,7 +894,11 @@ impl Hub {
             .collect();
         sessions.sort_by_key(|s| s.since);
         let leases = db(self.store.lock().unwrap().leases(now()))?;
-        Ok(Snapshot { sessions, leases })
+        Ok(Snapshot {
+            sessions,
+            leases,
+            delegations: vec![],
+        })
     }
 
     pub(crate) fn recent(&self, n: usize) -> Result<Vec<Event>, String> {
@@ -1051,7 +1090,7 @@ mod tests {
                     .insert(STATIC_ID_HEADER, "alice@ma".parse().unwrap());
                 let (mut ws, _) = tokio_tungstenite::connect_async(req).await.unwrap();
                 ws.send(M::text(
-                    serde_json::to_string(&Up::Resume { from }).unwrap(),
+                    serde_json::to_string(&Up::Resume { from, caps: vec![] }).unwrap(),
                 ))
                 .await
                 .unwrap();

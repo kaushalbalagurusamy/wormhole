@@ -19,6 +19,10 @@ pub const MAX_FRAME: usize = 1024 * 1024;
 pub const MAX_SNAPSHOT_SESSIONS: usize = 500;
 pub const MAX_SNAPSHOT_LEASES: usize = 1000;
 
+/// Capability a daemon advertises in `Resume` (only with a delegation policy) and the hub in
+/// `Welcome`. A daemon sends delegation requests only on a connection whose `Welcome` listed it.
+pub const CAP_DELEGATION: &str = "delegation";
+
 /// Header a daemon uses to claim an identity when the hub runs with static identity.
 pub const STATIC_ID_HEADER: &str = "x-wormhole-static-identity";
 
@@ -39,6 +43,8 @@ pub enum Up {
     /// processed; `None` asks the hub to use its stored cursor for this machine.
     Resume {
         from: Option<u64>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        caps: Vec<String>,
     },
     /// Everything up to and including `seq` has been processed.
     Ack {
@@ -131,6 +137,8 @@ pub enum Down {
         user: String,
         machine: String,
         head: u64,
+        #[serde(default)]
+        caps: Vec<String>,
     },
     Event {
         event: Event,
@@ -194,6 +202,57 @@ pub enum LeaseResult {
 pub struct Snapshot {
     pub sessions: Vec<SessionInfo>,
     pub leases: Vec<LeaseInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delegations: Vec<DelegationInfo>,
+}
+
+/// A delegated task as the hub keeps it: the contract's identifying fields and the outcome.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct DelegationInfo {
+    pub seq: u64,
+    pub from_session: String,
+    pub from_user: String,
+    pub from_machine: String,
+    pub to_session: String,
+    pub to_user: String,
+    pub to_machine: String,
+    pub repo: String,
+    pub task_id: String,
+    pub kind: String,
+    pub status: String,
+    pub level: String,
+    pub summary: String,
+    pub ts: u64,
+}
+
+/// What a delegated task may touch and when it is done. The receiving owner's policy, not
+/// this, decides the permission level.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct Contract {
+    pub task_id: String,
+    pub kind: String,
+    /// Spec or slice reference.
+    #[serde(default)]
+    pub spec: String,
+    /// Repo-relative files, directories ending in `/`, or globs.
+    #[serde(default)]
+    pub paths: Vec<String>,
+    /// Command patterns; `*` matches any characters.
+    #[serde(default)]
+    pub commands: Vec<String>,
+    /// What done means.
+    #[serde(default)]
+    pub exit: String,
+    /// 0: the grant's maximum.
+    #[serde(default)]
+    pub ttl_secs: u64,
+    /// 0: the grant's maximum.
+    #[serde(default)]
+    pub max_steps: u64,
+    /// Keys a `done` result must carry.
+    #[serde(default)]
+    pub result_fields: Vec<String>,
+    pub text: String,
 }
 
 pub fn now_ms() -> u64 {

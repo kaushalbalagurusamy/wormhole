@@ -40,6 +40,9 @@ pub struct DaemonConfig {
     /// PEM CA certificates trusted for a wss:// hub in addition to the system roots, for a
     /// private CA or tests. Certificates are always verified.
     pub extra_roots: Vec<PathBuf>,
+    /// Delegation policy file. With one the daemon advertises the delegation capability and
+    /// decides delegated tasks from it; without, delegated tasks never reach it.
+    pub delegation_policy: Option<PathBuf>,
 }
 
 impl DaemonConfig {
@@ -54,6 +57,7 @@ impl DaemonConfig {
             hub_deadline: Duration::from_millis(800),
             reconnect_min: Duration::from_millis(250),
             extra_roots: Vec::new(),
+            delegation_policy: None,
         }
     }
 }
@@ -99,6 +103,8 @@ pub(crate) struct Link {
     next_id: AtomicU64,
     pub generation: AtomicU64,
     pub connected: AtomicBool,
+    /// The hub's `Welcome` on the current connection listed the delegation capability.
+    pub delegation: AtomicBool,
 }
 
 pub(crate) struct Daemon {
@@ -326,13 +332,21 @@ async fn connect(d: &Daemon) -> Result<Ws, String> {
 async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     let (mut sink, mut stream) = ws.split();
     let from = d.st.lock().unwrap().last_seq;
-    let resume = serde_json::to_string(&Up::Resume { from }).unwrap_or_default();
+    let caps = if d.cfg.delegation_policy.is_some() {
+        vec![CAP_DELEGATION.to_string()]
+    } else {
+        vec![]
+    };
+    let resume = serde_json::to_string(&Up::Resume { from, caps }).unwrap_or_default();
     if sink.send(Message::text(resume)).await.is_err() {
         return false;
     }
     match tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
         Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Down>(&t) {
-            Ok(Down::Welcome { head, .. }) => {
+            Ok(Down::Welcome { head, caps, .. }) => {
+                d.link
+                    .delegation
+                    .store(caps.iter().any(|c| c == CAP_DELEGATION), Ordering::SeqCst);
                 // A hub log behind our cursor (database reset, or commits lost on power
                 // failure) would otherwise make us drop every new event as already seen.
                 let mut st = d.st.lock().unwrap();
@@ -404,6 +418,7 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     }
     rehello.abort();
     d.link.connected.store(false, Ordering::SeqCst);
+    d.link.delegation.store(false, Ordering::SeqCst);
     *d.link.out.lock().unwrap() = None;
     d.link.pending.lock().unwrap().clear();
     true
