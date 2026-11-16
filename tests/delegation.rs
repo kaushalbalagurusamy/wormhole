@@ -43,7 +43,7 @@ fn default_policy() -> Value {
         grant("SBX-*", "scoped-bypass", json!({"commands": ["*"]})),
         grant("FB-*", "full-bypass", json!({})),
         grant("IN-*", "inform", json!({})),
-    ]})
+    ], "safe_programs": ["git", "cargo"]})
 }
 
 fn opts(policy: &Path) -> Opts {
@@ -184,7 +184,13 @@ async fn scoped_instruction_end_to_end() {
     ] {
         assert!(c.contains(want), "missing {want}: {c}");
     }
-    assert!(!c.contains("information only"), "{c}");
+    // The shared preamble mentions "information only" in every context, so look at the
+    // delegation block alone.
+    let start = c.find("<wormhole-delegation").expect("no delegation block");
+    let end = c
+        .find("</wormhole-delegation>")
+        .expect("unterminated delegation block");
+    assert!(!c[start..end].contains("information only"), "{c}");
     assert!(
         c.find("TASK-TEXT-ALPHA").unwrap() > c.find("status: accepted").unwrap(),
         "task text must come after the status line: {c}"
@@ -369,11 +375,11 @@ async fn scoped_bypass_command_pattern_cannot_reach_a_denylisted_command() {
         "SBX-1",
         "fix",
         "run anything harmless",
-        json!({"paths": ["src/**"], "commands": ["git status", "git push origin *"], "exit": "done"}),
+        json!({"paths": ["src/**"], "commands": ["git status", "git log *"], "exit": "done"}),
     )
     .await;
     assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git status")).await);
-    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git push origin main")).await);
+    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git log src")).await);
     for cmd in [
         "git push --force",
         "GIT  PUSH  -F origin",

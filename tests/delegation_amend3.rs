@@ -28,9 +28,15 @@ fn grant(commands: Value) -> Value {
 
 fn load(grants: Vec<Value>, safe: Option<Value>) -> Result<Policy, String> {
     let mut p = json!({"grants": grants});
-    if let Some(s) = safe {
-        p["safe_programs"] = s;
-    }
+    // git and cargo are not defaults (amendment 4); the owner adds them here.
+    p["safe_programs"] = match safe {
+        Some(Value::Array(mut a)) => {
+            a.extend([json!("git"), json!("cargo")]);
+            Value::Array(a)
+        }
+        Some(other) => other,
+        None => json!(["git", "cargo"]),
+    };
     Policy::parse(&p.to_string())
 }
 
@@ -66,12 +72,11 @@ fn tokenize_refuses_unquoted_glob_brace_tilde_and_comment_characters() {
 #[test]
 fn safe_program_defaults_and_exact_matching() {
     let defaults = [
-        "ls", "cat", "head", "tail", "wc", "grep", "rg", "diff", "stat", "pwd", "echo", "true",
-        "false", "sort", "uniq", "cut", "tr", "basename", "dirname", "realpath", "git", "cargo",
-        "rustfmt",
+        "ls", "cat", "head", "tail", "wc", "grep", "diff", "stat", "pwd", "echo", "true", "false",
+        "cut", "tr", "basename", "dirname", "realpath",
     ];
     assert_eq!(DEFAULT_SAFE_PROGRAMS.len(), defaults.len());
-    let p = pol();
+    let p = Policy::parse(r#"{"grants": []}"#).unwrap();
     for d in defaults {
         assert!(DEFAULT_SAFE_PROGRAMS.contains(&d), "{d}");
         assert!(p.safe_program(d), "{d}");
@@ -117,7 +122,7 @@ fn safe_programs_can_be_added_by_the_owner() {
         assert!(p.safe_program(a), "{a}");
     }
     assert!(
-        p.safe_program("git") && p.safe_program("ls"),
+        p.safe_program("ls") && p.safe_program("cat"),
         "defaults stay"
     );
     assert!(!p.safe_program("sh"));
@@ -162,18 +167,26 @@ fn unsafe_programs_in_grant_patterns_are_refused_at_load() {
 #[test]
 fn unsafe_options_in_git_and_cargo_grant_patterns_are_refused_at_load() {
     for bad in [
-        "git -c x=y status",
-        "cargo --config x test",
-        "cargo --config-env=x test",
-        "cargo test -c",
-        "git --exec-path=x status",
-        "git fetch --upload-pack=x",
-        "git push --receive-pack=x",
+        "git status -c x",
+        "git log --exec-path=x",
+        "git log --upload-pack=x",
+        "git show --receive-pack=x",
+        "cargo test --config x",
+        "cargo build --config-env=x",
     ] {
         let e = load(vec![grant(json!([bad]))], None)
             .err()
             .unwrap_or_else(|| panic!("{bad}"));
         assert!(e.contains("unsafe option"), "{bad}: {e}");
+    }
+    // An option or toolchain before the subcommand is refused too (amendment 4).
+    for bad in [
+        "git -c x=y status",
+        "cargo --config x test",
+        "cargo --config-env=x test",
+        "git --exec-path=x status",
+    ] {
+        assert!(load(vec![grant(json!([bad]))], None).is_err(), "{bad}");
     }
     for good in [
         "git status",
@@ -347,9 +360,11 @@ async fn setup(commands: Value, safe: Option<Value>) -> Net {
     let g = json!({"from": ["alice@machine-a"], "repos": [repo_id()], "task_ids": ["SB-*"],
         "level": "scoped-bypass", "paths": ["src/**"], "kinds": ["fix"], "commands": commands});
     let mut p = json!({"grants": [g]});
-    if let Some(s) = safe {
-        p["safe_programs"] = s;
+    let mut sp = vec![json!("git"), json!("cargo")];
+    if let Some(Value::Array(a)) = safe {
+        sp.extend(a);
     }
+    p["safe_programs"] = Value::Array(sp);
     std::fs::write(&path, p.to_string()).unwrap();
     let n = net(Opts {
         policy_b: Some(path),

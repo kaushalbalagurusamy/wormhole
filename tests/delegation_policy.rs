@@ -15,7 +15,8 @@ fn grant(level: &str) -> Value {
 }
 
 fn policy(grants: Vec<Value>) -> Policy {
-    Policy::parse(&json!({"grants": grants}).to_string()).unwrap()
+    Policy::parse(&json!({"grants": grants, "safe_programs": ["git", "cargo"]}).to_string())
+        .unwrap()
 }
 
 fn parse_err(v: Value) -> String {
@@ -321,13 +322,13 @@ fn glob_coverage_is_conservative() {
 #[test]
 fn scoped_bypass_boundary() {
     let mut g = grant("scoped-bypass");
-    g["commands"] = json!(["cargo test", "cargo fmt", "cargo check *"]);
+    g["commands"] = json!(["cargo test", "cargo build", "cargo check *"]);
     let p = policy(vec![g.clone()]);
     // Contract command patterns must equal a grant pattern token for token.
     let mut c = contract();
     c.commands = vec![
         "cargo test".into(),
-        "cargo fmt".into(),
+        "cargo build".into(),
         "cargo check *".into(),
     ];
     let d = eval(&p, &c);
@@ -339,6 +340,7 @@ fn scoped_bypass_boundary() {
         "cargo test --lib",
         "cargo test *",
         "cargo check x",
+        "cargo fmt",
         "cargo build",
         "cargo testx",
         "cargo",

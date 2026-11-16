@@ -88,7 +88,7 @@ fn tokenize_refuses_what_a_shell_would_interpret() {
 // ---- command_allowed ----
 
 fn pol() -> Policy {
-    Policy::parse(r#"{"grants": []}"#).unwrap()
+    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo"]}"#).unwrap()
 }
 
 #[test]
@@ -112,10 +112,10 @@ fn command_allowed_matches_argv_prefixes() {
         assert!(pol().command_allowed(&p, bad).is_err(), "{bad:?}");
     }
     // Several prefixes: any one will do.
-    let p = strs(&["cargo test", "cargo fmt --check"]);
-    assert!(pol().command_allowed(&p, "cargo fmt --check").is_ok());
-    assert!(pol().command_allowed(&p, "cargo fmt --check -q").is_err());
-    assert!(pol().command_allowed(&p, "cargo fmt").is_err());
+    let p = strs(&["cargo test", "cargo build"]);
+    assert!(pol().command_allowed(&p, "cargo build").is_ok());
+    assert!(pol().command_allowed(&p, "cargo build -q").is_err());
+    assert!(pol().command_allowed(&p, "cargo check").is_err());
     assert!(pol().command_allowed(&[], "cargo test").is_err());
 }
 
@@ -157,7 +157,8 @@ fn wrappers_are_refused_by_base_name_even_when_listed() {
     ];
     for w in wrappers {
         for cmd in [format!("{w} x"), format!("/usr/bin/{w} x")] {
-            let prefixes = strs(&[&w, &cmd.split(' ').next().unwrap().to_string()]);
+            let first = cmd.split(' ').next().unwrap();
+            let prefixes = strs(&[w, first]);
             assert!(pol().command_allowed(&prefixes, &cmd).is_err(), "{cmd}");
         }
     }
@@ -184,14 +185,13 @@ fn grant(level: &str) -> Value {
 }
 
 fn policy(g: Value) -> Policy {
-    Policy::parse(&json!({"grants": [g]}).to_string()).unwrap()
+    Policy::parse(&json!({"grants": [g], "safe_programs": ["git", "cargo"]}).to_string()).unwrap()
 }
 
 #[test]
 fn denied_argv_catches_flag_spellings_refspecs_quoting_and_clusters() {
     let p = policy(grant("scoped-instruction"));
     for cmd in [
-        "cargo test --lib",
         "git push -f",
         "git push --force",
         "git push --force-with-lease",
@@ -382,18 +382,14 @@ fn unanchored_and_denied_scopes_are_accepted_when_the_module_is_off() {
 #[test]
 fn acceptance_checks_contract_command_prefixes() {
     let mut g = grant("scoped-bypass");
-    g["commands"] = json!(["cargo test", "git push origin *"]);
+    g["commands"] = json!(["cargo test", "git log *"]);
     let p = policy(g.clone());
     let with = |cmds: &[&str]| {
         let mut c = contract(&["src/a.rs"]);
         c.commands = strs(cmds);
         eval(&p, &c)
     };
-    for ok in [
-        &["cargo test"][..],
-        &["cargo test", "git push origin *"],
-        &[],
-    ] {
+    for ok in [&["cargo test"][..], &["cargo test", "git log *"], &[]] {
         let d = with(ok);
         assert!(
             d.accepted && d.level == Level::ScopedBypass,
@@ -449,7 +445,11 @@ async fn setup(paths: &str, commands: Value) -> Net {
     let path = tmpdir().join("policy.json");
     let g = json!({"from": ["alice@machine-a"], "repos": [id()], "task_ids": ["SB-*"],
         "level": "scoped-bypass", "paths": [paths], "kinds": ["fix"], "commands": commands});
-    std::fs::write(&path, json!({"grants": [g]}).to_string()).unwrap();
+    std::fs::write(
+        &path,
+        json!({"grants": [g], "safe_programs": ["git", "cargo"]}).to_string(),
+    )
+    .unwrap();
     let n = net(Opts {
         policy_b: Some(path),
         ..Opts::default()
@@ -503,11 +503,11 @@ async fn delegate(n: &Net, task: &str, extra: Value) -> Result<String, String> {
 
 #[tokio::test]
 async fn bypass_hook_checks_each_concrete_path_and_argv() {
-    let n = setup("src/**", json!(["cargo test", "git push origin *"])).await;
+    let n = setup("src/**", json!(["cargo test", "git log *"])).await;
     delegate(
         &n,
         "SB-1",
-        json!({"paths": ["src/**"], "exit": "done", "commands": ["cargo test", "git push origin *"]}),
+        json!({"paths": ["src/**"], "exit": "done", "commands": ["cargo test", "git log *"]}),
     )
     .await
     .unwrap();
@@ -525,7 +525,7 @@ async fn bypass_hook_checks_each_concrete_path_and_argv() {
         assert!(!allowed(&n.b, pre_edit(SB, &n.repo_b, f)).await, "{f}");
     }
     assert!(allowed(&n.b, pre_bash(&n.repo_b, "cargo test")).await);
-    assert!(allowed(&n.b, pre_bash(&n.repo_b, "git push origin main")).await);
+    assert!(allowed(&n.b, pre_bash(&n.repo_b, "git log src")).await);
     for cmd in [
         "git push -f",
         "git push --force-with-lease",
@@ -605,6 +605,10 @@ async fn the_hub_refuses_empty_and_dot_paths() {
         let e = delegate(&n, "SB-2", json!({"paths": [bad], "exit": "done"}))
             .await
             .unwrap_err();
-        assert!(e.contains("invalid"), "{bad:?}: {e}");
+        // "/" is refused by the daemon (outside the repository) before the hub sees it.
+        assert!(
+            e.contains("invalid") || e.contains("outside the repository"),
+            "{bad:?}: {e}"
+        );
     }
 }

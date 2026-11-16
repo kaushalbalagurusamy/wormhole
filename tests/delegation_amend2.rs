@@ -22,7 +22,7 @@ fn strs(v: &[&str]) -> Vec<String> {
 }
 
 fn ok(patterns: &[&str], cmd: &str) -> bool {
-    Policy::parse(r#"{"grants": []}"#)
+    Policy::parse(r#"{"grants": [], "safe_programs": ["git", "cargo", "rm"]}"#)
         .unwrap()
         .command_allowed(&strs(patterns), cmd)
         .is_ok()
@@ -43,7 +43,7 @@ fn a_pattern_without_a_star_matches_exactly() {
         assert!(!ok(&["cargo test"], bad), "{bad:?}");
     }
     // Any listed pattern may match.
-    assert!(ok(&["cargo test", "cargo fmt"], "cargo fmt"));
+    assert!(ok(&["cargo test", "cargo build"], "cargo build"));
     assert!(!ok(&[], "cargo test"));
 }
 
@@ -130,7 +130,8 @@ fn grant(commands: Value) -> Value {
 }
 
 fn policy(g: Value) -> Policy {
-    Policy::parse(&json!({"grants": [g]}).to_string()).unwrap()
+    Policy::parse(&json!({"grants": [g], "safe_programs": ["git", "cargo", "rm"]}).to_string())
+        .unwrap()
 }
 
 fn contract(cmds: &[&str]) -> Contract {
@@ -188,21 +189,23 @@ fn contract_patterns_must_equal_a_grant_pattern_token_for_token() {
 #[test]
 fn a_destructive_pattern_is_checked_again_at_runtime_by_argv() {
     // The pattern itself matches...
-    assert!(ok(&["git push -f"], "git push -f"));
-    assert!(ok(&["git push origin +main"], "git push origin +main"));
+    assert!(ok(&["rm -r -f x"], "rm -r -f x"));
+    assert!(ok(&["rm -fr x"], "rm -fr x"));
     // ...but the argv check refuses it (denylist on).
     let p = policy(grant(json!(["*"])));
-    assert!(p.denied_argv("git push -f").is_some());
-    assert!(p.denied_argv("git push origin +main").is_some());
-    // The text screen refuses the first pattern at acceptance as well.
-    assert!(!accepted(&p, &["git push -f"]));
+    assert!(p.denied_argv("rm -r -f x").is_some());
+    assert!(p.denied_argv("rm -fr x").is_some());
+    // The text screen refuses the second pattern at acceptance as well.
+    assert!(!accepted(&p, &["rm -fr x"]));
     // With the module off neither check applies.
     let off = Policy::parse(
-        &json!({"grants": [grant(json!(["*"]))], "denylist": {"enabled": false}}).to_string(),
+        &json!({"grants": [grant(json!(["*"]))], "safe_programs": ["rm"],
+                "denylist": {"enabled": false}})
+        .to_string(),
     )
     .unwrap();
-    assert_eq!(off.denied_argv("git push -f"), None);
-    assert!(accepted(&off, &["git push -f"]));
+    assert_eq!(off.denied_argv("rm -fr x"), None);
+    assert!(accepted(&off, &["rm -fr x"]));
 }
 
 // ---- end to end ----
@@ -214,7 +217,7 @@ fn repo_id() -> String {
 
 async fn setup(grants: Vec<Value>, denylist: Option<Value>, protected: &[&str]) -> Net {
     let path = tmpdir().join("policy.json");
-    let mut p = json!({"grants": grants});
+    let mut p = json!({"grants": grants, "safe_programs": ["git", "cargo", "rm"]});
     if let Some(d) = denylist {
         p["denylist"] = d;
     }
@@ -295,7 +298,7 @@ async fn delegate(n: &Net, task: &str, kind: &str, extra: Value) {
 
 #[tokio::test]
 async fn scoped_bypass_commands_are_exact_patterns_and_argv_is_rechecked() {
-    let cmds = json!(["cargo test", "cargo test *", "git push origin +main"]);
+    let cmds = json!(["cargo test", "cargo test *", "rm -r -f x"]);
     let n = setup(vec![bypass_grant("SB-*", cmds.clone())], None, &[]).await;
     delegate(
         &n,
@@ -314,7 +317,8 @@ async fn scoped_bypass_commands_are_exact_patterns_and_argv_is_rechecked() {
         "cargo test; rm -rf x",
         "cargo test x; id",
         "cargo build",
-        // The pattern matches exactly, but the argv check refuses the refspec.
+        // The pattern matches exactly (rm added by the owner), but the argv check refuses it.
+        "rm -r -f x",
         "git push origin +main",
     ] {
         assert!(!allowed(&n.b, pre_bash(&n.repo_b, cmd)).await, "{cmd:?}");
