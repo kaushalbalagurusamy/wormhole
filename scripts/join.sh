@@ -2,7 +2,7 @@
 # Join a wormhole hub from this machine and connect one repository checkout.
 #
 #   scripts/join.sh <hub-host:port> <repo-checkout> [--protected GLOB]...
-#   e.g. scripts/join.sh versus-mini.tail1d5eb3.ts.net:7420 ~/code/RCT-capstone --protected '**/.env*'
+#   e.g. scripts/join.sh hub.your-tailnet.ts.net:7420 ~/code/your-repo --protected '**/.env*'
 #
 # Steps: check the hub answers; build wormhole (installs Rust with rustup if cargo is missing);
 # install the binary in ~/.wormhole/bin; run the daemon as a LaunchAgent (macOS) or a systemd
