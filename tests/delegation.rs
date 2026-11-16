@@ -338,8 +338,9 @@ async fn scoped_bypass_answers_allow_inside_the_contract_only() {
     );
 
     // Commands: the contract pattern, without shell control characters.
-    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "cargo test --lib")).await);
+    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "cargo test")).await);
     for cmd in [
+        "cargo test --lib",
         "cargo test; rm -rf x",
         "cargo test && ls",
         "cargo test | cat",
@@ -368,10 +369,11 @@ async fn scoped_bypass_command_pattern_cannot_reach_a_denylisted_command() {
         "SBX-1",
         "fix",
         "run anything harmless",
-        json!({"paths": ["src/**"], "commands": ["git", "rm"], "exit": "done"}),
+        json!({"paths": ["src/**"], "commands": ["git status", "git push origin *"], "exit": "done"}),
     )
     .await;
     assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git status")).await);
+    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git push origin main")).await);
     for cmd in [
         "git push --force",
         "GIT  PUSH  -F origin",
@@ -509,8 +511,9 @@ async fn full_bypass_answers_allow_for_any_tool_except_denylist_hits() {
     )
     .await;
     assert!(c.contains("level: full-bypass"), "{c}");
+    // Only the pinned tool list is answered; other tools prompt.
     assert!(
-        allowed(
+        !allowed(
             &n.b,
             pre_tool(
                 SB,
@@ -521,6 +524,13 @@ async fn full_bypass_answers_allow_for_any_tool_except_denylist_hits() {
         )
         .await
     );
+    let read = pre_tool(
+        SB,
+        &n.repo_b,
+        "Read",
+        json!({"file_path": n.repo_b.join("src/lib.rs")}),
+    );
+    assert!(allowed(&n.b, read).await);
     assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "ls -la")).await);
     assert!(allowed(&n.b, pre_edit(SB, &n.repo_b, "anywhere/file.rs")).await);
     for cmd in [

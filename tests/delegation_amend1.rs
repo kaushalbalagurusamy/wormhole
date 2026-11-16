@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use std::path::Path;
 use std::time::{Duration, Instant};
 use wormhole::daemon::DaemonHandle;
-use wormhole::delegation::{command_allowed, tokenize, Level, Policy};
+use wormhole::delegation::{tokenize, Level, Policy};
 use wormhole::proto::Contract;
 
 const REPO: &str = "example.com/team/proj";
@@ -87,18 +87,19 @@ fn tokenize_refuses_what_a_shell_would_interpret() {
 
 // ---- command_allowed ----
 
+fn pol() -> Policy {
+    Policy::parse(r#"{"grants": []}"#).unwrap()
+}
+
 #[test]
 fn command_allowed_matches_argv_prefixes() {
     let p = strs(&["cargo test"]);
-    for ok in [
-        "cargo test",
-        "cargo test --lib",
-        "cargo   test  -q x",
-        "'cargo' test --lib",
-    ] {
-        assert!(command_allowed(&p, ok).is_ok(), "{ok}");
+    for ok in ["cargo test", "cargo   test"] {
+        assert!(pol().command_allowed(&p, ok).is_ok(), "{ok}");
     }
     for bad in [
+        "cargo test --lib",
+        "'cargo' test",
         "cargo testx",
         "cargo build",
         "cargo",
@@ -108,13 +109,14 @@ fn command_allowed_matches_argv_prefixes() {
         "FOO=1 cargo test",
         "cargo test\nls",
     ] {
-        assert!(command_allowed(&p, bad).is_err(), "{bad:?}");
+        assert!(pol().command_allowed(&p, bad).is_err(), "{bad:?}");
     }
     // Several prefixes: any one will do.
     let p = strs(&["cargo test", "cargo fmt --check"]);
-    assert!(command_allowed(&p, "cargo fmt --check -q").is_ok());
-    assert!(command_allowed(&p, "cargo fmt").is_err());
-    assert!(command_allowed(&[], "cargo test").is_err());
+    assert!(pol().command_allowed(&p, "cargo fmt --check").is_ok());
+    assert!(pol().command_allowed(&p, "cargo fmt --check -q").is_err());
+    assert!(pol().command_allowed(&p, "cargo fmt").is_err());
+    assert!(pol().command_allowed(&[], "cargo test").is_err());
 }
 
 #[test]
@@ -156,15 +158,22 @@ fn wrappers_are_refused_by_base_name_even_when_listed() {
     for w in wrappers {
         for cmd in [format!("{w} x"), format!("/usr/bin/{w} x")] {
             let prefixes = strs(&[&w, &cmd.split(' ').next().unwrap().to_string()]);
-            assert!(command_allowed(&prefixes, &cmd).is_err(), "{cmd}");
+            assert!(pol().command_allowed(&prefixes, &cmd).is_err(), "{cmd}");
         }
     }
     let p = strs(&["sh", "/bin/sh", "env"]);
-    assert!(command_allowed(&p, "sh -c 'ls'").is_err());
-    assert!(command_allowed(&p, "/bin/sh -c ls").is_err());
-    assert!(command_allowed(&p, "env FOO=1 ls").is_err());
+    assert!(pol().command_allowed(&p, "sh -c 'ls'").is_err());
+    assert!(pol().command_allowed(&p, "/bin/sh -c ls").is_err());
+    assert!(pol().command_allowed(&p, "env FOO=1 ls").is_err());
     // A program that merely starts like a wrapper is fine.
-    assert!(command_allowed(&strs(&["shellcheck"]), "shellcheck x.sh").is_ok());
+    // Not a wrapper, but not a safe program either unless the owner adds it.
+    assert!(pol()
+        .command_allowed(&strs(&["shellcheck x.sh"]), "shellcheck x.sh")
+        .is_err());
+    let added = Policy::parse(r#"{"grants": [], "safe_programs": ["shellcheck"]}"#).unwrap();
+    assert!(added
+        .command_allowed(&strs(&["shellcheck x.sh"]), "shellcheck x.sh")
+        .is_ok());
 }
 
 // ---- Policy::denied_argv, denied_path ----
@@ -182,6 +191,7 @@ fn policy(g: Value) -> Policy {
 fn denied_argv_catches_flag_spellings_refspecs_quoting_and_clusters() {
     let p = policy(grant("scoped-instruction"));
     for cmd in [
+        "cargo test --lib",
         "git push -f",
         "git push --force",
         "git push --force-with-lease",
@@ -372,7 +382,7 @@ fn unanchored_and_denied_scopes_are_accepted_when_the_module_is_off() {
 #[test]
 fn acceptance_checks_contract_command_prefixes() {
     let mut g = grant("scoped-bypass");
-    g["commands"] = json!(["cargo test", "git push"]);
+    g["commands"] = json!(["cargo test", "git push origin *"]);
     let p = policy(g.clone());
     let with = |cmds: &[&str]| {
         let mut c = contract(&["src/a.rs"]);
@@ -381,7 +391,7 @@ fn acceptance_checks_contract_command_prefixes() {
     };
     for ok in [
         &["cargo test"][..],
-        &["cargo test --lib", "git push origin main"],
+        &["cargo test", "git push origin *"],
         &[],
     ] {
         let d = with(ok);
@@ -392,6 +402,8 @@ fn acceptance_checks_contract_command_prefixes() {
         );
     }
     for bad in [
+        "cargo test --lib",
+        "git push origin main",
         "cargo testx",
         "cargo build",
         "cargo",
@@ -411,7 +423,7 @@ fn acceptance_checks_contract_command_prefixes() {
         c.commands = vec![cmd.into()];
         eval(&p, &c)
     };
-    assert!(with("make all").accepted);
+    assert!(with("ls src").accepted);
     for bad in [
         "sh -c ls",
         "/bin/bash",
@@ -491,11 +503,11 @@ async fn delegate(n: &Net, task: &str, extra: Value) -> Result<String, String> {
 
 #[tokio::test]
 async fn bypass_hook_checks_each_concrete_path_and_argv() {
-    let n = setup("src/**", json!(["cargo test", "git push"])).await;
+    let n = setup("src/**", json!(["cargo test", "git push origin *"])).await;
     delegate(
         &n,
         "SB-1",
-        json!({"paths": ["src/**"], "exit": "done", "commands": ["cargo test", "git push"]}),
+        json!({"paths": ["src/**"], "exit": "done", "commands": ["cargo test", "git push origin *"]}),
     )
     .await
     .unwrap();
@@ -512,7 +524,7 @@ async fn bypass_hook_checks_each_concrete_path_and_argv() {
     ] {
         assert!(!allowed(&n.b, pre_edit(SB, &n.repo_b, f)).await, "{f}");
     }
-    assert!(allowed(&n.b, pre_bash(&n.repo_b, "cargo test --lib")).await);
+    assert!(allowed(&n.b, pre_bash(&n.repo_b, "cargo test")).await);
     assert!(allowed(&n.b, pre_bash(&n.repo_b, "git push origin main")).await);
     for cmd in [
         "git push -f",

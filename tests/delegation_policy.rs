@@ -321,17 +321,29 @@ fn glob_coverage_is_conservative() {
 #[test]
 fn scoped_bypass_boundary() {
     let mut g = grant("scoped-bypass");
-    g["commands"] = json!(["cargo test", "cargo fmt"]);
+    g["commands"] = json!(["cargo test", "cargo fmt", "cargo check *"]);
     let p = policy(vec![g.clone()]);
-    // Contract commands are argv prefixes that extend or equal a grant prefix.
+    // Contract command patterns must equal a grant pattern token for token.
     let mut c = contract();
-    c.commands = vec!["cargo test --lib".into(), "cargo fmt".into()];
+    c.commands = vec![
+        "cargo test".into(),
+        "cargo fmt".into(),
+        "cargo check *".into(),
+    ];
     let d = eval(&p, &c);
     assert_eq!((d.level, d.accepted), (Level::ScopedBypass, true));
     // No commands at all is fine.
     assert!(eval(&p, &contract()).accepted);
-    // Not an extension of any grant prefix.
-    for bad in ["cargo build", "cargo testx", "cargo", "make"] {
+    // Not equal to any grant pattern, including extensions and narrower forms.
+    for bad in [
+        "cargo test --lib",
+        "cargo test *",
+        "cargo check x",
+        "cargo build",
+        "cargo testx",
+        "cargo",
+        "make",
+    ] {
         c.commands = vec![bad.into()];
         assert!(!eval(&p, &c).accepted, "{bad}");
     }
@@ -339,10 +351,10 @@ fn scoped_bypass_boundary() {
     let mut c = contract();
     c.exit.clear();
     assert!(!eval(&p, &c).accepted);
-    // A grant listing "*" alone allows any contract prefix.
+    // A grant listing "*" alone allows any contract pattern.
     g["commands"] = json!(["*"]);
     let mut c = contract();
-    c.commands = vec!["make all".into()];
+    c.commands = vec!["ls src".into()];
     assert!(
         policy(vec![g])
             .evaluate("alice", "machine-a", REPO, &c)
