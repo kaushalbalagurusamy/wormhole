@@ -30,7 +30,8 @@ hooks page came back summarised, so the wording is not verbatim):
    capability. The hub refuses a request to a session whose daemon did not advertise it ("does not accept
    delegated tasks"), so old daemons and daemons without a policy never see one: they behave exactly as today
    (H4).
-2. **A request names one session.** No user or broadcast targets. Its events are visible only to the sender's
+2. **A request names one session.** (Amended by ADR 0002: the text of messages and delegations is now in the
+   repository's team log, readable by every session in that repository; live delivery and the page are unchanged.) No user or broadcast targets. Its events are visible only to the sender's
    and the recipient's machines, and the activity page shows no task text or summary.
 3. **The hub keeps the status.** A `delegations` table holds each request's status
    (`pending`, `accepted`, `informed`, `declined`, `expired`, `done`, `failed`, `partial`, `revoked`). An ack is
