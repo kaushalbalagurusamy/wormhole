@@ -1148,6 +1148,16 @@ impl Hub {
                 if target_repo != repo {
                     return Err("the target session is in a different repository".into());
                 }
+                let sender_repo = self
+                    .sessions
+                    .lock()
+                    .unwrap()
+                    .get(&session)
+                    .map(|s| s.info.repo.clone())
+                    .unwrap_or_default();
+                if sender_repo != repo {
+                    return Err("the sending session is in a different repository".into());
+                }
                 let data = json!({"to": to, "to_user": owner.user, "to_machine": owner.machine,
                     "repo": repo, "contract": contract});
                 let (log_to, log_user) = (format!("session:{to}"), owner.user.clone());
