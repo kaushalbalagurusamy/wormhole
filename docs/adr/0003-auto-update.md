@@ -38,6 +38,26 @@ LaunchAgent (macOS, `KeepAlive`) or a systemd user unit (`Restart=always`).
    raise a level or add a grant. A new build can change what the code does with a policy, which is the trust
    concentration below.
 
+## Amendment 1 (2026-11-15): bounded rollback
+
+A security review found that accepting any ancestor of `origin/main` let a misused or compromised hub roll every
+machine back to a commit from before a security fix (for example before delegation's amendments). Rollback stays,
+bounded:
+
+- The binary carries `MIN_SAFE_COMMIT`, the last security-relevant commit at release time, raised in a later
+  release when a security fix lands. A target that is not a descendant of (or equal to) it is refused.
+- `--update-floor SHA` raises the minimum on one machine. Both checks always apply, so the local floor can never
+  lower the built-in one.
+- A target that is not a descendant of the running commit is a downgrade: allowed above the floor, reported as
+  `downgrade` in the daemon's status, as a `daemon.downgrade` event on the activity page, and marked `DOWNGRADE`
+  in `wormhole_who`.
+
+Trade-off: an operator can still roll machines back, but no further than the newest security floor; a fix that
+must stick needs a release that raises `MIN_SAFE_COMMIT` and an update to it. Moving the floor forward is a code
+change on `main`, so it carries the same trust as any update. Future hardening, not built: accept only signed
+tags or signed commits (checked against keys in local config), so that control of `main` or of the hub alone is
+not enough to run code on every machine.
+
 ## Trust concentration
 
 Whoever can push to this repository's `main` and whoever controls the hub's target file can run code on every

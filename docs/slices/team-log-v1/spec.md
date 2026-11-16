@@ -237,3 +237,31 @@ traces.
 `tests/team_log.rs`, `tests/team_kinds.rs`, `tests/team_compat.rs`, `tests/auto_update.rs`, `tests/fixtures/`, and
 the earlier protected files. The implementer may read `tests/common/mod.rs`. The test author may change existing
 test files only to keep them compiling against the new fields (HubConfig, Welcome, Snapshot).
+
+## Amendment 1 (2026-11-15, security review of the updater: bounded rollback; extends section F)
+
+Finding (medium): any ancestor of `origin/main` was accepted, so a misused or compromised hub could roll every
+machine back to a commit from before a security fix.
+
+- `pub const MIN_SAFE_COMMIT: &str` in `wormhole::update`: a full 40-character SHA on `main` (the last
+  security-relevant commit at release time; raised in a later release when a security fix lands).
+- `UpdateConfig` gains `pub min_safe: String` (default `MIN_SAFE_COMMIT`; tests set a commit of their own repo)
+  and `pub floor: Option<String>` (default `None`). CLI: `wormhole daemon ... --update-floor SHA` (refused at start
+  unless `valid_commit`). The CLI cannot change `min_safe`.
+- New steps between spec F steps 4 and 5, in this order (both always apply, so the floor can only raise the
+  minimum, never lower it):
+  - `min_safe` not a commit in the clone, or the target not a descendant of or equal to it
+    (`git merge-base --is-ancestor <min_safe> <target>`) → **pinned** `refused: below minimum safe commit`.
+  - `floor` set and not a commit in the clone, or the target not a descendant of or equal to it →
+    **pinned** `refused: below local floor`.
+  Both leave `bin` untouched, as every refusal does.
+- Downgrade: a target that is not a descendant of or equal to the running `COMMIT` (including when `COMMIT` is
+  `unknown` or not in the clone) is a downgrade. It is allowed only past the checks above. While the daemon works
+  on a downgrade target, its status text contains **pinned** `downgrade` (for example `building (downgrade)`,
+  `installed (downgrade)`), and `Request::DaemonStatus` carries `#[serde(default)] downgrade: bool` = true;
+  `DaemonInfo` gains `#[serde(default)] downgrade: bool`.
+- The hub, on a `DaemonStatus` with `downgrade: true` whose commit, target or status differs from what it stored
+  for that peer, emits an event of kind **pinned** `daemon.downgrade` with data `{commit, target, status}` (user and
+  machine from the connection). The page shows these events as `DOWNGRADE <commit 12> -> <target 12>: <status>`
+  and marks the daemon's row; `wormhole_who`'s `Daemons:` line for that daemon contains **pinned** `DOWNGRADE`.
+- Tests (protected, written before the fix): `tests/auto_update_floor.rs`.
