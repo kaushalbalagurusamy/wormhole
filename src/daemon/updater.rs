@@ -149,10 +149,9 @@ fn hold(cfg: &UpdateConfig) -> bool {
 /// Follow the target and keep the hub told; attempt an update when one is due.
 pub(crate) async fn run(d: Arc<Daemon>) {
     if let Some(cfg) = &d.cfg.auto_update {
-        let mut shas = vec![cfg.min_safe.as_str()];
-        shas.extend(cfg.floor.as_deref());
-        // Without the file the ratchet is just min_safe and floor; the checks still apply.
-        let _ = update::record_floors(&cfg.bin, &shas);
+        // Only the built-in minimum is recorded; the local floor applies from config alone.
+        // Without the file the checks of min_safe and floor still apply.
+        let _ = update::record_floors(&cfg.bin, &[cfg.min_safe.as_str()]);
     }
     let mut tick = tokio::time::interval(Duration::from_millis(250));
     loop {
@@ -196,7 +195,10 @@ pub(crate) async fn run(d: Arc<Daemon>) {
             // Only a refusal or a failure marks the target as not to be tried again; an
             // attempt cut short by a new target does not.
             let mut u = d.upd.lock().unwrap();
-            if u.status.starts_with("refused:") || u.status.starts_with("failed:") {
+            if ["refused:", "failed:", "installed"]
+                .iter()
+                .any(|p| u.status.starts_with(p))
+            {
                 u.last_target = Some(target.clone());
             }
         }
