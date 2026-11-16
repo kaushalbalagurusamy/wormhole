@@ -265,3 +265,11 @@ machine back to a commit from before a security fix.
   machine from the connection). The page shows these events as `DOWNGRADE <commit 12> -> <target 12>: <status>`
   and marks the daemon's row; `wormhole_who`'s `Daemons:` line for that daemon contains **pinned** `DOWNGRADE`.
 - Tests (protected, written before the fix): `tests/auto_update_floor.rs`.
+
+## Clarifications (2026-11-16, from the first test run)
+
+- `Welcome.target` is set only on connections whose `Resume` listed `update`; other connections get no `target`.
+- `DaemonInfo.downgrade` is always serialised (`true` or `false`); only `serde(default)` applies.
+- A target whose attempt ended in `refused: ...` or `failed: ...` is not attempted again automatically until the
+  hub announces a different target or the daemon restarts; the status stays. A new target that arrives within
+  `min_interval` of the last attempt is deferred (`waiting: rate limit`) and started once the interval has passed.
