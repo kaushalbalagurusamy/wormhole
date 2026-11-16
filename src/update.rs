@@ -72,6 +72,46 @@ pub fn hold_path(bin: &Path) -> PathBuf {
     beside(bin, ".hold")
 }
 
+/// `<bin>.floors`: every minimum this daemon has run with, one commit id per line. Each is
+/// a minimum for targets like `min_safe`, so a binary moved back to an older floor cannot
+/// walk further back.
+pub fn floors_path(bin: &Path) -> PathBuf {
+    beside(bin, ".floors")
+}
+
+/// The valid commit ids in the ratchet file, oldest first, without duplicates.
+pub fn read_floors(bin: &Path) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for l in std::fs::read_to_string(floors_path(bin))
+        .unwrap_or_default()
+        .lines()
+    {
+        let l = l.trim();
+        if valid_commit(l) && !out.iter().any(|x| x == l) {
+            out.push(l.to_string());
+        }
+    }
+    out
+}
+
+/// Add `shas` to the ratchet file when missing, keeping the newest 32, mode 0600.
+pub fn record_floors(bin: &Path, shas: &[&str]) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut all = read_floors(bin);
+    for s in shas.iter().filter(|s| valid_commit(s)) {
+        if !all.iter().any(|x| x == s) {
+            all.push(s.to_string());
+        }
+    }
+    let skip = all.len().saturating_sub(32);
+    let body: String = all[skip..].iter().map(|l| format!("{l}\n")).collect();
+    let tmp = beside(bin, ".floors.tmp");
+    std::fs::write(&tmp, body).map_err(|e| e.to_string())?;
+    std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))
+        .map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, floors_path(bin)).map_err(|e| e.to_string())
+}
+
 /// A full commit id: 40 characters of `[0-9a-f]`.
 pub fn valid_commit(s: &str) -> bool {
     s.len() == 40 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
@@ -162,6 +202,25 @@ mod tests {
         assert!(!valid_commit(&"A1".repeat(20)));
         assert!(!valid_commit(&"a1".repeat(19)));
         assert!(!valid_commit(&format!("{}-", "a".repeat(39))));
+    }
+
+    #[test]
+    fn floors_dedupe_keep_32_and_skip_junk() {
+        let d = std::env::temp_dir().join(format!("wh-floors-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let bin = d.join("wormhole");
+        let a = "a".repeat(40);
+        std::fs::write(floors_path(&bin), format!("junk\n{a}\n")).unwrap();
+        record_floors(&bin, &[&a, "nope"]).unwrap();
+        assert_eq!(read_floors(&bin), [a.clone()]);
+        for i in 0..40 {
+            record_floors(&bin, &[&format!("{i:040x}")]).unwrap();
+        }
+        let f = read_floors(&bin);
+        assert_eq!(f.len(), 32);
+        assert_eq!(f[31], format!("{:040x}", 39));
+        std::fs::remove_dir_all(&d).unwrap();
     }
 
     #[test]
