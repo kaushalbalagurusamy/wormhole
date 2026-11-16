@@ -52,7 +52,7 @@ mkdir -p "$WH/bin"; chmod 700 "$WH" "$WH/bin"
 cp "$SRC/target/release/wormhole" "$BIN.new" && mv "$BIN.new" "$BIN"
 
 echo "4/6 Running the daemon"
-ARGS=(daemon --hub "wss://$HUB/ws" "${PROTECTED[@]}")
+ARGS=(daemon --hub "wss://$HUB/ws" ${PROTECTED[@]+"${PROTECTED[@]}"})
 if [ -n "$POLICY" ]; then
   install -m 600 "$POLICY" "$WH/delegation-policy.json.new" && mv "$WH/delegation-policy.json.new" "$WH/delegation-policy.json"
   ARGS+=(--delegation-policy "$WH/delegation-policy.json")
