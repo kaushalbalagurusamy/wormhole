@@ -531,3 +531,9 @@ closes on TTL or steps (the leases expire with the contract TTL); `lease.*` even
 all machines like every lease event; a login containing `@` makes `user@machine` grants ambiguous.
 
 Tests (protected, written before the fix): `tests/delegation_amend5.rs`, plus updates to earlier files.
+
+## Clarifications (2026-11-15, from the first separate test run)
+
+- Every delegation notice to the receiving session names the task id and kind, accepted or not (the status line
+  is followed by `task <id>; kind <kind>` in all cases).
+- `denied_argv` also returns `Some` for a wrapper program (Amendment 1 list), compared by lowercased base name.
