@@ -148,6 +148,12 @@ fn hold(cfg: &UpdateConfig) -> bool {
 
 /// Follow the target and keep the hub told; attempt an update when one is due.
 pub(crate) async fn run(d: Arc<Daemon>) {
+    if let Some(cfg) = &d.cfg.auto_update {
+        let mut shas = vec![cfg.min_safe.as_str()];
+        shas.extend(cfg.floor.as_deref());
+        // Without the file the ratchet is just min_safe and floor; the checks still apply.
+        let _ = update::record_floors(&cfg.bin, &shas);
+    }
     let mut tick = tokio::time::interval(Duration::from_millis(250));
     loop {
         tick.tick().await;
@@ -250,14 +256,14 @@ async fn attempt(d: &Arc<Daemon>, cfg: &UpdateConfig, target: &str) {
         return d.set_status("refused: not on origin/main");
     }
     // Both minimums always apply; a missing object fails closed.
-    for (min, why) in [
-        (
-            Some(cfg.min_safe.as_str()),
-            "refused: below minimum safe commit",
-        ),
-        (cfg.floor.as_deref(), "refused: below local floor"),
-    ] {
-        let Some(min) = min else { continue };
+    const BELOW_SAFE: &str = "refused: below minimum safe commit";
+    let ratchet = update::read_floors(&cfg.bin);
+    let mut mins: Vec<(&str, &str)> = vec![(cfg.min_safe.as_str(), BELOW_SAFE)];
+    mins.extend(ratchet.iter().map(|s| (s.as_str(), BELOW_SAFE)));
+    if let Some(f) = &cfg.floor {
+        mins.push((f.as_str(), "refused: below local floor"));
+    }
+    for (min, why) in mins {
         if !descends(&cfg.src, min, target).await {
             return d.set_status(why);
         }
