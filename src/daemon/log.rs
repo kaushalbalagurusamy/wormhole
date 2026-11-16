@@ -94,11 +94,7 @@ fn detail_line(e: &LogEntry) -> String {
             s(d, "status", 32),
             s(d, "level", 32)
         )),
-        "result" => l.push_str(&format!(
-            "; status {}; fields: {}",
-            s(d, "status", 32),
-            p(&d["fields"].to_string(), 300)
-        )),
+        "result" => l.push_str(&format!("; status {}", s(d, "status", 32))),
         _ => {}
     }
     l
@@ -109,9 +105,25 @@ fn block(e: &LogEntry, session: &str, user: &str) -> String {
     let who = for_you(e, session, user);
     // Raw text, quoted line by line; the whole body is cleaned once below, so the quote
     // marks and every relayed character are escaped exactly once.
-    let mut raw: String = e.text.chars().take(TEXT_CHARS).collect();
-    if e.text.chars().count() > TEXT_CHARS {
-        raw.push_str("…[truncated]");
+    // Each part is capped on its own, so none can push another out of view.
+    let cap = |s: &str| {
+        let mut r: String = s.chars().take(TEXT_CHARS).collect();
+        if s.chars().count() > TEXT_CHARS {
+            r.push_str("…[truncated]");
+        }
+        r
+    };
+    let mut raw = cap(&e.text);
+    let c = &e.data["contract"];
+    for (label, v) in [("spec", &c["spec"]), ("done when", &c["exit"])] {
+        if e.kind == "request" {
+            if let Some(x) = v.as_str().filter(|x| !x.is_empty()) {
+                raw.push_str(&format!("\n{label}: {}", cap(x)));
+            }
+        }
+    }
+    if e.kind == "result" && e.data["fields"].as_object().is_some_and(|f| !f.is_empty()) {
+        raw.push_str(&format!("\nfields: {}", cap(&e.data["fields"].to_string())));
     }
     let quoted: Vec<String> = raw
         .split(['\n', '\r', '\u{85}', '\u{2028}', '\u{2029}'])
