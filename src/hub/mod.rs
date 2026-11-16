@@ -420,7 +420,11 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
                 CAP_TEAM_LOG.to_string(),
                 CAP_UPDATE.to_string(),
             ],
-            target: hub.target.lock().unwrap().clone(),
+            target: if target_rx.is_some() {
+                hub.target.lock().unwrap().clone()
+            } else {
+                None
+            },
         },
     );
     let mut last = resume_point(from, cursor, head);

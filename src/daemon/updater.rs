@@ -167,13 +167,11 @@ pub(crate) async fn run(d: Arc<Daemon>) {
         };
         if installed {
             d.set_status("installed");
+        } else if tried {
+            // Never retried by itself: the outcome stays until the hub names another target.
+            d.report();
         } else if !due {
-            // A failure stays visible until the next try; a new target waits its turn.
-            if !tried {
-                d.set_status("waiting: rate limit");
-            } else {
-                d.report();
-            }
+            d.set_status("waiting: rate limit");
         } else {
             {
                 let mut u = d.upd.lock().unwrap();
