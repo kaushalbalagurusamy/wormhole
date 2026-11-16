@@ -449,10 +449,13 @@ fn permitted(
     input: &Value,
     granted: bool,
 ) -> Option<(&'static str, String)> {
-    if hooks::EDIT_TOOLS.contains(&tool) {
-        // The lease step must have ended with this session holding the path: a held lease,
-        // a protected path or an unchecked path never gets `allow`.
-        let (repo, rel) = hooks::tool_path(d, session, input).filter(|_| granted)?;
+    let edit = hooks::EDIT_TOOLS.contains(&tool);
+    // Full bypass covers exactly Bash, the edit tools and Read; scoped bypass never Read.
+    if edit || (tool == "Read" && o.level == Level::FullBypass) {
+        // Edits need the lease step to have ended with this session holding the path: a held
+        // lease, a protected path or an unchecked path never gets `allow`. Every path is
+        // resolved inside the repository and checked against the denylist and --protected.
+        let (repo, rel) = hooks::tool_path(d, session, input).filter(|_| granted || !edit)?;
         let inside = o.level == Level::FullBypass
             || o.contract
                 .paths
@@ -477,7 +480,7 @@ fn permitted(
         }
         return Some(("command", shown(cmd, 512)));
     }
-    (o.level == Level::FullBypass).then(|| ("tool", tool.to_string()))
+    None
 }
 
 /// The hook's last step. With no open bypass contract for the session `out` comes back

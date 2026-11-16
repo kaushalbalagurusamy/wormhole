@@ -377,14 +377,14 @@ impl Policy {
             return Err("a bypass level needs an exit condition".into());
         }
         if g.level == Level::ScopedBypass {
-            let grant: Vec<Vec<String>> =
-                g.commands.iter().filter_map(|x| tokenize(x).ok()).collect();
+            let grant: Vec<Vec<String>> = g
+                .commands
+                .iter()
+                .filter_map(|x| pattern_words(x).ok())
+                .collect();
             for x in &c.commands {
-                let t = tokenize(x).map_err(|e| format!("command {x:?}: {e}"))?;
-                plain_program(&t).map_err(|e| format!("command {x:?}: {e}"))?;
-                if !g.commands.iter().any(|gc| gc == "*")
-                    && !grant.iter().any(|gp| t.starts_with(gp))
-                {
+                let t = pattern_words(x).map_err(|e| format!("command {x:?}: {e}"))?;
+                if !g.commands.iter().any(|gc| gc == "*") && !grant.contains(&t) {
                     return Err(format!("command {x:?} is outside the grant"));
                 }
             }
@@ -618,19 +618,52 @@ pub fn runnable(command: &str) -> Result<(), String> {
     plain_program(&tokenize(command)?)
 }
 
-/// Is `command` one of the argv prefixes `prefixes` allow? It must tokenise cleanly, start
-/// with a plain program, and begin with the words of one prefix.
-pub fn command_allowed(prefixes: &[String], command: &str) -> Result<(), String> {
+/// Characters a command may not contain at all when matched against a pattern: quoting,
+/// escapes and glob syntax make the words differ from what the shell would run.
+const NO_RAW: &[char] = &['\'', '"', '\\', '*', '?', '[', ']'];
+
+/// Words of an allowed-command pattern: literals, and optionally a final `*` standing for
+/// further plain arguments. Invalid if it does not tokenise, starts with a wrapper or an
+/// environment prefix, or has a wildcard anywhere but as the whole last word.
+pub fn pattern_words(pattern: &str) -> Result<Vec<String>, String> {
+    let t = tokenize(pattern)?;
+    plain_program(&t)?;
+    let last = t.len() - 1;
+    for (i, w) in t.iter().enumerate() {
+        if w.contains(['*', '?', '[', ']']) && !(i == last && w == "*" && i > 0) {
+            return Err(format!(
+                "wildcard in {w:?}: only a final `*` word is allowed"
+            ));
+        }
+    }
+    Ok(t)
+}
+
+/// Does `command` match one of the exact argv `patterns`? The raw command has no quote,
+/// backslash or glob character; it tokenises; its program is plain; and some pattern
+/// matches word for word, a final `*` taking one or more further words that do not start
+/// with `-` and carry no glob characters.
+pub fn command_allowed(patterns: &[String], command: &str) -> Result<(), String> {
+    if command.contains(NO_RAW) {
+        return Err("quotes, backslashes and glob characters are not allowed".into());
+    }
     let t = tokenize(command)?;
     plain_program(&t)?;
-    let hit = prefixes
+    let hit = patterns
         .iter()
-        .filter_map(|p| tokenize(p).ok())
-        .any(|p| t.starts_with(&p));
+        .filter_map(|p| pattern_words(p).ok())
+        .any(|p| match p.split_last() {
+            Some((star, lits)) if star == "*" => {
+                t.len() > lits.len()
+                    && t.starts_with(lits)
+                    && t[lits.len()..].iter().all(|w| !w.starts_with('-'))
+            }
+            _ => t == p,
+        });
     if hit {
         Ok(())
     } else {
-        Err("no allowed command prefix matches".into())
+        Err("no allowed command pattern matches".into())
     }
 }
 
@@ -952,7 +985,23 @@ mod tests {
         let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let ok = p(&["cargo test"]);
         assert!(command_allowed(&ok, "cargo test").is_ok());
-        assert!(command_allowed(&ok, "cargo test --lib").is_ok());
+        // Exact patterns: extra flags are not allowed.
+        assert!(command_allowed(&ok, "cargo test --lib").is_err());
+        let star = p(&["cargo test *"]);
+        assert!(command_allowed(&star, "cargo test glob_tests").is_ok());
+        for bad in [
+            "cargo test",
+            "cargo test --release x",
+            "cargo test a*",
+            "cargo test 'a'",
+            "cargo test a\\b",
+            "cargo test [a]",
+            "cargo test a?",
+        ] {
+            assert!(command_allowed(&star, bad).is_err(), "{bad}");
+        }
+        assert!(pattern_words("cargo te*st").is_err() && pattern_words("* x").is_err());
+        assert!(pattern_words("sh *").is_err() && pattern_words("A=1 cargo test").is_err());
         for bad in [
             "cargo testx",
             "cargo build",
