@@ -555,3 +555,5 @@ Tests (protected, written before the fix): `tests/delegation_amend5.rs`, plus up
 
 Tests (protected, written before the fix): `tests/delegation_amend6.rs`, plus updates to earlier files that use
 `git log`, `git diff` or `git show` with the module on.
+- Clarification (second separate run): for `cargo`, a token starting with `+` is refused wherever it appears, not
+  only as the toolchain position.
