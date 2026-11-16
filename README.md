@@ -59,11 +59,11 @@ For a single machine without Tailscale, run the hub with `--identity static` on 
 
 ## Delegation
 
-A session can hand another session a task inside a contract (paths, command prefixes, an exit condition) with `wormhole_delegate`; the receiver posts the outcome with `wormhole_result`. The receiving owner decides, locally, how much a sender may do. Without a policy file the daemon never receives delegated tasks, and nothing changes from before.
+A session can hand another session a task inside a contract (paths, exact command patterns, an exit condition) with `wormhole_delegate`; the receiver posts the outcome with `wormhole_result`. The receiving owner decides, locally, how much a sender may do. Without a policy file the daemon never receives delegated tasks, and nothing changes from before.
 
     wormhole daemon --hub ws://hub.your-tailnet.ts.net:7420/ws --delegation-policy ~/.wormhole/delegation.json
 
-A policy names senders exactly and gives each a level: `off`, `inform` (information only, as any message), `scoped-instruction` (the task is treated as your instruction inside its paths; every prompt stays), `scoped-bypass` (edits inside the paths and the listed command prefixes run without a prompt until the contract ends) or `full-bypass` (anything except the denylist). The file is re-read on every request.
+A policy names senders exactly and gives each a level: `off`, `inform` (information only, as any message), `scoped-instruction` (the task is treated as your instruction inside its paths; every prompt stays), `scoped-bypass` (edits inside the paths and the listed exact command patterns run without a prompt until the contract ends) or `full-bypass` (anything except the denylist). The file is re-read on every request.
 
     {
       "grants": [
