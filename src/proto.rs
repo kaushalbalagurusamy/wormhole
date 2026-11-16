@@ -169,6 +169,9 @@ pub enum Request {
         commit: String,
         target: String,
         status: String,
+        /// The target is not a descendant of the running commit.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        downgrade: bool,
     },
 }
 
@@ -268,6 +271,8 @@ pub struct DaemonInfo {
     pub target: String,
     pub status: String,
     pub ts: u64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub downgrade: bool,
 }
 
 /// Filters for `Request::Log`; they combine with AND.

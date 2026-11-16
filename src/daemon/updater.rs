@@ -64,11 +64,13 @@ pub(crate) struct UpdState {
     pub target: String,
     status: String,
     /// Connection generation, target and status last reported to the hub.
-    reported: Option<(u64, String, String)>,
+    reported: Option<(u64, String, String, bool)>,
     last_attempt: Option<Instant>,
     last_target: Option<String>,
     /// The target this daemon installed without exiting (`exit_after_install` off).
     installed: Option<String>,
+    /// The target being worked on is not a descendant of the running commit.
+    downgrade: bool,
 }
 
 impl Daemon {
@@ -84,7 +86,14 @@ impl Daemon {
 
     /// Record the status and report it at once when the hub follows daemons.
     fn set_status(&self, s: &str) {
-        self.upd.lock().unwrap().status = s.to_string();
+        {
+            let mut u = self.upd.lock().unwrap();
+            u.status = if u.downgrade {
+                format!("{s} (downgrade)")
+            } else {
+                s.to_string()
+            };
+        }
         self.report();
     }
 
@@ -99,7 +108,7 @@ impl Daemon {
         if u.status.is_empty() {
             return;
         }
-        let key = (gen, u.target.clone(), u.status.clone());
+        let key = (gen, u.target.clone(), u.status.clone(), u.downgrade);
         if u.reported.as_ref() == Some(&key) {
             return;
         }
@@ -109,7 +118,7 @@ impl Daemon {
             .filter(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
             .take(40)
             .collect();
-        let status = u.status.clone();
+        let (status, downgrade) = (u.status.clone(), u.downgrade);
         u.reported = Some(key);
         drop(u);
         self.send_up(Up::Req {
@@ -118,6 +127,7 @@ impl Daemon {
                 commit: crate::COMMIT.to_string(),
                 target,
                 status,
+                downgrade,
             },
         });
     }
@@ -138,6 +148,7 @@ pub(crate) async fn run(d: Arc<Daemon>) {
             continue;
         };
         if target.is_empty() || target == crate::COMMIT {
+            d.upd.lock().unwrap().downgrade = false;
             d.set_status("current");
             continue;
         }
@@ -174,9 +185,27 @@ pub(crate) async fn run(d: Arc<Daemon>) {
     }
 }
 
+/// Is `target` equal to or a descendant of `base`, both commits in the clone? Anything
+/// else, including a `base` that is not a SHA or not present, is false.
+async fn descends(src: &Path, base: &str, target: &str) -> bool {
+    if !update::valid_commit(base) {
+        return false;
+    }
+    let commit = format!("{base}^{{commit}}");
+    let ok = |o: Option<std::process::Output>| o.is_some_and(|o| o.status.success());
+    ok(update::git(src, &["cat-file", "-e", &commit], GIT_TIMEOUT).await)
+        && ok(update::git(
+            src,
+            &["merge-base", "--is-ancestor", base, target],
+            GIT_TIMEOUT,
+        )
+        .await)
+}
+
 /// One update, in the order of the spec; any failure before the swap leaves the binary alone.
 async fn attempt(d: &Arc<Daemon>, cfg: &UpdateConfig, target: &str) {
     let ok = |o: &Option<std::process::Output>| o.as_ref().is_some_and(|o| o.status.success());
+    d.upd.lock().unwrap().downgrade = false;
     if !update::valid_commit(target) {
         return d.set_status("refused: invalid target");
     }
@@ -202,6 +231,23 @@ async fn attempt(d: &Arc<Daemon>, cfg: &UpdateConfig, target: &str) {
         .await)
     {
         return d.set_status("refused: not on origin/main");
+    }
+    // Both minimums always apply; a missing object fails closed.
+    for (min, why) in [
+        (
+            Some(cfg.min_safe.as_str()),
+            "refused: below minimum safe commit",
+        ),
+        (cfg.floor.as_deref(), "refused: below local floor"),
+    ] {
+        let Some(min) = min else { continue };
+        if !descends(&cfg.src, min, target).await {
+            return d.set_status(why);
+        }
+    }
+    // A target that does not contain the running commit is a downgrade; say so from here on.
+    if !descends(&cfg.src, crate::COMMIT, target).await {
+        d.upd.lock().unwrap().downgrade = true;
     }
     if !ok(&update::git(
         &cfg.src,

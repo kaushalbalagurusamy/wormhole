@@ -212,6 +212,7 @@ function describe(e) {
     case "activity": return d.kind + " " + (d.paths || []).join(", ") + (d.summary ? " (" + d.summary + ")" : "");
     case "msg": return "message to " + (d.to && d.to.kind) + (d.to && d.to.id ? " " + d.to.id : "") + " (" + d.bytes + " bytes)";
     case "hello": return "joined " + d.repo + " on " + d.branch + (d.task ? ": " + d.task : "");
+    case "daemon.downgrade": return "DOWNGRADE " + (d.commit || "").slice(0, 12) + " -> " + (d.target || "").slice(0, 12) + ": " + d.status;
     case "bye": return "left (" + d.reason + ")";
     default: return [d.repo, d.scope, d.reason, d.task_id, d.status, d.level].filter(Boolean).join(" ");
   }
@@ -229,7 +230,7 @@ async function load() {
   row($("leases"), ["scope", "repo", "holder", "since", "expires"], true);
   for (const l of s.leases) row($("leases"), [l.scope, l.repo, l.user + "@" + l.machine + " " + l.session.slice(0, 8), t(l.since), t(l.expires)]);
   row($("daemons"), ["who", "commit", "target", "status", "reported"], true);
-  for (const x of s.daemons || []) row($("daemons"), [x.user + "@" + x.machine, (x.commit || "").slice(0, 12), (x.target || "none").slice(0, 12), x.status, t(x.ts)]);
+  for (const x of s.daemons || []) row($("daemons"), [x.user + "@" + x.machine, (x.commit || "").slice(0, 12), (x.target || "none").slice(0, 12), (x.downgrade ? "DOWNGRADE " : "") + x.status, t(x.ts)]);
   row(events, ["seq", "time", "who", "session", "kind", "detail"], true);
   for (const e of s.events) addEvent(e);
   $("status").textContent = "live";

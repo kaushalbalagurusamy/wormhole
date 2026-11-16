@@ -1324,6 +1324,7 @@ impl Hub {
                 commit,
                 target,
                 status,
+                downgrade,
             } => {
                 let hex = |s: &str, none: &str| match hex_only(s) {
                     h if h.is_empty() => none.to_string(),
@@ -1336,14 +1337,27 @@ impl Hub {
                     target: hex(&target, ""),
                     status: text::plain(&status, MAX_SUMMARY),
                     ts: t,
+                    downgrade,
                 };
                 let mut m = self.daemons.lock().unwrap();
+                let changed = downgrade
+                    && m.get(&peer.key()).is_none_or(|o| {
+                        !o.downgrade
+                            || (&o.commit, &o.target, &o.status)
+                                != (&info.commit, &info.target, &info.status)
+                    });
                 if m.len() >= MAX_DAEMONS && !m.contains_key(&peer.key()) {
                     if let Some(old) = m.iter().min_by_key(|(_, d)| d.ts).map(|(k, _)| k.clone()) {
                         m.remove(&old);
                     }
                 }
+                let data =
+                    json!({"commit": info.commit, "target": info.target, "status": info.status});
                 m.insert(peer.key(), info);
+                drop(m);
+                if changed {
+                    self.emit("daemon.downgrade", peer, "", data)?;
+                }
                 Ok(json!({}))
             }
             Request::Snapshot => {
@@ -1562,6 +1576,7 @@ mod tests {
                 commit: "ABC/../def0".into(),
                 target: "zz".into(),
                 status: "failed: x\nforged".into(),
+                downgrade: false,
             },
         )
         .unwrap();

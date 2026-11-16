@@ -84,6 +84,9 @@ enum Cmd {
         /// The cargo `--auto-update` builds with.
         #[arg(long, default_value = "cargo", requires = "auto_update")]
         update_cargo: PathBuf,
+        /// Refuse targets that are not this commit or its descendants (on top of the built-in minimum).
+        #[arg(long, value_name = "SHA", requires = "auto_update")]
+        update_floor: Option<String>,
     },
     /// Print the commit this binary was built from.
     Version,
@@ -209,7 +212,15 @@ async fn main() {
             delegation_policy,
             auto_update,
             update_cargo,
+            update_floor,
         } => {
+            if update_floor
+                .as_deref()
+                .is_some_and(|f| !wormhole::update::valid_commit(f))
+            {
+                eprintln!("wormhole: --update-floor must be a full 40-character commit id in lowercase hex");
+                std::process::exit(2);
+            }
             let mut c = daemon::DaemonConfig::new(hub, socket.unwrap_or_else(default_socket));
             c.http_listen = http;
             c.static_identity = static_identity;
@@ -222,6 +233,7 @@ async fn main() {
                     Ok(bin) => {
                         let mut u = wormhole::update::UpdateConfig::new(src, bin);
                         u.cargo = update_cargo;
+                        u.floor = update_floor;
                         c.auto_update = Some(u);
                     }
                     Err(e) => {

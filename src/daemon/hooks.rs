@@ -701,7 +701,7 @@ pub(crate) async fn who_text(
         .iter()
         .map(|x| {
             format!(
-                "- {}@{} commit {} target {}: {}\n",
+                "- {}@{} commit {} target {}: {}{}\n",
                 one(&x.user),
                 one(&x.machine),
                 short(&x.commit),
@@ -710,7 +710,8 @@ pub(crate) async fn who_text(
                 } else {
                     short(&x.target)
                 },
-                one(&x.status)
+                one(&x.status),
+                if x.downgrade { " (DOWNGRADE)" } else { "" }
             )
         })
         .collect();

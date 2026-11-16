@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 use std::process::Output;
 use std::time::Duration;
 
+/// The last security-relevant commit on `main` at release time. A daemon never moves to a
+/// target that is not this commit or a descendant of it. Raised when a security fix lands.
+pub const MIN_SAFE_COMMIT: &str = "949e46761e4577336cdcdacfabd221138cc25365";
+
 /// What `wormhole daemon --auto-update` needs.
 #[derive(Clone, Debug)]
 pub struct UpdateConfig {
@@ -25,6 +29,10 @@ pub struct UpdateConfig {
     pub quiet: Duration,
     /// Exit with status 75 after installing, so the service manager starts the new binary.
     pub exit_after_install: bool,
+    /// Targets must descend from this commit; the built-in default cannot be set from the CLI.
+    pub min_safe: String,
+    /// A local minimum on top of `min_safe`: both always apply.
+    pub floor: Option<String>,
 }
 
 impl UpdateConfig {
@@ -38,6 +46,8 @@ impl UpdateConfig {
             min_interval: Duration::from_secs(300),
             quiet: Duration::from_secs(3),
             exit_after_install: true,
+            min_safe: MIN_SAFE_COMMIT.to_string(),
+            floor: None,
         }
     }
 }
@@ -92,15 +102,13 @@ pub fn resume(bin: &Path) -> Result<(), String> {
 }
 
 /// Copy `bin` to `<bin>.prev` and the built `artifact` over `bin`, each through a temporary
-/// file and a rename. A failure before the last rename leaves `bin` as it was. A missing
-/// `bin` simply has no previous version.
+/// file and a rename. A failure before the last rename leaves `bin` as it was; a missing
+/// `bin` is a failure too, since there would be nothing to revert to.
 pub fn install(bin: &Path, artifact: &Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
-    if bin.is_file() {
-        let tmp = beside(bin, ".prev.tmp");
-        std::fs::copy(bin, &tmp).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, prev_path(bin)).map_err(|e| e.to_string())?;
-    }
+    let tmp = beside(bin, ".prev.tmp");
+    std::fs::copy(bin, &tmp).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, prev_path(bin)).map_err(|e| e.to_string())?;
     let new = beside(bin, ".new");
     std::fs::copy(artifact, &new).map_err(|e| e.to_string())?;
     std::fs::set_permissions(&new, std::fs::Permissions::from_mode(0o755))
