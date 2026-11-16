@@ -1184,7 +1184,7 @@ mod tests {
         // SAFETY: umask only sets the process file-creation mask.
         let old = unsafe { libc::umask(0o022) };
         let p = d.join("db/hub.sqlite");
-        let mut s = Store::open(&p).unwrap();
+        let s = Store::open(&p).unwrap();
         s.append(1, "k", "u", "m", "s", json!({})).unwrap();
         unsafe { libc::umask(old) };
         let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;

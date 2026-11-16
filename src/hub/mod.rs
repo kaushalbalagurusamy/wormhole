@@ -1308,8 +1308,8 @@ mod tests {
         let e = last_event(&h);
         assert_eq!((e.seq, e.kind.as_str()), (seq, "delegation.request"));
         assert!(h.visible(&e, &a) && h.visible(&e, &b) && !h.visible(&e, &c));
-        let snap = |p: &Peer| match h.handle(p, Request::Snapshot).unwrap() {
-            v => serde_json::from_value::<Snapshot>(v).unwrap(),
+        let snap = |p: &Peer| {
+            serde_json::from_value::<Snapshot>(h.handle(p, Request::Snapshot).unwrap()).unwrap()
         };
         assert_eq!(snap(&a).delegations.len(), 1);
         assert_eq!(snap(&b).delegations[0].status, "pending");

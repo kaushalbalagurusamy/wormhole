@@ -35,7 +35,9 @@ pub enum Target {
     Broadcast,
 }
 
-/// Frames a daemon sends.
+/// Frames a daemon sends. `Req` is large because a delegation carries a whole contract; the
+/// frames are short-lived, so boxing it would only change the pinned wire types.
+#[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum Up {
