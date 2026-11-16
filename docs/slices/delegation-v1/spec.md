@@ -537,3 +537,21 @@ Tests (protected, written before the fix): `tests/delegation_amend5.rs`, plus up
 - Every delegation notice to the receiving session names the task id and kind, accepted or not (the status line
   is followed by `task <id>; kind <kind>` in all cases).
 - `denied_argv` also returns `Some` for a wrapper program (Amendment 1 list), compared by lowercased base name.
+
+## Amendment 6 (2026-11-15, fifth security review)
+
+- **S7 (medium) git can print denied files.** `git show HEAD:secrets/x`, `git diff` and `git log -p -- secrets/`
+  print denied contents while each operand passes the path check. Chosen fix (the simpler one): while the denylist
+  module is on, git is usable only with `status` (new **pinned** constant `pub const GIT_SUBCOMMANDS_DENYLIST_ON:
+  &[&str] = &["status"]`); `log`, `diff` and `show` are available only with the module off. Patterns naming
+  them are refused at load and at acceptance while the module is on, and commands are refused per call.
+- **S7b (same class, found by the orchestrator) recursive reads.** A Bash operand that is an existing directory is
+  allowed only for `ls`, `stat`, `realpath`, `basename` and `dirname`; for every other program (for example
+  `grep -r x src`, `diff -r a b`) a directory operand gets no `allow`, since it can read denied files below it.
+- **S8 (medium) tightening the policy shrinks open contracts.** Each open contract records its acceptance time and
+  steps used. When the per-call re-evaluation still grants it, `expires = min(expires, accepted_at + new ttl)` and
+  `steps_left = min(steps_left, new max_steps - steps_used)` (saturating); if either is used up the contract closes
+  (audited, reason `policy tightened`) and no `allow` is given.
+
+Tests (protected, written before the fix): `tests/delegation_amend6.rs`, plus updates to earlier files that use
+`git log`, `git diff` or `git show` with the module on.

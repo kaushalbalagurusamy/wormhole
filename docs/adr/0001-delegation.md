@@ -63,7 +63,11 @@ hooks page came back summarised, so the wording is not verbatim):
    parser: that level is a trust decision about the sender, and the denylist there is a speed bump.
    Amendment 4 (fourth review) narrowed the defaults to programs with no option that runs another program;
    `git` and `cargo` are usable only when the owner adds them, and then only with built-in subcommand
-   allowlists and their exec-capable options refused. The user's settings deny and ask rules still win. wormhole
+   allowlists and their exec-capable options refused. Amendment 6 (fifth review): while the denylist module
+   is on, git is limited to `status`, because `show`, `diff` and `log` print file contents (including denied
+   files) through operands no path check can see; this was chosen over parsing every pathspec form. A
+   directory operand is allowed only for programs that list names. Tightening the policy now shrinks an
+   open contract's TTL and step budget. The user's settings deny and ask rules still win. wormhole
    forges no approval and declares no permission relay.
 7. **Contracts end.** A contract is open from the receiver's first fresh ack until its result is posted, its TTL
    passes (capped by the grant and at 4 hours), its step budget (bypass answers) is spent, or the kill switch is
