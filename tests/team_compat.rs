@@ -117,6 +117,7 @@ fn a_snapshot_with_daemons_parses_as_old_and_an_empty_list_is_not_serialised() {
         target: String::new(),
         status: "current".into(),
         ts: 5,
+        ..Default::default()
     };
     let s = serde_json::to_string(&Snapshot {
         daemons: vec![d.clone()],
@@ -224,12 +225,23 @@ fn log_and_daemon_status_requests_have_their_pinned_shape_and_old_hubs_cannot_pa
         commit: SHA.into(),
         target: String::new(),
         status: "current".into(),
+        downgrade: false,
     };
     let sv = serde_json::to_value(&st).unwrap();
-    assert_eq!(
-        sv,
-        json!({"type": "daemon_status", "commit": SHA, "target": "", "status": "current"})
-    );
+    for (k, want) in [
+        ("type", json!("daemon_status")),
+        ("commit", json!(SHA)),
+        ("target", json!("")),
+        ("status", json!("current")),
+    ] {
+        assert_eq!(sv[k], want, "{k}: {sv}");
+    }
+    // A report from before the amendment has no downgrade flag.
+    let old = r#"{"type":"daemon_status","commit":"a","target":"","status":"current"}"#;
+    match serde_json::from_str::<Request>(old).unwrap() {
+        Request::DaemonStatus { downgrade, .. } => assert!(!downgrade),
+        other => panic!("{other:?}"),
+    }
     match serde_json::from_value::<Request>(sv.clone()).unwrap() {
         Request::DaemonStatus { commit, status, .. } => assert_eq!((commit.as_str(), status.as_str()), (SHA, "current")),
         other => panic!("{other:?}"),

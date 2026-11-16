@@ -182,6 +182,8 @@ fn daemon_for(
         u.build = Some(build_argv(b, &w.build_log));
         u.min_interval = Duration::from_millis(min_ms);
         u.quiet = Duration::from_millis(100);
+        // The default floor is a commit of this project, which the temporary clone lacks.
+        u.min_safe = w.c[0].clone();
         u.exit_after_install = false;
         c.auto_update = Some(u);
     }
@@ -637,13 +639,21 @@ async fn who_and_the_page_show_each_daemons_commit_target_and_status() {
     wait_status(&hub, &w, "bob", "disabled").await;
 
     let c12 = short(wormhole::COMMIT);
+    // The running commit is not in the temporary clone, so an update there is a downgrade and
+    // its line may carry a marker; the line is checked by its parts.
+    let line = |who: &str, user: &str| -> String {
+        who.lines()
+            .find(|l| l.contains(user) && l.contains("commit "))
+            .unwrap_or_else(|| panic!("no daemon line for {user} in {who}"))
+            .to_string()
+    };
     let who = tool(&a, SA, "who", json!({})).await.unwrap();
     assert!(who.contains("Daemons:"), "{who}");
-    for line in [
-        format!("alice@machine-a commit {c12} target none: current"),
-        format!("bob@machine-b commit {c12} target none: disabled"),
-    ] {
-        assert!(who.contains(&line), "{line} not in {who}");
+    for (user, status) in [("alice@machine-a", "current"), ("bob@machine-b", "disabled")] {
+        let l = line(&who, user);
+        for want in [format!("commit {c12} target none: {status}")] {
+            assert!(l.contains(&want), "{want} not in {l}");
+        }
     }
 
     set_target(&w, &t);
@@ -655,11 +665,10 @@ async fn who_and_the_page_show_each_daemons_commit_target_and_status() {
     .await;
     let who = tool(&a, SA, "who", json!({})).await.unwrap();
     let t12 = short(&t);
-    for line in [
-        format!("alice@machine-a commit {c12} target {t12}: installed"),
-        format!("bob@machine-b commit {c12} target {t12}: disabled"),
-    ] {
-        assert!(who.contains(&line), "{line} not in {who}");
+    for (user, status) in [("alice@machine-a", "installed"), ("bob@machine-b", "disabled")] {
+        let l = line(&who, user);
+        let want = format!("commit {c12} target {t12}: {status}");
+        assert!(l.contains(&want), "{want} not in {l}");
     }
     assert!(!who.contains(w.dir.to_str().unwrap()), "{who}");
 
