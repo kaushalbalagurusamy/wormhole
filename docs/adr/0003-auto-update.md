@@ -71,3 +71,7 @@ does not accept that.
 - The first update needs a manual `join.sh` re-run on each machine, because daemons built before this ADR have
   no updater.
 - A stale clone with local commits or edits refuses to update until its owner cleans it.
+- Known limits (review, 2026-11-16): a failed or denied tool call that never gets a `PostToolUse` delays an update by
+  up to 10 minutes; after a reconnect the daemon re-sends its status only when the current attempt ends; the
+  updater checks the target out in the clone `join.sh` ran from, so that clone leaves its branch (keep a separate
+  clone for your own work on wormhole); a symlinked binary path is replaced by a regular file.
