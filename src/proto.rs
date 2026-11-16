@@ -22,6 +22,10 @@ pub const MAX_SNAPSHOT_LEASES: usize = 1000;
 /// Capability a daemon advertises in `Resume` (only with a delegation policy) and the hub in
 /// `Welcome`. A daemon sends delegation requests only on a connection whose `Welcome` listed it.
 pub const CAP_DELEGATION: &str = "delegation";
+/// The hub keeps a per-repository team log and answers `Log`; a daemon authoring entries for it.
+pub const CAP_TEAM_LOG: &str = "team-log";
+/// The hub announces a target build and accepts `DaemonStatus`; a daemon that follows targets.
+pub const CAP_UPDATE: &str = "update";
 
 /// Header a daemon uses to claim an identity when the hub runs with static identity.
 pub const STATIC_ID_HEADER: &str = "x-wormhole-static-identity";
@@ -153,6 +157,22 @@ pub enum Request {
         #[serde(default)]
         fields: serde_json::Map<String, Value>,
     },
+    /// Read this session's repository's team log. Sent only when the hub advertised the capability.
+    Log {
+        session: String,
+        #[serde(default)]
+        query: LogQuery,
+    },
+    /// The daemon's running commit, the target it has seen and its update status. Sent only
+    /// when the hub advertised the capability.
+    DaemonStatus {
+        commit: String,
+        target: String,
+        status: String,
+        /// The target is not a descendant of the running commit.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        downgrade: bool,
+    },
 }
 
 /// Frames the hub sends.
@@ -165,6 +185,13 @@ pub enum Down {
         head: u64,
         #[serde(default)]
         caps: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target: Option<String>,
+    },
+    /// The hub's target build changed. Sent only to connections that advertised `update`.
+    Target {
+        #[serde(default)]
+        commit: Option<String>,
     },
     Event {
         event: Event,
@@ -230,6 +257,59 @@ pub struct Snapshot {
     pub leases: Vec<LeaseInfo>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub delegations: Vec<DelegationInfo>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub daemons: Vec<DaemonInfo>,
+}
+
+/// What the hub knows of one machine's daemon: the commit it runs, the target it was told
+/// and its update status.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct DaemonInfo {
+    pub user: String,
+    pub machine: String,
+    pub commit: String,
+    pub target: String,
+    pub status: String,
+    pub ts: u64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub downgrade: bool,
+}
+
+/// Filters for `Request::Log`; they combine with AND.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct LogQuery {
+    #[serde(default)]
+    pub since: Option<u64>,
+    #[serde(default)]
+    pub session: Option<String>,
+    #[serde(default)]
+    pub user: Option<String>,
+    /// `msg`, `request`, `ack` or `result`.
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub task_id: Option<String>,
+    /// 0: 50; capped at 200.
+    #[serde(default)]
+    pub limit: u64,
+}
+
+/// One row of the team log as the hub stored it.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct LogEntry {
+    pub seq: u64,
+    pub ts: u64,
+    pub kind: String,
+    pub repo: String,
+    pub from_session: String,
+    pub from_user: String,
+    pub from_machine: String,
+    /// `session:<id>`, `user:<name>` or `all`.
+    pub to: String,
+    pub to_user: String,
+    pub task_id: String,
+    pub text: String,
+    pub data: Value,
 }
 
 /// A delegated task as the hub keeps it: the contract's identifying fields and the outcome.
@@ -278,6 +358,9 @@ pub struct Contract {
     /// Keys a `done` result must carry.
     #[serde(default)]
     pub result_fields: Vec<String>,
+    /// An `https://` link to what the task concerns, such as a pull request.
+    #[serde(rename = "ref", default, skip_serializing_if = "String::is_empty")]
+    pub reference: String,
     pub text: String,
 }
 

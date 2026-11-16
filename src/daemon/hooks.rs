@@ -141,8 +141,47 @@ fn join(parts: &[&str]) -> String {
         .join("\n\n")
 }
 
-/// Handle one hook input. Always returns a valid hook output.
+/// Handle one hook input. Always returns a valid hook output. Tool calls in flight and the
+/// time of the last hook are noted for the updater, which swaps the binary only when idle.
 pub(crate) async fn handle(d: &Daemon, input: Value) -> Value {
+    let note = input["session_id"]
+        .as_str()
+        .filter(|s| !s.is_empty() && s.len() <= MAX_FIELD)
+        .map(|s| {
+            (
+                s.to_string(),
+                input["hook_event_name"].as_str().unwrap_or("").to_string(),
+                input["tool_use_id"]
+                    .as_str()
+                    .unwrap_or("")
+                    .chars()
+                    .take(256)
+                    .collect::<String>(),
+            )
+        });
+    {
+        let mut idle = d.idle.lock().unwrap();
+        idle.touch();
+        if let Some((s, e, id)) = &note {
+            if e == "PreToolUse" {
+                idle.tool_started(s, id);
+            }
+        }
+    }
+    let out = handle_event(d, input).await;
+    let mut idle = d.idle.lock().unwrap();
+    idle.touch();
+    if let Some((s, e, id)) = &note {
+        match e.as_str() {
+            "PostToolUse" => idle.tool_finished(s, id),
+            "SessionEnd" => idle.session_ended(s),
+            _ => {}
+        }
+    }
+    out
+}
+
+async fn handle_event(d: &Daemon, input: Value) -> Value {
     let deadline = Instant::now() + d.cfg.hub_deadline;
     let event = input["hook_event_name"].as_str().unwrap_or("").to_string();
     let Some(session) = input["session_id"]
@@ -656,6 +695,27 @@ pub(crate) async fn who_text(
         })
         .collect();
     lines("Delegations:\n", mine, &mut body);
+    let short = |s: &str| one(&s.chars().take(12).collect::<String>());
+    let daemons: Vec<String> = snap
+        .daemons
+        .iter()
+        .map(|x| {
+            format!(
+                "- {}@{} commit {} target {}: {}{}\n",
+                one(&x.user),
+                one(&x.machine),
+                short(&x.commit),
+                if x.target.is_empty() {
+                    "none".to_string()
+                } else {
+                    short(&x.target)
+                },
+                one(&x.status),
+                if x.downgrade { " (DOWNGRADE)" } else { "" }
+            )
+        })
+        .collect();
+    lines("Daemons:\n", daemons, &mut body);
     body.push_str("Edits to a leased path get a warning naming the holder. The wormhole_* tools (send, lease, request_transfer) are available if the wormhole MCP server is configured.");
     let block = text::block(
         "wormhole-state",

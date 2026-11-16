@@ -41,6 +41,15 @@ enum Cmd {
         /// TLS private key (PEM).
         #[arg(long, requires = "tls_cert")]
         tls_key: Option<PathBuf>,
+        /// Most team log rows kept (at least 1).
+        #[arg(long, default_value_t = hub::DEFAULT_LOG_MAX_ENTRIES)]
+        log_max_entries: usize,
+        /// Team log rows older than this many days are dropped; 0 keeps them.
+        #[arg(long, default_value_t = hub::DEFAULT_LOG_MAX_AGE_SECS / 86_400)]
+        log_max_age_days: u64,
+        /// File holding the commit SHA daemons are told to run. Re-read about twice a second.
+        #[arg(long)]
+        target_file: Option<PathBuf>,
     },
     /// Run the per-machine daemon.
     Daemon {
@@ -68,6 +77,30 @@ enum Cmd {
         /// each may do. Without it the daemon never receives delegated tasks.
         #[arg(long)]
         delegation_policy: Option<PathBuf>,
+        /// Follow the hub's target build: fetch, verify, build in this clone and replace this
+        /// binary, then exit with status 75 so the service manager restarts it. See ADR 0003.
+        #[arg(long, value_name = "SRC")]
+        auto_update: Option<PathBuf>,
+        /// The cargo `--auto-update` builds with.
+        #[arg(long, default_value = "cargo", requires = "auto_update")]
+        update_cargo: PathBuf,
+        /// Refuse targets that are not this commit or its descendants (on top of the built-in minimum).
+        #[arg(long, value_name = "SHA", requires = "auto_update")]
+        update_floor: Option<String>,
+    },
+    /// Print the commit this binary was built from.
+    Version,
+    /// Roll the installed binary back, or let the daemon follow the hub again.
+    Update {
+        /// Swap the installed binary with its `.prev` and hold the daemon at it.
+        #[arg(long, conflicts_with = "resume")]
+        revert: bool,
+        /// Remove the hold so the daemon follows the hub's target again.
+        #[arg(long)]
+        resume: bool,
+        /// The installed binary (default ~/.wormhole/bin/wormhole).
+        #[arg(long)]
+        bin: Option<PathBuf>,
     },
     /// The delegation kill switch.
     Delegation {
@@ -132,6 +165,9 @@ async fn main() {
             allow,
             tls_cert,
             tls_key,
+            log_max_entries,
+            log_max_age_days,
+            target_file,
         } => {
             let identity = match identity.as_str() {
                 "tailscale" => hub::identity::IdentityConfig::Tailscale { bin: tailscale_bin },
@@ -150,6 +186,9 @@ async fn main() {
                 tls: tls_cert
                     .zip(tls_key)
                     .map(|(cert, key)| wormhole::tls::TlsFiles { cert, key }),
+                log_max_entries,
+                log_max_age_secs: log_max_age_days.saturating_mul(86_400),
+                target_file,
             })
             .await
             {
@@ -171,7 +210,17 @@ async fn main() {
             lease_ttl_secs,
             tls_ca,
             delegation_policy,
+            auto_update,
+            update_cargo,
+            update_floor,
         } => {
+            if update_floor
+                .as_deref()
+                .is_some_and(|f| !wormhole::update::valid_commit(f))
+            {
+                eprintln!("wormhole: --update-floor must be a full 40-character commit id in lowercase hex");
+                std::process::exit(2);
+            }
             let mut c = daemon::DaemonConfig::new(hub, socket.unwrap_or_else(default_socket));
             c.http_listen = http;
             c.static_identity = static_identity;
@@ -179,6 +228,20 @@ async fn main() {
             c.lease_ttl = Duration::from_secs(lease_ttl_secs);
             c.extra_roots = tls_ca;
             c.delegation_policy = delegation_policy;
+            if let Some(src) = auto_update {
+                match std::env::current_exe() {
+                    Ok(bin) => {
+                        let mut u = wormhole::update::UpdateConfig::new(src, bin);
+                        u.cargo = update_cargo;
+                        u.floor = update_floor;
+                        c.auto_update = Some(u);
+                    }
+                    Err(e) => {
+                        eprintln!("wormhole: --auto-update needs the path of this binary: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            }
             match daemon::start(c).await {
                 Ok(d) => {
                     eprintln!(
@@ -191,6 +254,31 @@ async fn main() {
                     Ok(())
                 }
                 Err(e) => Err(e),
+            }
+        }
+        Cmd::Version => {
+            println!("wormhole {}", wormhole::COMMIT);
+            Ok(())
+        }
+        Cmd::Update {
+            revert,
+            resume,
+            bin,
+        } => {
+            let bin = bin.unwrap_or_else(|| {
+                default_socket()
+                    .parent()
+                    .map(|p| p.join("bin").join("wormhole"))
+                    .unwrap_or_else(|| PathBuf::from("wormhole"))
+            });
+            if revert {
+                wormhole::update::revert(&bin).map(|()| {
+                    eprintln!("wormhole: swapped in the previous binary; the daemon is held there until `wormhole update --resume`");
+                })
+            } else if resume {
+                wormhole::update::resume(&bin)
+            } else {
+                Err("pass --revert or --resume".into())
             }
         }
         Cmd::Delegation {

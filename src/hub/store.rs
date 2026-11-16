@@ -1,7 +1,7 @@
 //! The hub's durable state in SQLite: the ordered event log, leases with fencing tokens,
 //! and per-machine delivery cursors. Times are passed in so tests control the clock.
 
-use crate::proto::{DelegationInfo, Event, LeaseInfo};
+use crate::proto::{DelegationInfo, Event, LeaseInfo, LogEntry, LogQuery};
 use serde_json::Value;
 use std::path::Path;
 
@@ -74,7 +74,85 @@ CREATE TABLE IF NOT EXISTS delegations (
     paths TEXT NOT NULL, result_fields TEXT NOT NULL,
     status TEXT NOT NULL, level TEXT NOT NULL, summary TEXT NOT NULL, ts INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS team_log (
+    seq INTEGER PRIMARY KEY,
+    ts INTEGER NOT NULL,
+    repo TEXT NOT NULL, kind TEXT NOT NULL,
+    from_session TEXT NOT NULL, from_user TEXT NOT NULL, from_machine TEXT NOT NULL,
+    to_target TEXT NOT NULL, to_user TEXT NOT NULL, task_id TEXT NOT NULL,
+    text TEXT NOT NULL, data TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS team_log_repo ON team_log (repo, seq);
 ";
+
+/// Most bytes of serialised entries in one `Log` answer.
+pub const LOG_MAX_BYTES: usize = 256 * 1024;
+
+const SEVERITIES: &[&str] = &["critical", "high", "medium", "low", "info"];
+
+/// `<path>:<line>`: a path without whitespace, then a decimal line number of at least 1.
+fn valid_location(l: &str) -> bool {
+    l.rsplit_once(':').is_some_and(|(p, n)| {
+        !p.is_empty()
+            && !p.chars().any(char::is_whitespace)
+            && !n.is_empty()
+            && n.chars().all(|c| c.is_ascii_digit())
+            && !n.trim_start_matches('0').is_empty()
+    })
+}
+
+/// What a `done` result must carry for the two kinds with a fixed shape. The error is the
+/// text the hub answers with.
+fn check_result(kind: &str, fields: &serde_json::Map<String, Value>) -> Result<(), String> {
+    match kind {
+        "review" => {
+            let bad = |why: &str| Err(format!("invalid review result: {why}"));
+            if !["approve", "request-changes", "comment"]
+                .iter()
+                .any(|v| fields.get("verdict").and_then(Value::as_str) == Some(v))
+            {
+                return bad("verdict must be approve, request-changes or comment");
+            }
+            let Some(list) = fields.get("findings").and_then(Value::as_array) else {
+                return bad("findings must be an array");
+            };
+            for f in list {
+                let s = |k: &str| f.get(k).and_then(Value::as_str);
+                if !s("severity").is_some_and(|v| SEVERITIES.contains(&v)) {
+                    return bad("a finding's severity must be critical, high, medium, low or info");
+                }
+                if !s("location").is_some_and(valid_location) {
+                    return bad("a finding's location must be <path>:<line>");
+                }
+                if s("text").is_none_or(str::is_empty) {
+                    return bad("a finding needs text");
+                }
+            }
+            Ok(())
+        }
+        "task" => {
+            let ok = fields
+                .get("artifacts")
+                .and_then(Value::as_array)
+                .is_some_and(|a| {
+                    a.iter().all(|x| {
+                        x.as_str().is_some_and(|s| {
+                            (1..=512).contains(&s.len()) && !s.chars().any(char::is_control)
+                        })
+                    })
+                });
+            if ok {
+                Ok(())
+            } else {
+                Err(
+                    "invalid task result: artifacts must be an array of strings of 1 to 512 bytes"
+                        .into(),
+                )
+            }
+        }
+        _ => Ok(()),
+    }
+}
 
 /// A request nobody answered for this long is expired.
 pub const DELEGATION_PENDING_MS: u64 = 10 * 60 * 1000;
@@ -748,6 +826,9 @@ impl Store {
             return Ok(Err("invalid status".into()));
         }
         if status == "done" {
+            if let Err(e) = check_result(&d.info.kind, fields) {
+                return Ok(Err(e));
+            }
             if let Some(m) = d.result_fields.iter().find(|f| !fields.contains_key(*f)) {
                 return Ok(Err(format!("missing result field {m}")));
             }
@@ -769,6 +850,128 @@ impl Store {
         }
         tx.commit()?;
         Ok(Ok((Delegation { info, ..d }, released)))
+    }
+
+    /// Store one team log row, then drop the rows beyond the newest `keep`.
+    pub fn log_put(&self, e: &LogEntry, keep: usize) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO team_log (seq, ts, repo, kind, from_session, from_user, from_machine, to_target, to_user, task_id, text, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            rusqlite::params![
+                e.seq as i64, e.ts as i64, e.repo, e.kind, e.from_session, e.from_user,
+                e.from_machine, e.to, e.to_user, e.task_id, e.text, e.data.to_string()
+            ],
+        )?;
+        self.conn.execute(
+            "DELETE FROM team_log WHERE seq <= (SELECT seq FROM team_log ORDER BY seq DESC LIMIT 1 OFFSET ?1)",
+            [keep as i64],
+        )?;
+        Ok(())
+    }
+
+    /// Drop log rows stamped before `cutoff_ms`.
+    pub fn log_expire(&self, cutoff_ms: u64) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "DELETE FROM team_log WHERE ts < ?1",
+            [clamp_now(cutoff_ms) as i64],
+        )
+    }
+
+    /// Matching rows of `repo` in ascending seq, and whether any matching row was left out.
+    /// Without `since` the newest `limit` rows; with it the first `limit` after it. Serialised
+    /// entries total at most `LOG_MAX_BYTES`: the oldest are dropped without `since`, the
+    /// newest with it.
+    pub fn log_query(
+        &self,
+        repo: &str,
+        q: &LogQuery,
+        limit: usize,
+    ) -> rusqlite::Result<(Vec<LogEntry>, bool)> {
+        let mut sql = String::from(
+            "SELECT seq, ts, repo, kind, from_session, from_user, from_machine, to_target, to_user, task_id, text, data FROM team_log WHERE repo = ?",
+        );
+        let mut args: Vec<rusqlite::types::Value> = vec![repo.to_string().into()];
+        let mut add = |cond: &str, vals: Vec<rusqlite::types::Value>| {
+            sql.push_str(" AND ");
+            sql.push_str(cond);
+            args.extend(vals);
+        };
+        if let Some(s) = &q.session {
+            add(
+                "(from_session = ? OR to_target = ?)",
+                vec![s.clone().into(), format!("session:{s}").into()],
+            );
+        }
+        if let Some(u) = &q.user {
+            add(
+                "(from_user = ? OR to_user = ?)",
+                vec![u.clone().into(), u.clone().into()],
+            );
+        }
+        if let Some(k) = &q.kind {
+            add("kind = ?", vec![k.clone().into()]);
+        }
+        if let Some(t) = &q.task_id {
+            add("task_id = ?", vec![t.clone().into()]);
+        }
+        if let Some(n) = q.since {
+            add("seq > ?", vec![(n.min(MAX_TIME) as i64).into()]);
+        }
+        sql.push_str(if q.since.is_some() {
+            " ORDER BY seq ASC"
+        } else {
+            " ORDER BY seq DESC"
+        });
+        sql.push_str(&format!(" LIMIT {}", limit + 1));
+        let mut st = self.conn.prepare(&sql)?;
+        let mut rows: Vec<LogEntry> = st
+            .query_map(rusqlite::params_from_iter(args), |r| {
+                let data: String = r.get(11)?;
+                Ok(LogEntry {
+                    seq: r.get::<_, i64>(0)? as u64,
+                    ts: r.get::<_, i64>(1)? as u64,
+                    repo: r.get(2)?,
+                    kind: r.get(3)?,
+                    from_session: r.get(4)?,
+                    from_user: r.get(5)?,
+                    from_machine: r.get(6)?,
+                    to: r.get(7)?,
+                    to_user: r.get(8)?,
+                    task_id: r.get(9)?,
+                    text: r.get(10)?,
+                    data: serde_json::from_str(&data).unwrap_or(Value::Null),
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        let newest_first = q.since.is_none();
+        let mut more = rows.len() > limit;
+        rows.truncate(limit);
+        if newest_first {
+            rows.reverse();
+        }
+        let mut total = 0;
+        let mut keep = 0;
+        // Walk from the end that is kept first.
+        let order: Vec<usize> = if newest_first {
+            (0..rows.len()).rev().collect()
+        } else {
+            (0..rows.len()).collect()
+        };
+        for i in order {
+            total += serde_json::to_string(&rows[i]).map_or(0, |s| s.len());
+            if total > LOG_MAX_BYTES && keep > 0 {
+                break;
+            }
+            keep += 1;
+        }
+        if keep < rows.len() {
+            more = true;
+            if newest_first {
+                rows.drain(..rows.len() - keep);
+            } else {
+                rows.truncate(keep);
+            }
+        }
+        Ok((rows, more))
     }
 
     /// The live lease on exactly `scope`, if any.
@@ -1201,6 +1404,50 @@ mod tests {
         std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
         assert!(Store::open(&open.join("hub.sqlite")).is_err());
         std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    fn row(seq: u64, repo: &str, text: &str) -> LogEntry {
+        LogEntry {
+            seq,
+            ts: seq,
+            kind: "msg".into(),
+            repo: repo.into(),
+            from_session: "s1".into(),
+            to: "all".into(),
+            text: text.into(),
+            data: Value::Null,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn team_log_limits_scopes_and_prunes() {
+        let s = Store::open_memory().unwrap();
+        for n in 1..=6 {
+            s.log_put(&row(n, if n == 3 { "other" } else { "r" }, "x"), 4)
+                .unwrap();
+        }
+        // Retention kept the newest four rows (3..=6); row 3 is another repository's.
+        let q = LogQuery::default();
+        let (e, more) = s.log_query("r", &q, 50).unwrap();
+        assert_eq!(e.iter().map(|x| x.seq).collect::<Vec<_>>(), [4, 5, 6]);
+        assert!(!more);
+        let (e, more) = s.log_query("r", &q, 2).unwrap();
+        assert_eq!(e.iter().map(|x| x.seq).collect::<Vec<_>>(), [5, 6]);
+        assert!(more);
+        let since = LogQuery {
+            since: Some(4),
+            ..Default::default()
+        };
+        assert_eq!(s.log_query("r", &since, 1).unwrap().0[0].seq, 5);
+        // The byte cap drops the oldest without `since`.
+        let big = "y".repeat(100 * 1024);
+        for n in 7..=9 {
+            s.log_put(&row(n, "r", &big), 100).unwrap();
+        }
+        let (e, more) = s.log_query("r", &q, 50).unwrap();
+        assert!(more && e.last().unwrap().seq == 9 && e.len() < 7);
+        assert_eq!(s.log_expire(8).unwrap(), 5);
     }
 
     #[test]

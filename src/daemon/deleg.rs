@@ -35,6 +35,8 @@ pub(crate) struct Open {
 const TASK_CHARS: usize = 1000;
 /// Most escaped characters the daemon's own lines may take before the relayed text.
 const HEADER_BUDGET: usize = 950;
+/// Extra room for a `ref` link, at most 300 characters before escaping.
+const REF_BUDGET: usize = 330;
 
 /// Best effort: closes, revokes and results are recorded when they can be.
 fn audit(d: &Daemon, event: &str, seq: u64, session: &str, level: &str, extra: Value) {
@@ -292,13 +294,14 @@ fn request_body(
         );
         if dec.accepted {
             h.push_str(&format!(
-                "Boundary: repository {}; task {}; kind {}; paths: {}; commands: {}; spec: {}; done when: {}; expires in {} s; step budget {}.\n",
+                "Boundary: repository {}; task {}; kind {}; paths: {}; commands: {}; spec: {}; ref: {}; done when: {}; expires in {} s; step budget {}.\n",
                 shown(repo, 80 / div),
                 shown(&c.task_id, 40 / div),
                 shown(&c.kind, 40 / div),
                 list(&c.paths, 160 / div),
                 list(&c.commands, 160 / div),
                 shown(&c.spec, 80 / div),
+                if c.reference.is_empty() { "none".to_string() } else { shown(&c.reference, 300 / div) },
                 shown(&c.exit, 100 / div),
                 dec.ttl_secs,
                 dec.max_steps
@@ -338,9 +341,15 @@ fn request_body(
         ));
         h
     };
+    let budget = HEADER_BUDGET
+        + if c.reference.is_empty() {
+            0
+        } else {
+            REF_BUDGET
+        };
     let mut h = header(1);
     for div in [2, 4, 8] {
-        if escaped_len(&h) <= HEADER_BUDGET {
+        if escaped_len(&h) <= budget {
             break;
         }
         h = header(div);

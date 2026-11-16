@@ -36,7 +36,16 @@ pub struct HubConfig {
     /// Serve wss:// and https:// with this certificate. Without it, the hub serves plaintext
     /// only on loopback or a Tailscale address.
     pub tls: Option<crate::tls::TlsFiles>,
+    /// The team log keeps at most this many rows (at least 1).
+    pub log_max_entries: usize,
+    /// Team log rows older than this many seconds are dropped; 0 keeps them.
+    pub log_max_age_secs: u64,
+    /// File whose content is the commit daemons are told to run (see ADR 0003).
+    pub target_file: Option<PathBuf>,
 }
+
+pub const DEFAULT_LOG_MAX_ENTRIES: usize = 10_000;
+pub const DEFAULT_LOG_MAX_AGE_SECS: u64 = 30 * 86_400;
 
 /// A session with no heartbeat for this long is reported gone.
 const PRESENCE_TIMEOUT_MS: u64 = 120_000;
@@ -63,22 +72,88 @@ pub(crate) struct Hub {
     tls: Option<Arc<crate::tls::ServerTls>>,
     /// Open connections per `user@machine` whose daemon advertised the delegation capability.
     delegating: Mutex<HashMap<String, usize>>,
+    /// Likewise for the team-log capability: only these peers' events are written to the log.
+    logging: Mutex<HashMap<String, usize>>,
+    /// Likewise for the update capability.
+    updating: Mutex<HashMap<String, usize>>,
+    log_max_entries: usize,
+    log_max_age_secs: u64,
+    /// The commit daemons are told to run, as last read from `target_file`.
+    target: Mutex<Option<String>>,
+    target_file: Option<PathBuf>,
+    target_tx: broadcast::Sender<Option<String>>,
+    /// What each daemon last reported, by `user@machine`.
+    daemons: Mutex<HashMap<String, DaemonInfo>>,
 }
 
-/// Counts a connection as delegation-capable for as long as it lives.
+/// Most daemons whose status the hub keeps; the least recently heard from is dropped first.
+const MAX_DAEMONS: usize = 500;
+
+/// The target file's content if it is exactly a full commit id (after trimming).
+fn read_target(path: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    let mut s = String::new();
+    std::fs::File::open(path)
+        .ok()?
+        .take(256)
+        .read_to_string(&mut s)
+        .ok()?;
+    let s = s.trim();
+    crate::update::valid_commit(s).then(|| s.to_string())
+}
+
+/// Keep only `[0-9a-f]`, at most 40 characters.
+fn hex_only(s: &str) -> String {
+    s.chars()
+        .filter(|c| matches!(c, '0'..='9' | 'a'..='f'))
+        .take(40)
+        .collect()
+}
+
+/// Counts a connection as capable for as long as it lives, one count per capability.
 struct CapGuard {
     hub: Arc<Hub>,
-    key: Option<String>,
+    key: String,
+    /// Whether this connection counted in `delegating`, `logging` and `updating`.
+    counted: [bool; 3],
+}
+
+impl CapGuard {
+    fn new(hub: &Arc<Hub>, key: String, caps: &[String]) -> CapGuard {
+        let counted =
+            [CAP_DELEGATION, CAP_TEAM_LOG, CAP_UPDATE].map(|c| caps.iter().any(|x| x == c));
+        let g = CapGuard {
+            hub: hub.clone(),
+            key,
+            counted,
+        };
+        for (i, on) in counted.iter().enumerate() {
+            if *on {
+                *g.map(i).lock().unwrap().entry(g.key.clone()).or_default() += 1;
+            }
+        }
+        g
+    }
+
+    fn map(&self, i: usize) -> &Mutex<HashMap<String, usize>> {
+        match i {
+            0 => &self.hub.delegating,
+            1 => &self.hub.logging,
+            _ => &self.hub.updating,
+        }
+    }
 }
 
 impl Drop for CapGuard {
     fn drop(&mut self) {
-        if let Some(k) = &self.key {
-            let mut m = self.hub.delegating.lock().unwrap();
-            if let Some(n) = m.get_mut(k) {
-                *n -= 1;
-                if *n == 0 {
-                    m.remove(k);
+        for (i, on) in self.counted.iter().enumerate() {
+            if *on {
+                let mut m = self.map(i).lock().unwrap();
+                if let Some(n) = m.get_mut(&self.key) {
+                    *n -= 1;
+                    if *n == 0 {
+                        m.remove(&self.key);
+                    }
                 }
             }
         }
@@ -167,8 +242,15 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
         Some(files) => Some(Arc::new(crate::tls::ServerTls::load(files.clone())?)),
         None => None,
     };
+    if cfg.log_max_entries == 0 {
+        return Err("log_max_entries must be at least 1".into());
+    }
     let store = Store::open(&cfg.db)?;
     let mut hub = Hub::new(store, cfg.identity.clone());
+    hub.log_max_entries = cfg.log_max_entries;
+    hub.log_max_age_secs = cfg.log_max_age_secs;
+    hub.target_file = cfg.target_file.clone();
+    hub.refresh_target();
     hub.ident = Identifier::with_allowlist(cfg.identity.clone(), cfg.allow_users.clone());
     hub.tls = tls.clone();
     let hub = Arc::new(hub);
@@ -313,19 +395,13 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
             return;
         }
     };
-    let _caps = CapGuard {
-        hub: hub.clone(),
-        key: caps.iter().any(|c| c == CAP_DELEGATION).then(|| {
-            *hub.delegating
-                .lock()
-                .unwrap()
-                .entry(peer.key())
-                .or_default() += 1;
-            peer.key()
-        }),
-    };
-    // Subscribe before reading the log so nothing falls between replay and live.
+    let _caps = CapGuard::new(&hub, peer.key(), &caps);
+    // Subscribe before reading the log and the target so nothing falls between replay and live.
     let mut rx = hub.tx.subscribe();
+    let mut target_rx = caps
+        .iter()
+        .any(|c| c == CAP_UPDATE)
+        .then(|| hub.target_tx.subscribe());
     let (head, cursor) = {
         let st = hub.store.lock().unwrap();
         (
@@ -339,7 +415,12 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
             user: peer.user.clone(),
             machine: peer.machine.clone(),
             head,
-            caps: vec![CAP_DELEGATION.to_string()],
+            caps: vec![
+                CAP_DELEGATION.to_string(),
+                CAP_TEAM_LOG.to_string(),
+                CAP_UPDATE.to_string(),
+            ],
+            target: hub.target.lock().unwrap().clone(),
         },
     );
     let mut last = resume_point(from, cursor, head);
@@ -381,6 +462,19 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
                 },
                 Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
                 Some(Ok(_)) => {}
+            },
+            t = async {
+                match target_rx.as_mut() {
+                    Some(r) => r.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => match t {
+                Ok(commit) => { if !try_down(&out, &Down::Target { commit }) { break; } }
+                Err(broadcast::error::RecvError::Lagged(_)) => {
+                    let commit = hub.target.lock().unwrap().clone();
+                    if !try_down(&out, &Down::Target { commit }) { break; }
+                }
+                Err(broadcast::error::RecvError::Closed) => target_rx = None,
             },
             k = kick.recv() => {
                 if let Ok(m) = k {
@@ -482,6 +576,13 @@ fn check_contract(c: &mut Contract) -> Result<(), String> {
     if c.text.trim().is_empty() || c.text.len() > MAX_BODY {
         return Err(format!("task text must be 1 to {MAX_BODY} bytes"));
     }
+    if !c.reference.is_empty()
+        && (c.reference.len() > 300
+            || !c.reference.starts_with("https://")
+            || !c.reference.chars().all(|x| x.is_ascii_graphic()))
+    {
+        return Err("invalid ref".into());
+    }
     if c.spec.chars().count() > 1000 || c.exit.chars().count() > 1000 {
         return Err("spec and exit are limited to 1000 characters".into());
     }
@@ -518,12 +619,86 @@ impl Hub {
             endpoint: std::sync::OnceLock::new(),
             tls: None,
             delegating: Mutex::new(HashMap::new()),
+            logging: Mutex::new(HashMap::new()),
+            updating: Mutex::new(HashMap::new()),
+            log_max_entries: DEFAULT_LOG_MAX_ENTRIES,
+            log_max_age_secs: DEFAULT_LOG_MAX_AGE_SECS,
+            target: Mutex::new(None),
+            target_file: None,
+            target_tx: broadcast::channel(16).0,
+            daemons: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Re-read the target file; on a change, tell the connections that follow targets.
+    fn refresh_target(&self) {
+        let Some(p) = &self.target_file else { return };
+        let new = read_target(p);
+        let mut cur = self.target.lock().unwrap();
+        if *cur != new {
+            *cur = new.clone();
+            let _ = self.target_tx.send(new);
+        }
+    }
+
+    /// Write one team log row for an event `peer` authored, if its daemon advertised the
+    /// capability and the session is in a repository. Failures never fail the request.
+    #[allow(clippy::too_many_arguments)]
+    fn log_event(
+        &self,
+        e: &Event,
+        peer: &Peer,
+        kind: &str,
+        to: String,
+        to_user: String,
+        task_id: &str,
+        text: &str,
+    ) {
+        if !self.logging.lock().unwrap().contains_key(&peer.key()) {
+            return;
+        }
+        let repo = self
+            .sessions
+            .lock()
+            .unwrap()
+            .get(&e.session)
+            .map(|s| s.info.repo.clone())
+            .unwrap_or_default();
+        if repo.is_empty() {
+            return;
+        }
+        let row = LogEntry {
+            seq: e.seq,
+            ts: e.ts,
+            kind: kind.into(),
+            repo,
+            from_session: e.session.clone(),
+            from_user: e.user.clone(),
+            from_machine: e.machine.clone(),
+            to,
+            to_user,
+            task_id: task_id.into(),
+            text: text.into(),
+            data: e.data.clone(),
+        };
+        let _ = db(self
+            .store
+            .lock()
+            .unwrap()
+            .log_put(&row, self.log_max_entries));
     }
 
     /// Expire leases and presence as of `t`.
     fn sweep_once(&self, t: u64) {
+        self.refresh_target();
         let _ = self.store.lock().unwrap().expire_delegations(t);
+        if self.log_max_age_secs > 0 {
+            let _ = self
+                .store
+                .lock()
+                .unwrap()
+                .log_expire(t.saturating_sub(self.log_max_age_secs.saturating_mul(1000)));
+        }
         let expired = self.store.lock().unwrap().expire(t).unwrap_or_default();
         for l in expired {
             let _ = self.emit_lease("lease.expired", &l, json!({}));
@@ -782,7 +957,16 @@ impl Hub {
                     Target::User(u) => field("user", u)?,
                     Target::Broadcast => {}
                 }
-                let e = self.emit("msg", peer, &session, data)?;
+                let e = self.emit("msg", peer, &session, data.clone())?;
+                let (to_s, to_user) = match &to {
+                    Target::Session(s) => (
+                        format!("session:{s}"),
+                        data["to_user"].as_str().unwrap_or("").to_string(),
+                    ),
+                    Target::User(u) => (format!("user:{u}"), u.clone()),
+                    Target::Broadcast => ("all".to_string(), String::new()),
+                };
+                self.log_event(&e, peer, "msg", to_s, to_user, "", &body);
                 Ok(json!({"seq": e.seq}))
             }
             Request::MsgRead { session, seq } => {
@@ -962,6 +1146,7 @@ impl Hub {
                 }
                 let data = json!({"to": to, "to_user": owner.user, "to_machine": owner.machine,
                     "repo": repo, "contract": contract});
+                let (log_to, log_user) = (format!("session:{to}"), owner.user.clone());
                 let row = Delegation {
                     info: DelegationInfo {
                         from_session: session.clone(),
@@ -982,6 +1167,16 @@ impl Hub {
                 let mut st = self.store.lock().unwrap();
                 let (e, _) = db(st.delegate(t, &peer.user, &peer.machine, &session, data, row))?;
                 let _ = self.tx.send(e.clone());
+                drop(st);
+                self.log_event(
+                    &e,
+                    peer,
+                    "request",
+                    log_to,
+                    log_user,
+                    &contract.task_id,
+                    &contract.text,
+                );
                 Ok(json!({"seq": e.seq}))
             }
             Request::DelegateAck {
@@ -1026,16 +1221,26 @@ impl Hub {
                         json!({"via": "delegation", "from": a.info.from_session}),
                     )?;
                 }
-                self.emit(
+                let reason = text::plain(&reason, MAX_SUMMARY);
+                let e = self.emit(
                     "delegation.ack",
                     peer,
                     &session,
                     json!({"request": request, "to": a.info.from_session,
                         "to_user": a.info.from_user, "to_machine": a.info.from_machine,
                         "task_id": a.info.task_id, "accept": accept, "status": a.info.status,
-                        "level": a.info.level, "reason": text::plain(&reason, MAX_SUMMARY),
+                        "level": a.info.level, "reason": reason,
                         "scopes": a.paths}),
                 )?;
+                self.log_event(
+                    &e,
+                    peer,
+                    "ack",
+                    format!("session:{}", a.info.from_session),
+                    a.info.from_user.clone(),
+                    &a.info.task_id,
+                    &reason,
+                );
                 Ok(
                     json!({"fresh": true, "status": a.info.status, "level": a.info.level,
                     "leases": a.granted}),
@@ -1070,7 +1275,7 @@ impl Hub {
                         json!({"reason": "delegation finished"}),
                     )?;
                 }
-                self.emit(
+                let e = self.emit(
                     "delegation.result",
                     peer,
                     &session,
@@ -1079,6 +1284,80 @@ impl Hub {
                         "task_id": d.info.task_id, "status": status, "summary": summary,
                         "fields": fields}),
                 )?;
+                self.log_event(
+                    &e,
+                    peer,
+                    "result",
+                    format!("session:{}", d.info.from_session),
+                    d.info.from_user.clone(),
+                    &d.info.task_id,
+                    &summary,
+                );
+                Ok(json!({}))
+            }
+            Request::Log { session, query } => {
+                self.own(peer, &session)?;
+                let repo = self
+                    .sessions
+                    .lock()
+                    .unwrap()
+                    .get(&session)
+                    .map(|s| s.info.repo.clone())
+                    .unwrap_or_default();
+                if repo.is_empty() {
+                    return Err("not in a repository".into());
+                }
+                if let Some(k) = &query.kind {
+                    if !["msg", "request", "ack", "result"].contains(&k.as_str()) {
+                        return Err("invalid kind".into());
+                    }
+                }
+                let limit = match query.limit {
+                    0 => 50,
+                    n => n.min(200) as usize,
+                };
+                let (entries, more) =
+                    db(self.store.lock().unwrap().log_query(&repo, &query, limit))?;
+                Ok(json!({"entries": entries, "more": more}))
+            }
+            Request::DaemonStatus {
+                commit,
+                target,
+                status,
+                downgrade,
+            } => {
+                let hex = |s: &str, none: &str| match hex_only(s) {
+                    h if h.is_empty() => none.to_string(),
+                    h => h,
+                };
+                let info = DaemonInfo {
+                    user: peer.user.clone(),
+                    machine: peer.machine.clone(),
+                    commit: hex(&commit, "unknown"),
+                    target: hex(&target, ""),
+                    status: text::plain(&status, MAX_SUMMARY),
+                    ts: t,
+                    downgrade,
+                };
+                let mut m = self.daemons.lock().unwrap();
+                let changed = downgrade
+                    && m.get(&peer.key()).is_none_or(|o| {
+                        !o.downgrade
+                            || (&o.commit, &o.target, &o.status)
+                                != (&info.commit, &info.target, &info.status)
+                    });
+                if m.len() >= MAX_DAEMONS && !m.contains_key(&peer.key()) {
+                    if let Some(old) = m.iter().min_by_key(|(_, d)| d.ts).map(|(k, _)| k.clone()) {
+                        m.remove(&old);
+                    }
+                }
+                let data =
+                    json!({"commit": info.commit, "target": info.target, "status": info.status});
+                m.insert(peer.key(), info);
+                drop(m);
+                if changed {
+                    self.emit("daemon.downgrade", peer, "", data)?;
+                }
                 Ok(json!({}))
             }
             Request::Snapshot => {
@@ -1108,10 +1387,13 @@ impl Hub {
             .collect();
         sessions.sort_by_key(|s| s.since);
         let leases = db(self.store.lock().unwrap().leases(now()))?;
+        let mut daemons: Vec<DaemonInfo> = self.daemons.lock().unwrap().values().cloned().collect();
+        daemons.sort_by(|a, b| (&a.user, &a.machine).cmp(&(&b.user, &b.machine)));
         Ok(Snapshot {
             sessions,
             leases,
             delegations: vec![],
+            daemons,
         })
     }
 
@@ -1285,6 +1567,81 @@ mod tests {
     }
 
     #[test]
+    fn daemon_status_is_reduced_and_target_file_is_validated() {
+        let h = hub();
+        let a = p("alice", "ma");
+        h.handle(
+            &a,
+            Request::DaemonStatus {
+                commit: "ABC/../def0".into(),
+                target: "zz".into(),
+                status: "failed: x\nforged".into(),
+                downgrade: false,
+            },
+        )
+        .unwrap();
+        let d = &h.snapshot().unwrap().daemons[0];
+        assert_eq!((d.commit.as_str(), d.target.as_str()), ("def0", ""));
+        assert_eq!(d.status, "failed: x forged");
+        let f = std::env::temp_dir().join(format!("wh-target-{}", std::process::id()));
+        std::fs::write(&f, format!("{}\n", "a1".repeat(20))).unwrap();
+        assert_eq!(read_target(&f), Some("a1".repeat(20)));
+        std::fs::write(&f, "main").unwrap();
+        assert_eq!(read_target(&f), None);
+        let _ = std::fs::remove_file(&f);
+    }
+
+    #[test]
+    fn review_and_task_results_and_ref_are_checked() {
+        let h = hub();
+        let (a, b) = (p("alice", "ma"), p("bob", "mb"));
+        h.handle(&a, hello("s1")).unwrap();
+        h.handle(&b, hello("s2")).unwrap();
+        h.delegating.lock().unwrap().insert(b.key(), 1);
+        let mut c = contract(&[]);
+        c.reference = "http://x".into();
+        assert_eq!(
+            delegate(&h, &a, "s1", "s2", c.clone()).unwrap_err(),
+            "invalid ref"
+        );
+        c.reference = "https://example.com/pr/1".into();
+        c.kind = "review".into();
+        let seq = delegate(&h, &a, "s1", "s2", c).unwrap()["seq"]
+            .as_u64()
+            .unwrap();
+        h.handle(
+            &b,
+            Request::DelegateAck {
+                session: "s2".into(),
+                request: seq,
+                accept: true,
+                level: "scoped-instruction".into(),
+                reason: String::new(),
+                ttl_ms: 60_000,
+            },
+        )
+        .unwrap();
+        let result = |fields: Value| {
+            h.handle(
+                &b,
+                Request::DelegateResult {
+                    session: "s2".into(),
+                    request: seq,
+                    status: "done".into(),
+                    summary: "ok".into(),
+                    fields: fields.as_object().unwrap().clone(),
+                },
+            )
+        };
+        let bad = result(
+            json!({"verdict": "approve", "findings": [{"severity": "high", "location": "a b:3", "text": "t"}]}),
+        );
+        assert!(bad.unwrap_err().starts_with("invalid review result"));
+        assert!(result(json!({"verdict": "ship"})).is_err());
+        assert!(result(json!({"verdict": "comment", "findings": []})).is_ok());
+    }
+
+    #[test]
     fn delegation_needs_the_targets_capability_and_stays_between_two_machines() {
         let h = hub();
         let (a, b, c) = (p("alice", "ma"), p("bob", "mb"), p("carol", "mc"));
@@ -1353,6 +1710,9 @@ mod tests {
             hostnames: vec![],
             allow_users: vec![],
             tls: None,
+            log_max_entries: DEFAULT_LOG_MAX_ENTRIES,
+            log_max_age_secs: DEFAULT_LOG_MAX_AGE_SECS,
+            target_file: None,
         })
         .await
         .unwrap();
