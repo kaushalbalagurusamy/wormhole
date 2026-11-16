@@ -21,6 +21,10 @@ pub(crate) struct Open {
     pub repo: String,
     pub expires: Instant,
     pub steps_left: u64,
+    /// When it was accepted and how many bypass answers it has given, to shrink it if the
+    /// owner tightens the policy.
+    pub accepted_at: Instant,
+    pub steps_used: u64,
     /// The hub-stamped sender, to re-evaluate the policy before each bypass answer.
     pub from_user: String,
     pub from_machine: String,
@@ -183,6 +187,8 @@ pub(crate) async fn on_request(d: std::sync::Arc<Daemon>, e: Event) {
             repo: repo.clone(),
             expires: Instant::now() + Duration::from_secs(dec.ttl_secs),
             steps_left: dec.max_steps,
+            accepted_at: Instant::now(),
+            steps_used: 0,
             from_user: e.user.clone(),
             from_machine: e.machine.clone(),
         };
@@ -484,13 +490,19 @@ fn session_repo(
 
 /// May the Bash operand `tok` be touched? It is read as a path: inside the repository after
 /// symlinks are followed, not dangling, not protected, not denylisted.
-fn operand_ok(d: &Daemon, session: &str, policy: &Policy, tok: &str) -> bool {
+fn operand_ok(d: &Daemon, session: &str, policy: &Policy, prog: &str, tok: &str) -> bool {
     let Some((_, root, cwd)) = session_repo(d, session) else {
         return false;
     };
     if tok.starts_with('/')
         || tok.split('/').any(|x| x == "..")
         || crate::repo::dangling_symlink(&cwd, tok)
+    {
+        return false;
+    }
+    // A directory can hold denied files that a recursive read would print.
+    if cwd.join(tok).is_dir()
+        && !matches!(prog, "ls" | "stat" | "realpath" | "basename" | "dirname")
     {
         return false;
     }
@@ -559,19 +571,13 @@ fn permitted(
             policy.command_allowed(&o.contract.commands, cmd).is_ok() && {
                 // Every operand is a path the contract could have named; options carry no `=`.
                 let t = delegation::tokenize(cmd).ok()?;
-                let first = usize::from(matches!(
-                    t[0].rsplit('/')
-                        .next()
-                        .unwrap_or("")
-                        .to_lowercase()
-                        .as_str(),
-                    "git" | "cargo"
-                )) + 1;
+                let prog = t[0].rsplit('/').next().unwrap_or("").to_lowercase();
+                let first = usize::from(matches!(prog.as_str(), "git" | "cargo")) + 1;
                 t[first.min(t.len())..].iter().all(|x| {
                     if x.starts_with('-') {
                         !x.contains('=')
                     } else {
-                        operand_ok(d, session, policy, x)
+                        operand_ok(d, session, policy, &prog, x)
                     }
                 })
             }
@@ -612,35 +618,38 @@ pub(crate) async fn bypass(
     let Ok(policy) = Policy::load(path) else {
         return out;
     };
-    // The owner may have narrowed the policy since acceptance: a contract the file no longer
-    // grants at its level closes now.
-    let stale: Vec<Open> = d
-        .deleg
-        .lock()
-        .unwrap()
-        .get(session)
-        .map(|v| {
-            v.iter()
-                .filter(|o| {
-                    let dec = policy.evaluate(&o.from_user, &o.from_machine, &o.repo, &o.contract);
-                    !(dec.accepted && dec.level >= o.level)
-                })
-                .cloned()
-                .collect()
-        })
-        .unwrap_or_default();
-    for o in &stale {
-        let gone = {
-            let mut m = d.deleg.lock().unwrap();
-            let g = m
-                .get_mut(session)
-                .and_then(|v| v.iter().position(|x| x.seq == o.seq).map(|i| v.remove(i)));
-            remove_if_empty(&mut m, session);
-            g
-        };
-        if let Some(g) = gone {
-            closed(d, session, &g, "the policy no longer grants it");
+    // The owner may have narrowed the policy since acceptance. A contract the file no longer
+    // grants at its level closes; one it still grants is cut to the new time and step limits,
+    // and closes if either is already used up.
+    let closing: Vec<(Open, &str)> = {
+        let mut m = d.deleg.lock().unwrap();
+        let now = Instant::now();
+        let mut out = Vec::new();
+        if let Some(v) = m.get_mut(session) {
+            let mut keep = Vec::new();
+            for mut o in v.drain(..) {
+                let dec = policy.evaluate(&o.from_user, &o.from_machine, &o.repo, &o.contract);
+                if !(dec.accepted && dec.level >= o.level) {
+                    out.push((o, "the policy no longer grants it"));
+                    continue;
+                }
+                o.expires = o
+                    .expires
+                    .min(o.accepted_at + Duration::from_secs(dec.ttl_secs));
+                o.steps_left = o.steps_left.min(dec.max_steps.saturating_sub(o.steps_used));
+                if o.expires <= now || o.steps_left == 0 {
+                    out.push((o, "policy tightened"));
+                } else {
+                    keep.push(o);
+                }
+            }
+            *v = keep;
         }
+        remove_if_empty(&mut m, session);
+        out
+    };
+    for (o, why) in &closing {
+        closed(d, session, o, why);
     }
     let open: Vec<Open> = d
         .deleg
@@ -672,6 +681,7 @@ pub(crate) async fn bypass(
             .filter(|x| x.steps_left > 0)
             .map(|x| {
                 x.steps_left -= 1;
+                x.steps_used += 1;
                 x.steps_left
             });
         left

@@ -120,6 +120,9 @@ pub const DEFAULT_SAFE_PROGRAMS: &[&str] = &[
 
 /// The only git subcommands a pattern may name, and the only options a git command may carry.
 pub const GIT_SUBCOMMANDS: &[&str] = &["status", "log", "diff", "show"];
+/// While the denylist is on, only `status`: `log`, `diff` and `show` can print the contents of
+/// a denied path (`git show HEAD:secrets/x`) whatever the operands pass.
+pub const GIT_SUBCOMMANDS_DENYLIST_ON: &[&str] = &["status"];
 pub const GIT_OPTIONS: &[&str] = &[
     "--oneline",
     "--stat",
@@ -334,7 +337,7 @@ impl Policy {
                 }
             }
             for x in g.commands.iter().filter(|x| *x != "*") {
-                pattern_words_with(&safe, x)
+                pattern_words_with(&safe, deny.is_some(), x)
                     .map_err(|e| format!("grant {n}: command {x:?}: {e}"))?;
             }
             grants.push(Grant {
@@ -499,7 +502,7 @@ impl Policy {
     /// Words of a command pattern: literal words and an optional final `*`. Valid only for
     /// a literal safe program with no config or exec option.
     pub fn pattern_words(&self, pattern: &str) -> Result<Vec<String>, String> {
-        pattern_words_with(&self.safe, pattern)
+        pattern_words_with(&self.safe, self.deny.is_some(), pattern)
     }
 
     /// Does `command` match one of the exact argv `patterns`, argv[0] included? The raw
@@ -511,7 +514,7 @@ impl Policy {
             return Err("quotes, backslashes, glob characters and ~ are not allowed".into());
         }
         let t = tokenize(command)?;
-        if let Some(o) = unsafe_option(&t) {
+        if let Some(o) = unsafe_option(&t, self.deny.is_some()) {
             return Err(format!("unsafe option or subcommand: {o}"));
         }
         let hit = patterns
@@ -737,10 +740,17 @@ const NO_RAW: &[char] = &['\'', '"', '\\', '*', '?', '[', ']', '{', '}', '~'];
 
 /// `git` and `cargo` run code named by their options and configuration, so they are usable
 /// only as `<program> <literal subcommand> [listed options]...`.
-fn unsafe_option(tokens: &[String]) -> Option<String> {
+fn unsafe_option(tokens: &[String], deny_on: bool) -> Option<String> {
     let (subs, opts) = match base_name(&tokens[0]).to_lowercase().as_str() {
+        "git" if deny_on => (GIT_SUBCOMMANDS_DENYLIST_ON, GIT_OPTIONS),
         "git" => (GIT_SUBCOMMANDS, GIT_OPTIONS),
-        "cargo" => (CARGO_SUBCOMMANDS, CARGO_OPTIONS),
+        // A `+toolchain` anywhere picks another toolchain.
+        "cargo" => {
+            if let Some(t) = tokens.iter().find(|t| t.starts_with('+')) {
+                return Some(t.clone());
+            }
+            (CARGO_SUBCOMMANDS, CARGO_OPTIONS)
+        }
         _ => return None,
     };
     match tokens.get(1) {
@@ -757,7 +767,11 @@ fn unsafe_option(tokens: &[String]) -> Option<String> {
         .cloned()
 }
 
-fn pattern_words_with(safe: &[String], pattern: &str) -> Result<Vec<String>, String> {
+fn pattern_words_with(
+    safe: &[String],
+    deny_on: bool,
+    pattern: &str,
+) -> Result<Vec<String>, String> {
     // A final whole `*` word is the one wildcard a pattern has.
     let t = pattern.trim_end();
     let (body, star) = match t.strip_suffix('*') {
@@ -772,7 +786,7 @@ fn pattern_words_with(safe: &[String], pattern: &str) -> Result<Vec<String>, Str
     if !name_ok || !(DEFAULT_SAFE_PROGRAMS.contains(&program.as_str()) || safe.contains(program)) {
         return Err(format!("{program:?} is not a safe program"));
     }
-    if let Some(o) = unsafe_option(&w) {
+    if let Some(o) = unsafe_option(&w, deny_on) {
         return Err(format!("unsafe option or subcommand: {o}"));
     }
     if star {
@@ -1226,9 +1240,21 @@ mod tests {
         // git is usable only when the owner adds it, and only with listed subcommands and options.
         assert!(pol.pattern_words("git status").is_err());
         let git = Policy::parse(r#"{"safe_programs":["git"],"grants":[]}"#).unwrap();
-        assert!(git.pattern_words("git log --oneline").is_ok());
-        assert!(git.pattern_words("git log --attr-source").is_err());
-        assert!(git.pattern_words("git log *").is_ok());
+        assert!(git.pattern_words("git status --short").is_ok());
+        assert!(git.pattern_words("git status --attr-source").is_err());
+        // With the denylist on, git is `status` only: log, diff and show can print denied files.
+        assert!(git.pattern_words("git status --short").is_ok());
+        for sub in ["log", "diff", "show"] {
+            assert!(git.pattern_words(&format!("git {sub}")).is_err(), "{sub}");
+            assert!(git.command_allowed(&[], &format!("git {sub}")).is_err());
+        }
+        let off = Policy::parse(
+            r#"{"safe_programs":["git","cargo"],"denylist":{"enabled":false},"grants":[]}"#,
+        )
+        .unwrap();
+        assert!(off.pattern_words("git log *").is_ok() && off.pattern_words("git show").is_ok());
+        assert!(off.pattern_words("cargo +nightly test").is_err());
+        assert!(off.pattern_words("cargo test +x").is_err());
         let more = Policy::parse(r#"{"safe_programs":["make"],"grants":[]}"#).unwrap();
         assert!(more.safe_program("make") && !more.safe_program("MAKE"));
         assert!(more
