@@ -279,3 +279,69 @@ during acceptance, kill switch. No model calls are made, so there are no LLM tra
 
 `tests/delegation.rs`, `tests/delegation_policy.rs`, `tests/delegation_compat.rs`, `tests/fixtures/`. The test
 author may add helpers to `tests/common/mod.rs`; the implementer may read `tests/common/mod.rs`.
+
+## Amendment 1 (2026-11-15, from security review findings; supersedes the parts of C rule 7 and D it names)
+
+Findings: (S1, high) the path denylist could be passed by a wildcard or directory contract path that is not
+itself a denied literal; (S2, medium) substring command matching is evaded by flag spellings, `+refspec`,
+quoting, environment prefixes, `sh -c` and similar. The substring list stays only as defence in depth.
+
+### S1: paths
+
+- Normalise every contract path before any check, in the hub and in the policy: strip leading `./`, collapse
+  repeated `/`, refuse `..` segments and absolute paths (already refused). A path that is empty after this, or
+  is `/`, is refused by the hub (`invalid path`).
+- Deny-glob comparisons are case-insensitive: both the glob and the path are lowercased (macOS and Windows
+  filesystems are case-insensitive, so `.ENV` is `.env`).
+- `Policy::denied_path(rel)` applies this to a concrete path. At acceptance (`evaluate`, denylist on, levels
+  above `inform`) a contract path is refused when a deny glob matches its text (so `secrets/**`, `.git/`,
+  `src/*/.env` are refused) **or** when it has no literal leading segment (its first segment contains `*`, as in
+  `**`, `*`, `*.rs`, `**/x`), since such a scope reaches every denied file. Reason names the path.
+- At tool-call time the bypass hook (both bypass levels) checks the resolved concrete path with `denied_path`
+  and gives no `allow` on a hit, whatever the contract said. This is the enforcement point; the acceptance check
+  is coarse by design (a scope such as `src/**` is accepted and `src/secrets/x` is still refused per call).
+
+### S2: commands at the bypass levels
+
+- Contract `commands` and grant `commands` are **argv prefixes**, not wildcard patterns: `"cargo test"` allows
+  `cargo test` and `cargo test --lib`, not `cargo testx` or `cargo build`. There are no wildcards in a prefix;
+  the grant value `"*"` (alone) still means any contract prefix is acceptable at acceptance time. At acceptance a
+  contract prefix must tokenise cleanly (below), must not start with a wrapper program, and must extend or equal
+  some grant prefix token by token.
+- New public function `pub fn tokenize(command: &str) -> Result<Vec<String>, String>` in `wormhole::delegation`:
+  POSIX-shell-words rules for whitespace, single quotes and double quotes (backslash escapes `"`, `\`, `$`,
+  `` ` `` inside double quotes; outside quotes a backslash escapes the next character). It returns `Err` for an
+  unterminated quote, a line break, any unquoted `;`, `&`, `|`, `<`, `>`, `(`, `)`, `` ` ``, `$`, `{`, `}`, and
+  any `$` or `` ` `` inside double quotes (substitution). Empty input is `Err`.
+- New public function `pub fn command_allowed(prefixes: &[String], command: &str) -> Result<(), String>`: `Ok` only
+  when `tokenize` succeeds, the first token does not contain `=` (no environment prefix), the program's base name
+  (after the last `/`) is not a wrapper, and the token list starts with the tokens of one of `prefixes`.
+  Wrappers (**pinned**, refused always): `sh`, `bash`, `zsh`, `dash`, `ksh`, `fish`, `csh`, `tcsh`, `eval`,
+  `exec`, `env`, `xargs`, `sudo`, `doas`, `su`, `nohup`, `time`, `command`, `builtin`, `source`, `.`, `nice`,
+  `timeout`, `watch`, `script`, `parallel`, `python`, `python3`, `perl`, `ruby`, `node`, `osascript`.
+- New public function `pub fn denied_argv(&self, command: &str) -> Option<String>` on `Policy` (module on only):
+  argv-aware destructive checks on the tokenised command. For program `git` (subcommand found after skipping
+  global options `-C <dir>`, `-c <k=v>`, `--git-dir=…`, `--work-tree=…`, `--no-pager`): `push` with any of `-f`,
+  `--force`, `--force-with-lease…`, `--force-if-includes`, `--delete`, `-d`, `--mirror`, `--prune`, a short-flag
+  cluster containing `f` or `d` (e.g. `-fu`), or a refspec starting with `+` or `:`; `branch` with `-d`, `-D`,
+  `--delete`, or a cluster containing `d`/`D`; `reset` with `--hard`; `clean` with `-f`/`--force` or a cluster
+  containing `f`; `merge`; `filter-branch`; `update-ref -d`. For `gh`: `pr merge`, `release`, `repo delete`.
+  Also programs `rm` with a cluster containing `r` and `f` (or `-r`/`-R`/`--recursive` with `-f`/`--force`),
+  `kubectl`, `terraform`, `helm`, `npm publish`, `cargo publish`, `twine upload`, `curl`, `wget`, `ssh`, `scp`,
+  `sendmail`, `mail`, `printenv`, `security`. An untokenisable command counts as denied (`Some`).
+- Bypass `Bash` rule (replaces the D rule): under `scoped-bypass`, `allow` only when `command_allowed(contract
+  commands, cmd)` is `Ok` and, with the module on, neither `denied_argv` nor `denied_command` hits. Under
+  `full-bypass` with the module on, `allow` only when `tokenize` succeeds, the program is not a wrapper, the
+  first token has no `=`, and neither deny check hits; with the module off, as before (any command). Everything
+  else gets the ordinary prompt.
+- The substring `denied_command` list remains, documented as a defence-in-depth tripwire, not a boundary.
+
+### Tests for this amendment (protected, written before the fix)
+
+`tests/delegation_amend1.rs`: tokenizer cases (quotes, escapes, every refused metacharacter, substitution in
+double quotes, unterminated quotes); `command_allowed` (prefix extension, `cargo testx`, env prefix, wrappers by
+base name such as `/bin/sh -c`, `sh -c '…'`); `denied_argv` (`git push -f`, `git push --force-with-lease`,
+`git push origin +main`, `git push origin :main`, `git -C x push -fu`, `"git" push --force`, `git branch -D x`,
+`rm -fr x`, `rm -r -f x`); `denied_path` and acceptance with `secrets/**`, `.git/`, `**`, `*.rs`, `./`, `SECRETS/x`,
+`src/.ENV`; end to end: under scoped-bypass with a `src/**` contract the hook gives no `allow` for `src/secrets/a.rs`
+and `src/.ENV`, and none for `git push -f` even with grant and contract prefix `git push`.
