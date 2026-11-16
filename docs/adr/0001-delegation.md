@@ -56,7 +56,11 @@ hooks page came back summarised, so the wording is not verbatim):
    glob characters; wrapper programs (`sh`, `env`, `xargs`, interpreters and the like) are never allowed;
    full-bypass allows only `Bash`, the edit tools and `Read`, with path, protected-path and denylist checks on
    every call while those modules are on. Exact patterns were chosen over argv prefixes because a prefix lets
-   the agent add flags the owner never saw. The user's settings deny and ask rules still win. wormhole
+   the agent add flags the owner never saw. Amendment 3 (third review) made the allowlist the boundary for
+   scoped levels: a command runs without a prompt only if it matches a contract pattern exactly and its program
+   is on a small built-in list of programs without an exec, config or alias escape (extendable in local config);
+   everything else prompts. The denylist is defence in depth. Under `full-bypass` Bash is not bounded by any
+   parser: that level is a trust decision about the sender, and the denylist there is a speed bump. The user's settings deny and ask rules still win. wormhole
    forges no approval and declares no permission relay.
 7. **Contracts end.** A contract is open from the receiver's first fresh ack until its result is posted, its TTL
    passes (capped by the grant and at 4 hours), its step budget (bypass answers) is spent, or the kill switch is

@@ -393,3 +393,68 @@ user's own Claude Code settings deny and ask rules and plan mode, which win over
 
 `tests/delegation_amend2.rs`, plus updates to the earlier delegation test files where they relied on prefix
 semantics.
+
+## Amendment 3 (2026-11-15, third security review; supersedes the Bash rules of amendments 1 and 2 for the scoped levels)
+
+Findings: unquoted `*`, `?`, `[` and a leading `~` passed `tokenize`; the wrapper check was case-sensitive (`SH`,
+`/bin/Bash`); git global options (`-c alias.x=!…`, `core.sshCommand`, `core.pager`, `--config-env`) were not
+parsed; gh flag values were counted as positionals (`-R owner/repo pr merge`); and programs that run other code
+(`find -exec`, `awk`, `make`, `npx`, `cargo --config`, `git -c`) were missing. A denylist of programs cannot be
+complete, so the design changes: **the contract's command allowlist is the boundary**, and anything outside it
+gets the normal local prompt (never a silent allow, never a silent deny).
+
+### Tokenizer (`tokenize`, tightened)
+
+In addition to the Amendment 1 refusals, `Err` for any unquoted `*`, `?`, `[`, `]`, `{`, `}`, `#` at the start of
+a token, and any token starting with an unquoted `~`.
+
+### Safe programs
+
+- `pub const DEFAULT_SAFE_PROGRAMS: &[&str]` (**pinned**): `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`,
+  `diff`, `stat`, `pwd`, `echo`, `true`, `false`, `sort`, `uniq`, `cut`, `tr`, `basename`, `dirname`,
+  `realpath`, `git`, `cargo`, `rustfmt`. They are named because their usual forms do not hand control to an
+  arbitrary program; `git` and `cargo` still run project code (hooks, build scripts, tests) and are only as safe as
+  the paths the contract lets the agent write. Deliberately absent: shells, interpreters, `env`, `xargs`, `find`,
+  `awk`, `sed`, `make`, `npx`, `npm`, `sudo`, and every wrapper in Amendment 1.
+- The policy may add programs with a top-level `"safe_programs": [...]` key (extends the defaults; names must match
+  `[A-Za-z0-9._/-]+`). Additions are the owner's call and are documented as such.
+- New method `Policy::safe_program(&self, name: &str) -> bool` (exact, case-sensitive match against defaults plus
+  additions).
+
+### Command patterns and `command_allowed` (replaces Amendment 2's definition)
+
+- Signature becomes a `Policy` method: `pub fn command_allowed(&self, patterns: &[String], command: &str) ->
+  Result<(), String>`. (The free function of the same name is removed.)
+- A pattern is valid only when it tokenises (the tightened tokenizer, except that a final whole token `*` is
+  permitted in a pattern), its first token is a literal program name in `[A-Za-z0-9._/-]+` that `safe_program`
+  accepts, and, when the program's base name is `git` or `cargo`, no token is `-c` or starts with `--config`,
+  `--exec`, `--upload-pack` or `--receive-pack`. Grant patterns are checked at load (error
+  `not a safe program` or `unsafe option`); contract patterns at acceptance (boundary refused, request becomes
+  `inform`).
+- `command_allowed` is `Ok` only when: the raw command has no quote, backslash, `*`, `?`, `[`, `]`, `{`, `}` or
+  `~`; it tokenises; and some valid pattern matches token by token, argv[0] included, exactly: equal token count
+  with every literal equal, or for a trailing `*` the literal tokens equal and one or more further tokens, none
+  starting with `-`. The git/cargo option rule applies to the command's tokens as well.
+
+### Bash at each level
+
+- `scoped-instruction`: never `allow` (unchanged).
+- `scoped-bypass`: `allow` only when `command_allowed(contract patterns, cmd)` is `Ok`. With the denylist module
+  on, `denied_argv` and `denied_command` must also return `None` (defence in depth).
+- `full-bypass`: unchanged from Amendment 2. **Bash at this level is not bounded by any parser.** It is a trust
+  decision about the sender. With the module on, the tokenizer, wrapper, `denied_argv` and `denied_command` checks
+  are a speed bump, not a guarantee.
+
+### Denylist, demoted to defence in depth
+
+`denied_argv` lowercases tokens and compares base names (`/bin/Bash` → `bash`), and skips git global options
+with their values (`-C <v>`, `-c <v>`, `--config-env=…`, `--git-dir…`, `--work-tree…`, `--namespace…`,
+`--exec-path…`, `--no-pager`, `-p`, `--paginate`, `--bare`) before finding the subcommand, treating `-c` itself
+as denied when its value names `alias.`, `core.sshcommand`, `core.pager`, `core.editor`, `core.hookspath` or
+`core.fsmonitor`; for `gh` it skips `-R <v>`, `--repo <v>`, `--hostname <v>` before reading the subcommand. Its
+tests are examples, not claims of completeness.
+
+### Tests for this amendment (protected)
+
+`tests/delegation_amend3.rs`, plus updates to earlier delegation test files that used `command_allowed` as a free
+function or relied on programs or characters now refused.
