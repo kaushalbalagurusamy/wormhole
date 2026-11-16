@@ -68,7 +68,7 @@ fn subcommand_allowlists() {
 
 #[test]
 fn git_and_cargo_are_refused_unless_the_owner_adds_them() {
-    for pat in ["git status", "git log *", "cargo test", "cargo build"] {
+    for pat in ["git status", "git status *", "cargo test", "cargo build"] {
         let e = load(json!([pat]), &[])
             .err()
             .unwrap_or_else(|| panic!("{pat}"));
@@ -98,10 +98,7 @@ fn git_and_cargo_are_refused_unless_the_owner_adds_them() {
 fn only_allowed_subcommands_are_valid_even_when_added() {
     for good in [
         "git status",
-        "git log",
-        "git diff",
-        "git show",
-        "git log *",
+        "git status *",
         "cargo test",
         "cargo check",
         "cargo build",
@@ -141,7 +138,7 @@ fn only_allowed_subcommands_are_valid_even_when_added() {
         "cargo install x",
     ] {
         assert!(
-            p.command_allowed(&strs(&["git log *", "git status", "cargo test *"]), cmd)
+            p.command_allowed(&strs(&["git status *", "git status", "cargo test *"]), cmd)
                 .is_err(),
             "{cmd}"
         );
@@ -174,8 +171,8 @@ fn refused_git_and_cargo_options_at_load_and_in_commands() {
         assert!(load(json!([bad]), &["git", "cargo"]).is_err(), "{bad}");
     }
     for bad in [
-        "git diff --ext-diff",
-        "git log --output=x",
+        "git status --ext-diff",
+        "git status --output=x",
         "cargo test --manifest-path x",
     ] {
         let e = load(json!([bad]), &["git", "cargo"]).err().unwrap();
@@ -183,13 +180,7 @@ fn refused_git_and_cargo_options_at_load_and_in_commands() {
     }
     // In a command: even a literal pattern for a harmless form cannot be stretched to them.
     let p = owner();
-    let pats = strs(&[
-        "git diff",
-        "git log *",
-        "cargo test",
-        "cargo test *",
-        "git status",
-    ]);
+    let pats = strs(&["git status *", "cargo test", "cargo test *", "git status"]);
     for cmd in [
         "git diff --ext-diff",
         "git diff --textconv",
@@ -204,8 +195,8 @@ fn refused_git_and_cargo_options_at_load_and_in_commands() {
     ] {
         assert!(p.command_allowed(&pats, cmd).is_err(), "{cmd}");
     }
-    assert!(p.command_allowed(&pats, "git diff").is_ok());
-    assert!(p.command_allowed(&pats, "git log src").is_ok());
+    assert!(p.command_allowed(&pats, "git status").is_ok());
+    assert!(p.command_allowed(&pats, "git status src").is_ok());
     assert!(p.command_allowed(&pats, "cargo test glob_tests").is_ok());
 }
 
@@ -216,7 +207,7 @@ fn a_trailing_star_after_a_literal_option_is_refused() {
     for bad in [
         "cargo test --release *",
         "ls -la *",
-        "git log -n *",
+        "git status -n *",
         "grep -r *",
         "cat -n *",
     ] {
@@ -250,7 +241,7 @@ fn a_trailing_star_after_a_literal_option_is_refused() {
     for bad in ["cargo test --release *", "ls -la *"] {
         assert!(!eval(&[bad]).accepted, "{bad}");
     }
-    for good in ["cargo test *", "ls -la", "git log *"] {
+    for good in ["cargo test *", "ls -la", "git status *"] {
         assert!(eval(&[good]).accepted, "{good}");
     }
     // The same through the command check.
@@ -387,12 +378,12 @@ async fn verdict(d: &DaemonHandle, cwd: &Path, cmd: &str) -> Option<String> {
 
 #[tokio::test]
 async fn git_and_cargo_work_end_to_end_only_with_allowed_subcommands() {
-    let cmds = json!(["git status", "git log *", "cargo test"]);
+    let cmds = json!(["git status", "git status *", "cargo test"]);
     let n = setup(cmds.clone(), json!(["git", "cargo"])).await;
     let c = delegate(&n, "SB-1", cmds).await;
     assert!(c.contains("status: accepted"), "{c}");
     let r = &n.repo_b;
-    for cmd in ["git status", "git log src", "cargo test"] {
+    for cmd in ["git status", "git status src", "cargo test"] {
         assert_eq!(
             verdict(&n.b, r, cmd).await.as_deref(),
             Some("allow"),

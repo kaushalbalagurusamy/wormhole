@@ -382,14 +382,14 @@ fn unanchored_and_denied_scopes_are_accepted_when_the_module_is_off() {
 #[test]
 fn acceptance_checks_contract_command_prefixes() {
     let mut g = grant("scoped-bypass");
-    g["commands"] = json!(["cargo test", "git log *"]);
+    g["commands"] = json!(["cargo test", "git status *"]);
     let p = policy(g.clone());
     let with = |cmds: &[&str]| {
         let mut c = contract(&["src/a.rs"]);
         c.commands = strs(cmds);
         eval(&p, &c)
     };
-    for ok in [&["cargo test"][..], &["cargo test", "git log *"], &[]] {
+    for ok in [&["cargo test"][..], &["cargo test", "git status *"], &[]] {
         let d = with(ok);
         assert!(
             d.accepted && d.level == Level::ScopedBypass,
@@ -503,11 +503,11 @@ async fn delegate(n: &Net, task: &str, extra: Value) -> Result<String, String> {
 
 #[tokio::test]
 async fn bypass_hook_checks_each_concrete_path_and_argv() {
-    let n = setup("src/**", json!(["cargo test", "git log *"])).await;
+    let n = setup("src/**", json!(["cargo test", "git status *"])).await;
     delegate(
         &n,
         "SB-1",
-        json!({"paths": ["src/**"], "exit": "done", "commands": ["cargo test", "git log *"]}),
+        json!({"paths": ["src/**"], "exit": "done", "commands": ["cargo test", "git status *"]}),
     )
     .await
     .unwrap();
@@ -525,7 +525,7 @@ async fn bypass_hook_checks_each_concrete_path_and_argv() {
         assert!(!allowed(&n.b, pre_edit(SB, &n.repo_b, f)).await, "{f}");
     }
     assert!(allowed(&n.b, pre_bash(&n.repo_b, "cargo test")).await);
-    assert!(allowed(&n.b, pre_bash(&n.repo_b, "git log src")).await);
+    assert!(allowed(&n.b, pre_bash(&n.repo_b, "git status src")).await);
     for cmd in [
         "git push -f",
         "git push --force-with-lease",

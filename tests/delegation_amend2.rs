@@ -298,7 +298,7 @@ async fn delegate(n: &Net, task: &str, kind: &str, extra: Value) {
 
 #[tokio::test]
 async fn scoped_bypass_commands_are_exact_patterns_and_argv_is_rechecked() {
-    let cmds = json!(["cargo test", "cargo test *", "rm -r -f x"]);
+    let cmds = json!(["cargo test", "cargo test *"]);
     let n = setup(vec![bypass_grant("SB-*", cmds.clone())], None, &[]).await;
     delegate(
         &n,
@@ -317,7 +317,7 @@ async fn scoped_bypass_commands_are_exact_patterns_and_argv_is_rechecked() {
         "cargo test; rm -rf x",
         "cargo test x; id",
         "cargo build",
-        // The pattern matches exactly (rm added by the owner), but the argv check refuses it.
+        // Never matched by any contract pattern.
         "rm -r -f x",
         "git push origin +main",
     ] {

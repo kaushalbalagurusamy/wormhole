@@ -168,9 +168,9 @@ fn unsafe_programs_in_grant_patterns_are_refused_at_load() {
 fn unsafe_options_in_git_and_cargo_grant_patterns_are_refused_at_load() {
     for bad in [
         "git status -c x",
-        "git log --exec-path=x",
-        "git log --upload-pack=x",
-        "git show --receive-pack=x",
+        "git status --exec-path=x",
+        "git status --upload-pack=x",
+        "git status --receive-pack=x",
         "cargo test --config x",
         "cargo build --config-env=x",
     ] {
@@ -190,7 +190,7 @@ fn unsafe_options_in_git_and_cargo_grant_patterns_are_refused_at_load() {
     }
     for good in [
         "git status",
-        "git log *",
+        "git status *",
         "cargo test",
         "cargo test *",
         "ls *",

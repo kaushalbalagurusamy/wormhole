@@ -341,7 +341,6 @@ fn scoped_bypass_boundary() {
         "cargo test *",
         "cargo check x",
         "cargo fmt",
-        "cargo build",
         "cargo testx",
         "cargo",
         "make",

@@ -375,11 +375,11 @@ async fn scoped_bypass_command_pattern_cannot_reach_a_denylisted_command() {
         "SBX-1",
         "fix",
         "run anything harmless",
-        json!({"paths": ["src/**"], "commands": ["git status", "git log *"], "exit": "done"}),
+        json!({"paths": ["src/**"], "commands": ["git status", "git status *"], "exit": "done"}),
     )
     .await;
     assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git status")).await);
-    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git log src")).await);
+    assert!(allowed(&n.b, pre_bash(SB, &n.repo_b, "git status src")).await);
     for cmd in [
         "git push --force",
         "GIT  PUSH  -F origin",

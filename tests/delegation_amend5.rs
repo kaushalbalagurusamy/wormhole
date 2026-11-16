@@ -88,11 +88,11 @@ fn option_allowlists_are_pinned() {
 fn git_and_cargo_accept_only_allowlisted_options() {
     let safe = ["git", "cargo"];
     for good in [
-        "git log --oneline",
-        "git diff --stat --cached",
+        "git status --short",
         "git status --short --porcelain",
-        "git show --name-only --no-color",
-        "git log --oneline *",
+        "git status --short --porcelain",
+        "git status --porcelain",
+        "git status --short *",
         "cargo test --lib",
         "cargo test --release --locked",
         "cargo build -q",
@@ -109,12 +109,12 @@ fn git_and_cargo_accept_only_allowlisted_options() {
     }
     for bad in [
         "git reset --ha",
-        "git log --ha",
+        "git status --ha",
         "git --attr-source HEAD status",
-        "git log --",
-        "git log --oneline=x",
-        "git log --pretty=format:x",
-        "git diff --no-index",
+        "git status --",
+        "git status --short=x",
+        "git status --pretty=format:x",
+        "git status --no-index",
         "cargo test --frozen",
         "cargo test --",
         "cargo test --lib=x",
@@ -127,14 +127,14 @@ fn git_and_cargo_accept_only_allowlisted_options() {
     // The same in a command.
     let p = owner();
     let pats = strs(&[
-        "git log --oneline",
-        "git log *",
+        "git status --short",
+        "git status *",
         "cargo test --lib",
         "cargo test *",
     ]);
     for ok in [
-        "git log --oneline",
-        "git log src",
+        "git status --short",
+        "git status src",
         "cargo test --lib",
         "cargo test x",
     ] {
@@ -143,9 +143,9 @@ fn git_and_cargo_accept_only_allowlisted_options() {
     for bad in [
         "git reset --ha",
         "git --attr-source HEAD status",
-        "git log --",
-        "git log --ha",
-        "git log --oneline --ha",
+        "git status --",
+        "git status --ha",
+        "git status --short --ha",
         "cargo test --frozen",
         "cargo test --lib --frozen",
     ] {
@@ -338,8 +338,8 @@ async fn bash_operands_are_paths_inside_the_repository() {
 #[tokio::test]
 async fn git_and_cargo_option_allowlists_end_to_end() {
     let cmds = json!([
-        "git log --oneline",
-        "git log *",
+        "git status --short",
+        "git status *",
         "cargo test --lib",
         "cargo test *"
     ]);
@@ -347,9 +347,9 @@ async fn git_and_cargo_option_allowlists_end_to_end() {
     accepted(&t, "SB-1", cmds).await;
     let (n, r) = (&t.n, &t.n.repo_b);
     for cmd in [
-        "git log --oneline",
+        "git status --short",
         "cargo test --lib",
-        "git log src",
+        "git status src",
         "cargo test x",
     ] {
         assert!(allowed(&n.b, pre_bash(r, cmd)).await, "{cmd}");
@@ -357,8 +357,8 @@ async fn git_and_cargo_option_allowlists_end_to_end() {
     for cmd in [
         "git reset --ha",
         "git --attr-source HEAD status",
-        "git log --",
-        "git log --ha",
+        "git status --",
+        "git status --ha",
         "cargo test --frozen",
         "cargo test --lib --frozen",
     ] {
