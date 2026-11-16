@@ -306,3 +306,20 @@ machine back to a commit from before a security fix.
   commit on the branch (which `main` will contain after the merge).
 - Tests (protected, written before the fix): `tests/team_review_fixes.rs`, plus the strengthened never-allow case
   in `tests/team_log.rs` (an edit inside the foreign contract's paths).
+
+## Amendment 3 (2026-11-16, the floor must ratchet)
+
+Finding (medium, found while raising `MIN_SAFE_COMMIT`): a floor commit's own binary carries an older
+`MIN_SAFE_COMMIT` than the floor itself (a commit cannot name its own SHA). A hub could move a daemon to the floor
+commit and then, from that binary, further back, one hop at a time.
+
+- The daemon keeps a ratchet file `pub fn floors_path(bin: &Path) -> PathBuf` (`"<bin>.floors"`, mode 0600): one
+  SHA per line. When the updater starts (with `auto_update`), it adds its `min_safe` and its `floor` (if set) to the
+  file if they are not already there, keeping at most the 32 newest lines. Lines that are not `valid_commit` are
+  ignored.
+- Every SHA in the ratchet file is a minimum like `min_safe`: a target that is not a descendant of or equal to each
+  of them, or any of them missing from the clone, is refused with **pinned** `refused: below minimum safe commit`.
+  This check runs right after the `min_safe` check.
+- `wormhole update --revert` does not change the ratchet file; a local revert is the owner's own act. The hold
+  file still stops the daemon from following the hub.
+- Tests (protected, written before the fix): `tests/auto_update_ratchet.rs`.
