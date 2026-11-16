@@ -221,7 +221,7 @@ async fn request_ack_and_result_are_in_the_log_with_pinned_lines() {
         "tests",
         "REQ-TEXT-ALPHA add tests",
         json!({"paths": ["src/a/**"], "exit": "tests pass", "ref": r,
-               "result_fields": ["tests_added"]}),
+               "result_fields": ["tests_added"], "spec": "SPEC-REF-9"}),
     )
     .await
     .unwrap();
@@ -273,14 +273,27 @@ async fn request_ack_and_result_are_in_the_log_with_pinned_lines() {
     for want in ["T-LOG-1", "src/a/**", r, "tests"] {
         assert!(l.contains(want), "{want} not in {l}");
     }
+    // The other session's words (spec, exit condition) are in the quoted section only.
+    let quoted_text = |b: &(String, String)| -> String {
+        b.1.lines()
+            .filter_map(unquote)
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let q = quoted_text(&bl[0]);
+    for want in ["SPEC-REF-9", "done when:", "tests pass"] {
+        assert!(q.contains(want), "{want} not quoted in {}", bl[0].1);
+        assert!(!l.contains(want), "{want} on a daemon line: {l}");
+    }
     assert!(bl[0]
         .1
         .lines()
         .any(|l| unquote(l) == Some("REQ-TEXT-ALPHA add tests")));
     let l = own(&bl[2]);
-    for want in ["done", "tests_added"] {
-        assert!(l.contains(want), "{want} not in {l}");
-    }
+    assert!(l.contains("done"), "status not in {l}");
+    // The result's fields are the other session's words: quoted, not on a daemon line.
+    assert!(!l.contains("tests_added"), "fields on a daemon line: {l}");
+    assert!(quoted_text(&bl[2]).contains("tests_added"), "{}", bl[2].1);
     assert!(bl[2]
         .1
         .lines()

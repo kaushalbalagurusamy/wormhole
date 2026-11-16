@@ -630,7 +630,13 @@ async fn hostile_ids_cannot_put_words_in_the_daemons_voice_on_a_log_line() {
                 "forged {forged:?} in {head}\n{body}"
             );
         }
-        assert_eq!(text.matches("[wormhole log]").count(), 1, "{head}\n{body}");
+        // Every unquoted line is the daemon's own (an addressing line and at most one detail
+        // line), and the first is the addressing line.
+        assert!(
+            unquoted.iter().all(|l| l.starts_with("[wormhole log]")),
+            "{head}\n{body}"
+        );
+        assert!(unquoted.len() <= 2, "{head}\n{body}");
         // A block for another session or user says so exactly once; one for everyone says that.
         let own = if attr_of(head, "for_you").as_deref() == Some("all") {
             "Addressed to everyone"
