@@ -399,6 +399,14 @@ impl Policy {
         Ok(())
     }
 
+    /// The denylisted kinds, empty when the module is off.
+    pub fn deny_kinds(&self) -> Vec<String> {
+        self.deny
+            .as_ref()
+            .map(|d| d.kinds.clone())
+            .unwrap_or_default()
+    }
+
     /// The denylisted command pattern in `command`, if the module is on.
     pub fn denied_command(&self, command: &str) -> Option<String> {
         let d = self.deny.as_ref()?;

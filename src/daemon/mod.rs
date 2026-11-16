@@ -1,6 +1,7 @@
 //! The daemon: one per machine. Keeps one WebSocket to the hub and serves local sessions
 //! over a Unix socket and HTTP hooks on loopback.
 
+mod deleg;
 mod hooks;
 mod shrink;
 pub use hooks::{STALE_DAEMON, STALE_HUB};
@@ -113,11 +114,18 @@ pub(crate) struct Daemon {
     pub link: Link,
     pub http_port: AtomicU64,
     pub hook_token: String,
+    /// Open delegation contracts by session. In memory only, so a restart closes them.
+    pub deleg: Mutex<HashMap<String, Vec<deleg::Open>>>,
     /// Verified TLS client config for a wss:// hub.
     tls_client: Option<Arc<rustls::ClientConfig>>,
 }
 
 impl Daemon {
+    /// Did the hub's `Welcome` on the current connection list the delegation capability?
+    pub(crate) fn hub_delegates(&self) -> bool {
+        self.link.delegation.load(Ordering::SeqCst)
+    }
+
     /// One request to the hub, answered by `deadline` or `Unavailable`. If the hub has
     /// forgotten the session (it timed out while idle), register it again and retry once.
     pub async fn request(&self, req: Request, deadline: Instant) -> Result<Value, HubError> {
@@ -247,6 +255,9 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         return Err("the hook HTTP endpoint must listen on loopback".into());
     }
     let tls_client = hub_transport(&cfg)?;
+    if let Some(p) = &cfg.delegation_policy {
+        crate::delegation::Policy::load(p).map_err(|e| format!("delegation policy: {e}"))?;
+    }
     let unix = sock::bind(&cfg.socket_path)?;
     let hook_token = sock::hook_token(
         cfg.socket_path
@@ -259,6 +270,7 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         link: Link::default(),
         http_port: AtomicU64::new(0),
         hook_token: hook_token.clone(),
+        deleg: Mutex::new(HashMap::new()),
         tls_client,
     });
     let http = tokio::net::TcpListener::bind(cfg.http_listen)
@@ -266,12 +278,15 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         .map_err(|e| format!("bind {}: {e}", cfg.http_listen))?;
     let http_addr = http.local_addr().map_err(|e| e.to_string())?;
     d.http_port.store(http_addr.port() as u64, Ordering::SeqCst);
-    let tasks = vec![
+    let mut tasks = vec![
         tokio::spawn(link_loop(d.clone())),
         tokio::spawn(heartbeat(d.clone())),
         tokio::spawn(sock::serve(d.clone(), unix)),
         tokio::spawn(hooks::serve_http(d.clone(), http)),
     ];
+    if cfg.delegation_policy.is_some() {
+        tasks.push(tokio::spawn(deleg::sweep(d.clone())));
+    }
     Ok(DaemonHandle {
         http_addr,
         socket_path: cfg.socket_path,
@@ -393,13 +408,16 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
                 match frame {
                     Some(Ok(Message::Text(t))) => match serde_json::from_str::<Down>(&t) {
                         Ok(Down::Event { event }) => {
-                            let ack = {
+                            let (fresh, ack) = {
                                 let mut st = d.st.lock().unwrap();
-                                st.apply(&event);
-                                st.ack_point()
+                                (st.apply(&event), st.ack_point())
                             };
                             if let Some(seq) = ack {
                                 d.send_up(Up::Ack { seq });
+                            }
+                            // Answering needs the hub's reply, which this loop delivers.
+                            if fresh && event.kind == "delegation.request" {
+                                tokio::spawn(deleg::on_request(d.clone(), event));
                             }
                         }
                         Ok(Down::Resp { id, ok, data, error }) => {

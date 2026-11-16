@@ -2,7 +2,7 @@
 //! `wormhole hook` command. The socket lives in a directory only this user can enter, has
 //! mode 0600, and every peer's uid is checked.
 
-use super::{hooks, Daemon, HubError};
+use super::{deleg, hooks, Daemon, HubError};
 use crate::proto::*;
 use crate::text;
 use serde_json::{json, Value};
@@ -203,6 +203,13 @@ async fn op(d: &Daemon, req: &Value, tx: &mpsc::UnboundedSender<Value>) -> Resul
             st.sess(session).subs.push(sub);
             Ok(json!({}))
         }
+        "revoke" => {
+            if d.cfg.delegation_policy.is_none() {
+                return Err("this daemon has no delegation policy".into());
+            }
+            deleg::kill(d).await;
+            Ok(json!({}))
+        }
         "tool" => {
             let session = session_arg(req)?;
             if !d.st.lock().unwrap().sessions.contains_key(session) {
@@ -236,7 +243,11 @@ fn arg<'a>(args: &'a Value, k: &str) -> Result<&'a str, String> {
 /// Resolve a scope argument against the session's repo: an `area:` name, a repo-relative
 /// path or glob, or an absolute path inside the repo.
 fn scope(d: &Daemon, session: &str, args: &Value) -> Result<(String, String), String> {
-    let raw = arg(args, "scope")?.trim();
+    resolve(d, session, arg(args, "scope")?)
+}
+
+fn resolve(d: &Daemon, session: &str, raw: &str) -> Result<(String, String), String> {
+    let raw = raw.trim();
     let st = d.st.lock().unwrap();
     let s = st.sessions.get(session).ok_or("unknown session")?;
     let r = s
@@ -261,7 +272,27 @@ fn scope(d: &Daemon, session: &str, args: &Value) -> Result<(String, String), St
     Ok((r.id.clone(), sc))
 }
 
+fn strings(args: &Value, k: &str) -> Result<Vec<String>, String> {
+    match &args[k] {
+        Value::Null => Ok(vec![]),
+        Value::Array(a) => a
+            .iter()
+            .map(|v| {
+                v.as_str()
+                    .map(str::to_string)
+                    .ok_or(format!("{k} must be strings"))
+            })
+            .collect(),
+        _ => Err(format!("{k} must be an array")),
+    }
+}
+
 async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<String, String> {
+    // Checked before anything is sent: a hub that did not advertise delegation must never
+    // see a delegation frame.
+    if name == "delegate" && !d.hub_delegates() {
+        return Err("this wormhole hub does not support delegation".into());
+    }
     let deadline = Instant::now() + Duration::from_secs(5);
     d.hello(session, deadline).await.map_err(hub_err)?;
     let req = |r: Request| d.request(r, deadline);
@@ -400,6 +431,71 @@ async fn tool(d: &Daemon, session: &str, name: &str, args: &Value) -> Result<Str
             .await
             .map_err(hub_err)?;
             Ok("denied".into())
+        }
+        "delegate" => {
+            let to = arg(args, "to")?.to_string();
+            let mut paths = Vec::new();
+            let mut repo = String::new();
+            for p in strings(args, "paths")? {
+                let (r, sc) = resolve(d, session, &p)?;
+                repo = r;
+                paths.push(sc);
+            }
+            if paths.is_empty() {
+                repo =
+                    d.st.lock()
+                        .unwrap()
+                        .sessions
+                        .get(session)
+                        .and_then(|s| s.repo.as_ref().map(|r| r.id.clone()))
+                        .ok_or("this session is not in a git repository")?;
+            }
+            let contract = Contract {
+                task_id: arg(args, "task_id")?.to_string(),
+                kind: arg(args, "kind")?.to_string(),
+                spec: args["spec"].as_str().unwrap_or("").to_string(),
+                paths,
+                commands: strings(args, "commands")?,
+                exit: args["exit"].as_str().unwrap_or("").to_string(),
+                ttl_secs: args["ttl_seconds"].as_u64().unwrap_or(0),
+                max_steps: args["max_steps"].as_u64().unwrap_or(0),
+                result_fields: strings(args, "result_fields")?,
+                text: arg(args, "text")?.to_string(),
+            };
+            let v = req(Request::Delegate {
+                session: s,
+                to,
+                repo,
+                contract,
+            })
+            .await
+            .map_err(hub_err)?;
+            Ok(format!(
+                "delegation request sent (request {}); the answer arrives as a notice",
+                v["seq"]
+            ))
+        }
+        "result" => {
+            let request = args["request"]
+                .as_u64()
+                .ok_or("request must be the request id")?;
+            let status = arg(args, "status")?.to_string();
+            let fields = match &args["fields"] {
+                Value::Object(m) => m.clone(),
+                Value::Null => Default::default(),
+                _ => return Err("fields must be an object".into()),
+            };
+            req(Request::DelegateResult {
+                session: s,
+                request,
+                status: status.clone(),
+                summary: arg(args, "summary")?.to_string(),
+                fields,
+            })
+            .await
+            .map_err(hub_err)?;
+            deleg::finished(d, session, request, &status);
+            Ok("result posted".into())
         }
         "set_task" => {
             let task = text::plain(arg(args, "task")?, MAX_TASK);

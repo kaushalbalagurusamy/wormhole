@@ -1,7 +1,7 @@
 //! Claude Code hook handling, shared by the HTTP endpoint and the `wormhole hook` command.
 //! Hooks fail open: if the hub does not answer by the deadline the action goes ahead with a
-//! note that state is stale. They never return `permissionDecision: "allow"`, which would
-//! skip the user's own permission prompt.
+//! note that state is stale. `PreToolUse` returns `permissionDecision: "allow"` only under an
+//! open bypass contract the receiving owner granted (`deleg::bypass`), never otherwise.
 
 use super::{Daemon, HubError};
 use crate::proto::*;
@@ -18,7 +18,7 @@ use std::time::Instant;
 pub const STALE_HUB: &str = "[wormhole] Coordination state is stale: the wormhole hub did not answer, so leases were not checked and other sessions' recent activity may be missing. The action was not blocked.";
 pub const STALE_DAEMON: &str = "[wormhole] Coordination state is stale: the local wormhole daemon did not answer, so other sessions' work and leases are unknown. The action was not blocked.";
 
-const EDIT_TOOLS: &[&str] = &["Edit", "Write", "MultiEdit", "NotebookEdit"];
+pub(super) const EDIT_TOOLS: &[&str] = &["Edit", "Write", "MultiEdit", "NotebookEdit"];
 
 pub(crate) async fn serve_http(d: Arc<Daemon>, l: tokio::net::TcpListener) {
     let app = axum::Router::new()
@@ -265,7 +265,7 @@ pub(crate) fn take_inbox(d: &Daemon, session: &str) -> String {
 
 /// Repo id and repo-relative path for an edit-like tool input, resolved through symlinks
 /// and `..`; `None` when the file is outside the repository.
-fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String)> {
+pub(super) fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String)> {
     let ti = &input["tool_input"];
     let file = ti["file_path"]
         .as_str()
@@ -280,11 +280,18 @@ fn tool_path(d: &Daemon, session: &str, input: &Value) -> Option<(String, String
     // Cleaned once here so the lease check, the protection check and the reported activity
     // all use the same path. One over MAX_FIELD comes back uncleaned (cleaning would cut it
     // to a different, shorter path) for the caller to refuse.
-    Some((id, if rel.len() <= MAX_FIELD { text::plain(&rel, MAX_FIELD) } else { rel }))
+    Some((
+        id,
+        if rel.len() <= MAX_FIELD {
+            text::plain(&rel, MAX_FIELD)
+        } else {
+            rel
+        },
+    ))
 }
 
 /// Protected-glob match; case-insensitive where the repository's filesystem is.
-fn is_protected(d: &Daemon, session: &str, rel: &str) -> bool {
+pub(super) fn is_protected(d: &Daemon, session: &str, rel: &str) -> bool {
     let ci =
         d.st.lock()
             .unwrap()
@@ -332,6 +339,8 @@ fn held_text(l: &LeaseInfo, rel: &str, repo: &str, protected: bool, lost: Option
     t
 }
 
+/// The lease check and its warnings, then, only under an open bypass contract the receiving
+/// owner granted, an `allow` (see `deleg::bypass`). Without one the output is the check's.
 async fn pre_tool_use(
     d: &Daemon,
     session: &str,
@@ -339,9 +348,21 @@ async fn pre_tool_use(
     hub_ok: bool,
     deadline: Instant,
 ) -> Value {
+    let (out, granted) = lease_check(d, session, input, hub_ok, deadline).await;
+    super::deleg::bypass(d, session, input, out, granted, hub_ok).await
+}
+
+/// The output and whether the lease step ended with the path held by this session.
+async fn lease_check(
+    d: &Daemon,
+    session: &str,
+    input: &Value,
+    hub_ok: bool,
+    deadline: Instant,
+) -> (Value, bool) {
     let tool = input["tool_name"].as_str().unwrap_or("");
     if !EDIT_TOOLS.contains(&tool) {
-        return json!({});
+        return (json!({}), false);
     }
     // The repository comes from the session's cwd only; outside one no path is ever checked.
     let in_repo =
@@ -351,7 +372,7 @@ async fn pre_tool_use(
             .get(session)
             .is_some_and(|s| s.repo.is_some());
     if !in_repo {
-        return json!({});
+        return (json!({}), false);
     }
     let ti = &input["tool_input"];
     // A path over 4 KiB reaches here blanked by `shrink`.
@@ -366,20 +387,23 @@ async fn pre_tool_use(
         tool_path(d, session, input)
     };
     if path.is_none() && !blank {
-        return json!({});
+        return (json!({}), false);
     }
     if !hub_ok {
-        return output("PreToolUse", STALE_HUB);
+        return (output("PreToolUse", STALE_HUB), false);
     }
     let Some((repo_id, rel)) = path.filter(|(_, rel)| rel.len() <= MAX_FIELD) else {
         // Deny only if the hub answers now: `hub_ok` can be a cached registration.
         let beat = Request::Heartbeat {
             session: session.into(),
         };
-        return match d.request(beat, deadline).await {
-            Err(HubError::Unavailable) => output("PreToolUse", STALE_HUB),
-            _ => refusal("The file path was too long to check."),
-        };
+        return (
+            match d.request(beat, deadline).await {
+                Err(HubError::Unavailable) => output("PreToolUse", STALE_HUB),
+                _ => refusal("The file path was too long to check."),
+            },
+            false,
+        );
     };
     let protected = is_protected(d, session, &rel);
     let ttl_ms = d.cfg.lease_ttl.as_millis() as u64;
@@ -395,8 +419,8 @@ async fn pre_tool_use(
             ttl_ms,
         };
         match d.request(renew, deadline).await {
-            Ok(_) => return json!({}),
-            Err(HubError::Unavailable) => return output("PreToolUse", STALE_HUB),
+            Ok(_) => return (json!({}), true),
+            Err(HubError::Unavailable) => return (output("PreToolUse", STALE_HUB), false),
             Err(HubError::Rejected(_)) => {
                 d.st.lock().unwrap().sess(session).tokens.remove(&key);
                 lost = Some(token);
@@ -410,10 +434,13 @@ async fn pre_tool_use(
         ttl_ms,
     };
     match d.request(acquire, deadline).await {
-        Err(HubError::Unavailable) => output("PreToolUse", STALE_HUB),
-        Err(HubError::Rejected(e)) => output(
-            "PreToolUse",
-            &format!("[wormhole] Lease check failed: {}", text::one_line(&e, 200)),
+        Err(HubError::Unavailable) => (output("PreToolUse", STALE_HUB), false),
+        Err(HubError::Rejected(e)) => (
+            output(
+                "PreToolUse",
+                &format!("[wormhole] Lease check failed: {}", text::one_line(&e, 200)),
+            ),
+            false,
         ),
         Ok(v) => match serde_json::from_value::<LeaseResult>(v) {
             Ok(LeaseResult::Granted { lease }) => {
@@ -422,7 +449,7 @@ async fn pre_tool_use(
                     .sess(session)
                     .tokens
                     .insert(key, lease.token);
-                match lost {
+                let out = match lost {
                     // Fencing: the old token was rejected; say so even though the path was free.
                     Some(old) => output(
                         "PreToolUse",
@@ -432,11 +459,12 @@ async fn pre_tool_use(
                         ),
                     ),
                     None => json!({}),
-                }
+                };
+                (out, true)
             }
             Ok(LeaseResult::Held { lease }) => {
                 let t = held_text(&lease, &rel, &repo_id, protected, lost);
-                if protected {
+                let out = if protected {
                     json!({"hookSpecificOutput": {
                         "hookEventName": "PreToolUse",
                         "permissionDecision": "deny",
@@ -444,9 +472,10 @@ async fn pre_tool_use(
                     }})
                 } else {
                     output("PreToolUse", &t)
-                }
+                };
+                (out, false)
             }
-            Err(_) => json!({}),
+            Err(_) => (json!({}), false),
         },
     }
 }
@@ -601,6 +630,32 @@ pub(crate) async fn who_text(
             elsewhere.len()
         ));
     }
+    let mine: Vec<String> = snap
+        .delegations
+        .iter()
+        .filter(|x| x.from_session == session || x.to_session == session)
+        .map(|x| {
+            let (arrow, other) = if x.from_session == session {
+                ("to", &x.to_session)
+            } else {
+                ("from", &x.from_session)
+            };
+            let level = if x.level.is_empty() {
+                String::new()
+            } else {
+                format!(", level {}", one(&x.level))
+            };
+            format!(
+                "- request {}: task {} ({}) {arrow} session {}: {}{level}\n",
+                x.seq,
+                one(&x.task_id),
+                one(&x.kind),
+                one(other),
+                one(&x.status)
+            )
+        })
+        .collect();
+    lines("Delegations:\n", mine, &mut body);
     body.push_str("Edits to a leased path get a warning naming the holder. The wormhole_* tools (send, lease, request_transfer) are available if the wormhole MCP server is configured.");
     let block = text::block(
         "wormhole-state",
