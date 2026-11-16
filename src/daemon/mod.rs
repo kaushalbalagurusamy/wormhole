@@ -8,6 +8,7 @@ mod shrink;
 pub use hooks::{STALE_DAEMON, STALE_HUB};
 mod sock;
 mod state;
+mod updater;
 
 use crate::proto::*;
 use futures_util::{SinkExt, StreamExt};
@@ -45,6 +46,9 @@ pub struct DaemonConfig {
     /// Delegation policy file. With one the daemon advertises the delegation capability and
     /// decides delegated tasks from it; without, delegated tasks never reach it.
     pub delegation_policy: Option<PathBuf>,
+    /// Follow the hub's target build and replace this daemon's binary (see `crate::update`).
+    /// Without it the daemon only reports `disabled`.
+    pub auto_update: Option<crate::update::UpdateConfig>,
 }
 
 impl DaemonConfig {
@@ -60,6 +64,7 @@ impl DaemonConfig {
             reconnect_min: Duration::from_millis(250),
             extra_roots: Vec::new(),
             delegation_policy: None,
+            auto_update: None,
         }
     }
 }
@@ -109,6 +114,8 @@ pub(crate) struct Link {
     pub delegation: AtomicBool,
     /// Likewise for the team-log capability.
     pub team_log: AtomicBool,
+    /// Likewise for the update capability.
+    pub update: AtomicBool,
     /// The user the hub named in its `Welcome`, to tell which log entries are for this machine.
     pub user: Mutex<String>,
 }
@@ -121,6 +128,9 @@ pub(crate) struct Daemon {
     pub hook_token: String,
     /// Open delegation contracts by session. In memory only, so a restart closes them.
     pub deleg: Mutex<HashMap<String, Vec<deleg::Open>>>,
+    /// Hook activity, for swapping the binary only when nothing is running.
+    pub idle: Mutex<updater::Idle>,
+    pub upd: Mutex<updater::UpdState>,
     /// Verified TLS client config for a wss:// hub.
     tls_client: Option<Arc<rustls::ClientConfig>>,
 }
@@ -277,6 +287,8 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         http_port: AtomicU64::new(0),
         hook_token: hook_token.clone(),
         deleg: Mutex::new(HashMap::new()),
+        idle: Mutex::new(updater::Idle::default()),
+        upd: Mutex::new(updater::UpdState::default()),
         tls_client,
     });
     let http = tokio::net::TcpListener::bind(cfg.http_listen)
@@ -289,6 +301,7 @@ pub async fn start(cfg: DaemonConfig) -> Result<DaemonHandle, String> {
         tokio::spawn(heartbeat(d.clone())),
         tokio::spawn(sock::serve(d.clone(), unix)),
         tokio::spawn(hooks::serve_http(d.clone(), http)),
+        tokio::spawn(updater::run(d.clone())),
     ];
     if cfg.delegation_policy.is_some() {
         tasks.push(tokio::spawn(deleg::sweep(d.clone())));
@@ -367,8 +380,16 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     match tokio::time::timeout(Duration::from_secs(5), stream.next()).await {
         Ok(Some(Ok(Message::Text(t)))) => match serde_json::from_str::<Down>(&t) {
             Ok(Down::Welcome {
-                user, head, caps, ..
+                user,
+                head,
+                caps,
+                target,
+                ..
             }) => {
+                d.link
+                    .update
+                    .store(caps.iter().any(|c| c == CAP_UPDATE), Ordering::SeqCst);
+                d.set_target(target);
                 d.link
                     .delegation
                     .store(caps.iter().any(|c| c == CAP_DELEGATION), Ordering::SeqCst);
@@ -431,6 +452,7 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
                                 tokio::spawn(deleg::on_request(d.clone(), event));
                             }
                         }
+                        Ok(Down::Target { commit }) => d.set_target(commit),
                         Ok(Down::Resp { id, ok, data, error }) => {
                             if let Some(tx) = d.link.pending.lock().unwrap().remove(&id) {
                                 let _ = tx.send(if ok { Ok(data) } else { Err(error.unwrap_or_default()) });
@@ -452,6 +474,7 @@ async fn run_connection(d: &Arc<Daemon>, ws: Ws) -> bool {
     d.link.connected.store(false, Ordering::SeqCst);
     d.link.delegation.store(false, Ordering::SeqCst);
     d.link.team_log.store(false, Ordering::SeqCst);
+    d.link.update.store(false, Ordering::SeqCst);
     *d.link.out.lock().unwrap() = None;
     d.link.pending.lock().unwrap().clear();
     true

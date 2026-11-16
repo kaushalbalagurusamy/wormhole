@@ -78,6 +78,36 @@ pub(crate) struct Hub {
     updating: Mutex<HashMap<String, usize>>,
     log_max_entries: usize,
     log_max_age_secs: u64,
+    /// The commit daemons are told to run, as last read from `target_file`.
+    target: Mutex<Option<String>>,
+    target_file: Option<PathBuf>,
+    target_tx: broadcast::Sender<Option<String>>,
+    /// What each daemon last reported, by `user@machine`.
+    daemons: Mutex<HashMap<String, DaemonInfo>>,
+}
+
+/// Most daemons whose status the hub keeps; the least recently heard from is dropped first.
+const MAX_DAEMONS: usize = 500;
+
+/// The target file's content if it is exactly a full commit id (after trimming).
+fn read_target(path: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    let mut s = String::new();
+    std::fs::File::open(path)
+        .ok()?
+        .take(256)
+        .read_to_string(&mut s)
+        .ok()?;
+    let s = s.trim();
+    crate::update::valid_commit(s).then(|| s.to_string())
+}
+
+/// Keep only `[0-9a-f]`, at most 40 characters.
+fn hex_only(s: &str) -> String {
+    s.chars()
+        .filter(|c| matches!(c, '0'..='9' | 'a'..='f'))
+        .take(40)
+        .collect()
 }
 
 /// Counts a connection as capable for as long as it lives, one count per capability.
@@ -219,6 +249,8 @@ pub async fn start(cfg: HubConfig) -> Result<HubHandle, String> {
     let mut hub = Hub::new(store, cfg.identity.clone());
     hub.log_max_entries = cfg.log_max_entries;
     hub.log_max_age_secs = cfg.log_max_age_secs;
+    hub.target_file = cfg.target_file.clone();
+    hub.refresh_target();
     hub.ident = Identifier::with_allowlist(cfg.identity.clone(), cfg.allow_users.clone());
     hub.tls = tls.clone();
     let hub = Arc::new(hub);
@@ -364,8 +396,12 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
         }
     };
     let _caps = CapGuard::new(&hub, peer.key(), &caps);
-    // Subscribe before reading the log so nothing falls between replay and live.
+    // Subscribe before reading the log and the target so nothing falls between replay and live.
     let mut rx = hub.tx.subscribe();
+    let mut target_rx = caps
+        .iter()
+        .any(|c| c == CAP_UPDATE)
+        .then(|| hub.target_tx.subscribe());
     let (head, cursor) = {
         let st = hub.store.lock().unwrap();
         (
@@ -384,7 +420,7 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
                 CAP_TEAM_LOG.to_string(),
                 CAP_UPDATE.to_string(),
             ],
-            target: None,
+            target: hub.target.lock().unwrap().clone(),
         },
     );
     let mut last = resume_point(from, cursor, head);
@@ -426,6 +462,19 @@ async fn connection(hub: Arc<Hub>, peer: Peer, sock: WebSocket) {
                 },
                 Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
                 Some(Ok(_)) => {}
+            },
+            t = async {
+                match target_rx.as_mut() {
+                    Some(r) => r.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => match t {
+                Ok(commit) => { if !try_down(&out, &Down::Target { commit }) { break; } }
+                Err(broadcast::error::RecvError::Lagged(_)) => {
+                    let commit = hub.target.lock().unwrap().clone();
+                    if !try_down(&out, &Down::Target { commit }) { break; }
+                }
+                Err(broadcast::error::RecvError::Closed) => target_rx = None,
             },
             k = kick.recv() => {
                 if let Ok(m) = k {
@@ -574,6 +623,21 @@ impl Hub {
             updating: Mutex::new(HashMap::new()),
             log_max_entries: DEFAULT_LOG_MAX_ENTRIES,
             log_max_age_secs: DEFAULT_LOG_MAX_AGE_SECS,
+            target: Mutex::new(None),
+            target_file: None,
+            target_tx: broadcast::channel(16).0,
+            daemons: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Re-read the target file; on a change, tell the connections that follow targets.
+    fn refresh_target(&self) {
+        let Some(p) = &self.target_file else { return };
+        let new = read_target(p);
+        let mut cur = self.target.lock().unwrap();
+        if *cur != new {
+            *cur = new.clone();
+            let _ = self.target_tx.send(new);
         }
     }
 
@@ -626,6 +690,7 @@ impl Hub {
 
     /// Expire leases and presence as of `t`.
     fn sweep_once(&self, t: u64) {
+        self.refresh_target();
         let _ = self.store.lock().unwrap().expire_delegations(t);
         if self.log_max_age_secs > 0 {
             let _ = self
@@ -1255,7 +1320,32 @@ impl Hub {
                     db(self.store.lock().unwrap().log_query(&repo, &query, limit))?;
                 Ok(json!({"entries": entries, "more": more}))
             }
-            Request::DaemonStatus { .. } => Ok(json!({})),
+            Request::DaemonStatus {
+                commit,
+                target,
+                status,
+            } => {
+                let hex = |s: &str, none: &str| match hex_only(s) {
+                    h if h.is_empty() => none.to_string(),
+                    h => h,
+                };
+                let info = DaemonInfo {
+                    user: peer.user.clone(),
+                    machine: peer.machine.clone(),
+                    commit: hex(&commit, "unknown"),
+                    target: hex(&target, ""),
+                    status: text::plain(&status, MAX_SUMMARY),
+                    ts: t,
+                };
+                let mut m = self.daemons.lock().unwrap();
+                if m.len() >= MAX_DAEMONS && !m.contains_key(&peer.key()) {
+                    if let Some(old) = m.iter().min_by_key(|(_, d)| d.ts).map(|(k, _)| k.clone()) {
+                        m.remove(&old);
+                    }
+                }
+                m.insert(peer.key(), info);
+                Ok(json!({}))
+            }
             Request::Snapshot => {
                 let mut snap = self.snapshot()?;
                 snap.delegations = db(self.store.lock().unwrap().delegations_for(
@@ -1283,11 +1373,13 @@ impl Hub {
             .collect();
         sessions.sort_by_key(|s| s.since);
         let leases = db(self.store.lock().unwrap().leases(now()))?;
+        let mut daemons: Vec<DaemonInfo> = self.daemons.lock().unwrap().values().cloned().collect();
+        daemons.sort_by(|a, b| (&a.user, &a.machine).cmp(&(&b.user, &b.machine)));
         Ok(Snapshot {
             sessions,
             leases,
             delegations: vec![],
-            daemons: vec![],
+            daemons,
         })
     }
 
@@ -1458,6 +1550,30 @@ mod tests {
                 contract: c,
             },
         )
+    }
+
+    #[test]
+    fn daemon_status_is_reduced_and_target_file_is_validated() {
+        let h = hub();
+        let a = p("alice", "ma");
+        h.handle(
+            &a,
+            Request::DaemonStatus {
+                commit: "ABC/../def0".into(),
+                target: "zz".into(),
+                status: "failed: x\nforged".into(),
+            },
+        )
+        .unwrap();
+        let d = &h.snapshot().unwrap().daemons[0];
+        assert_eq!((d.commit.as_str(), d.target.as_str()), ("def0", ""));
+        assert_eq!(d.status, "failed: x forged");
+        let f = std::env::temp_dir().join(format!("wh-target-{}", std::process::id()));
+        std::fs::write(&f, format!("{}\n", "a1".repeat(20))).unwrap();
+        assert_eq!(read_target(&f), Some("a1".repeat(20)));
+        std::fs::write(&f, "main").unwrap();
+        assert_eq!(read_target(&f), None);
+        let _ = std::fs::remove_file(&f);
     }
 
     #[test]

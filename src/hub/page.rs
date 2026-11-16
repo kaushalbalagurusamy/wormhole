@@ -137,6 +137,7 @@ async fn state(
             if let Some(o) = v.as_object_mut() { o.remove("token"); }
             v
         }).collect::<Vec<_>>(),
+        "daemons": snap.daemons,
         "events": recent.iter().map(redact).collect::<Vec<_>>(),
     });
     secure(body.to_string().into_response(), "application/json")
@@ -185,6 +186,7 @@ code { font: 12px ui-monospace, monospace; } #status { opacity: .7; }
 <p id="status">loading</p>
 <h2>Sessions</h2><table id="sessions"></table>
 <h2>Leases</h2><table id="leases"></table>
+<h2>Daemons</h2><table id="daemons"></table>
 <h2>Recent events</h2><table id="events"></table>
 <script src="app.js"></script>
 </body>
@@ -221,11 +223,13 @@ function addEvent(e) {
 }
 async function load() {
   const s = await (await fetch("api/state")).json();
-  for (const id of ["sessions", "leases", "events"]) $(id).textContent = "";
+  for (const id of ["sessions", "leases", "daemons", "events"]) $(id).textContent = "";
   row($("sessions"), ["session", "who", "repo", "branch", "task", "last seen"], true);
   for (const x of s.sessions) row($("sessions"), [x.session.slice(0, 8), x.user + "@" + x.machine, x.repo, x.branch, x.task, t(x.last_seen)]);
   row($("leases"), ["scope", "repo", "holder", "since", "expires"], true);
   for (const l of s.leases) row($("leases"), [l.scope, l.repo, l.user + "@" + l.machine + " " + l.session.slice(0, 8), t(l.since), t(l.expires)]);
+  row($("daemons"), ["who", "commit", "target", "status", "reported"], true);
+  for (const x of s.daemons || []) row($("daemons"), [x.user + "@" + x.machine, (x.commit || "").slice(0, 12), (x.target || "none").slice(0, 12), x.status, t(x.ts)]);
   row(events, ["seq", "time", "who", "session", "kind", "detail"], true);
   for (const e of s.events) addEvent(e);
   $("status").textContent = "live";

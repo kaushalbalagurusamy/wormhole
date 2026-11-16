@@ -77,6 +77,27 @@ enum Cmd {
         /// each may do. Without it the daemon never receives delegated tasks.
         #[arg(long)]
         delegation_policy: Option<PathBuf>,
+        /// Follow the hub's target build: fetch, verify, build in this clone and replace this
+        /// binary, then exit with status 75 so the service manager restarts it. See ADR 0003.
+        #[arg(long, value_name = "SRC")]
+        auto_update: Option<PathBuf>,
+        /// The cargo `--auto-update` builds with.
+        #[arg(long, default_value = "cargo", requires = "auto_update")]
+        update_cargo: PathBuf,
+    },
+    /// Print the commit this binary was built from.
+    Version,
+    /// Roll the installed binary back, or let the daemon follow the hub again.
+    Update {
+        /// Swap the installed binary with its `.prev` and hold the daemon at it.
+        #[arg(long, conflicts_with = "resume")]
+        revert: bool,
+        /// Remove the hold so the daemon follows the hub's target again.
+        #[arg(long)]
+        resume: bool,
+        /// The installed binary (default ~/.wormhole/bin/wormhole).
+        #[arg(long)]
+        bin: Option<PathBuf>,
     },
     /// The delegation kill switch.
     Delegation {
@@ -186,6 +207,8 @@ async fn main() {
             lease_ttl_secs,
             tls_ca,
             delegation_policy,
+            auto_update,
+            update_cargo,
         } => {
             let mut c = daemon::DaemonConfig::new(hub, socket.unwrap_or_else(default_socket));
             c.http_listen = http;
@@ -194,6 +217,19 @@ async fn main() {
             c.lease_ttl = Duration::from_secs(lease_ttl_secs);
             c.extra_roots = tls_ca;
             c.delegation_policy = delegation_policy;
+            if let Some(src) = auto_update {
+                match std::env::current_exe() {
+                    Ok(bin) => {
+                        let mut u = wormhole::update::UpdateConfig::new(src, bin);
+                        u.cargo = update_cargo;
+                        c.auto_update = Some(u);
+                    }
+                    Err(e) => {
+                        eprintln!("wormhole: --auto-update needs the path of this binary: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            }
             match daemon::start(c).await {
                 Ok(d) => {
                     eprintln!(
@@ -206,6 +242,31 @@ async fn main() {
                     Ok(())
                 }
                 Err(e) => Err(e),
+            }
+        }
+        Cmd::Version => {
+            println!("wormhole {}", wormhole::COMMIT);
+            Ok(())
+        }
+        Cmd::Update {
+            revert,
+            resume,
+            bin,
+        } => {
+            let bin = bin.unwrap_or_else(|| {
+                default_socket()
+                    .parent()
+                    .map(|p| p.join("bin").join("wormhole"))
+                    .unwrap_or_else(|| PathBuf::from("wormhole"))
+            });
+            if revert {
+                wormhole::update::revert(&bin).map(|()| {
+                    eprintln!("wormhole: swapped in the previous binary; the daemon is held there until `wormhole update --resume`");
+                })
+            } else if resume {
+                wormhole::update::resume(&bin)
+            } else {
+                Err("pass --revert or --resume".into())
             }
         }
         Cmd::Delegation {
