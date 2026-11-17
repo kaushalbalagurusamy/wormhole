@@ -36,6 +36,20 @@ fn plausible(s: &str) -> bool {
     !s.is_empty() && s.len() <= 128 && !s.chars().any(|c| c.is_control() || c.is_whitespace())
 }
 
+/// The name `tailscale whois` gives every device shared in from another tailnet: Tailscale hides
+/// the real name, so all of a sharer's machines look alike (ADR 0004).
+pub const SHARED_PLACEHOLDER: &str = "device-of-shared-to-user";
+
+/// Like [`parse_whois`], but a shared-in device is named after its tailnet address, which the hub
+/// read from the connection itself, so it is as trustworthy as whois and stable per device.
+pub fn parse_whois_at(json: &str, ip: Option<IpAddr>) -> Option<Peer> {
+    let mut p = parse_whois(json)?;
+    if let (true, Some(ip)) = (p.machine == SHARED_PLACEHOLDER, ip) {
+        p.machine = format!("shared-{}", ip.to_string().replace(['.', ':'], "-"));
+    }
+    Some(p)
+}
+
 /// Parse `tailscale whois --json` output. Requires a node name and a login name.
 pub fn parse_whois(json: &str) -> Option<Peer> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
@@ -140,7 +154,7 @@ impl Identifier {
                 })
                 .await
                 .ok()??;
-                parse_whois(&String::from_utf8_lossy(&out))
+                parse_whois_at(&String::from_utf8_lossy(&out), Some(ip))
             }
         }
     }
@@ -165,6 +179,29 @@ mod tests {
                 machine: "laptop-a".into()
             })
         );
+    }
+
+    #[test]
+    fn a_shared_in_device_is_named_by_its_tailnet_address() {
+        let j = r#"{"Node":{"Name":"","ComputedName":"device-of-shared-to-user"},
+                   "UserProfile":{"LoginName":"bob@example.com"}}"#;
+        let ip: IpAddr = "100.113.6.5".parse().unwrap();
+        assert_eq!(
+            parse_whois_at(j, Some(ip)),
+            Some(Peer {
+                user: "bob@example.com".into(),
+                machine: "shared-100-113-6-5".into()
+            })
+        );
+        let v6: IpAddr = "fd7a:115c:a1e0::1".parse().unwrap();
+        assert_eq!(
+            parse_whois_at(j, Some(v6)).unwrap().machine,
+            "shared-fd7a-115c-a1e0--1"
+        );
+        // Without an address it keeps the placeholder, as before.
+        assert_eq!(parse_whois(j).unwrap().machine, SHARED_PLACEHOLDER);
+        // A named node is unchanged.
+        assert_eq!(parse_whois_at(WHOIS, Some(ip)).unwrap().machine, "laptop-a");
     }
 
     #[test]
