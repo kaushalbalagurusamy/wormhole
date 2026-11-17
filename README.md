@@ -15,7 +15,7 @@ Build with a current stable Rust toolchain:
     cargo build --release --locked
     export PATH="$PWD/target/release:$PATH"
 
-On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused, and with `--allow` only the named tailnet logins (or `tag:` names) are accepted.
+On the hub machine, listen on its Tailscale address only. Every connection is identified with `tailscale whois`; unidentified peers are refused, and with `--allow` only the named tailnet logins (or `tag:` names) are accepted. A device shared in from another tailnet, which whois names only `device-of-shared-to-user`, is named `shared-<tailnet address>` (ADR 0004).
 
     mkdir -m 700 -p ~/.wormhole
     wormhole hub --listen 100.64.0.1:7420 --hostname hub.your-tailnet.ts.net --db ~/.wormhole/hub.sqlite \

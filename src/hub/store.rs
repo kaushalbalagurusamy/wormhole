@@ -385,6 +385,12 @@ impl Store {
             "INSERT OR IGNORE INTO session_owners (session, user, machine) VALUES (?1, ?2, ?3)",
             [session, user, machine],
         )?;
+        // A session bound before shared-in devices got their own names moves once to the same
+        // user's named machine; after that the binding is permanent again (ADR 0004).
+        self.conn.execute(
+            "UPDATE session_owners SET machine = ?3 WHERE session = ?1 AND user = ?2 AND machine = ?4 AND ?3 <> ?4",
+            [session, user, machine, crate::hub::identity::SHARED_PLACEHOLDER],
+        )?;
         Ok(self
             .session_owner(session)?
             .is_some_and(|(u, m)| u == user && m == machine))
@@ -1021,6 +1027,41 @@ mod tests {
             Acquired::Granted { lease, .. } => lease,
             other => panic!("expected grant, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn a_shared_placeholder_session_moves_once_to_the_same_users_real_name() {
+        let mut s = Store::open_memory().unwrap();
+        let ph = crate::hub::identity::SHARED_PLACEHOLDER;
+        assert!(s.bind_session("s1", "alice@x", ph).unwrap());
+        // The same user, now named by address, takes the session over once (ADR 0004).
+        assert!(s.bind_session("s1", "alice@x", "shared-100-1-2-3").unwrap());
+        assert_eq!(
+            s.session_owner("s1").unwrap(),
+            Some(("alice@x".into(), "shared-100-1-2-3".into()))
+        );
+        // After that it is bound for good: neither another machine nor the placeholder gets it.
+        assert!(!s.bind_session("s1", "alice@x", "shared-100-9-9-9").unwrap());
+        assert!(!s.bind_session("s1", "alice@x", ph).unwrap());
+    }
+
+    #[test]
+    fn a_placeholder_session_never_moves_to_another_user() {
+        let mut s = Store::open_memory().unwrap();
+        let ph = crate::hub::identity::SHARED_PLACEHOLDER;
+        assert!(s.bind_session("s1", "alice@x", ph).unwrap());
+        assert!(!s.bind_session("s1", "bob@x", "shared-100-1-2-3").unwrap());
+        assert_eq!(
+            s.session_owner("s1").unwrap(),
+            Some(("alice@x".into(), ph.into()))
+        );
+    }
+
+    #[test]
+    fn a_named_session_stays_bound_as_before() {
+        let mut s = Store::open_memory().unwrap();
+        assert!(s.bind_session("s1", "alice@x", "laptop").unwrap());
+        assert!(!s.bind_session("s1", "alice@x", "shared-100-1-2-3").unwrap());
     }
 
     #[test]
